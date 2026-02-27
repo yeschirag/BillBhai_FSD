@@ -37,15 +37,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const usernameInput = document.getElementById('username');
     const btnLogin = document.getElementById('btnLogin');
+    const loginError = document.getElementById('loginError');
+
+    const CREDENTIALS = {
+        chirag: 'chirag1234',
+        sarthak: 'sarthak1234',
+        mohit: 'mohit1234',
+        satyam: 'satyam1234',
+        aditya: 'aditya1234',
+        admin: 'admin1234'
+    };
 
     loginForm.addEventListener('submit', e => {
         e.preventDefault();
         document.querySelectorAll('.input-group').forEach(g => g.classList.remove('error', 'shake'));
+        loginError.textContent = '';
         const u = usernameInput.value.trim(), p = passwordInput.value.trim();
         let err = false;
         if (!u) { const g = document.getElementById('usernameGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (!p) { const g = document.getElementById('passwordGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (err) return;
+        if (!Object.prototype.hasOwnProperty.call(CREDENTIALS, u) || CREDENTIALS[u] !== p) {
+            const pg = document.getElementById('passwordGroup');
+            pg.classList.add('error', 'shake');
+            pg.addEventListener('animationend', () => pg.classList.remove('shake'), { once: true });
+            loginError.textContent = 'Incorrect username or password.';
+            return;
+        }
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
             btnLogin.classList.remove('loading'); btnLogin.classList.add('success');
