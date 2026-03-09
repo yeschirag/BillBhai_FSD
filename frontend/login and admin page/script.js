@@ -1,9 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    function updateLogos() {
-        const isLight = document.body.classList.contains('light-mode');
-        const loginLogo = document.querySelector('.brand-logo-img');
-        if (loginLogo) loginLogo.src = isLight ? 'logo.png' : 'logo-dark.png';
-    }
+
 
     const subtitleEl = document.getElementById('brandSubtitle');
     const text = 'ORDER & BILLING SYSTEM';
@@ -57,15 +53,5 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('focus', () => input.closest('.input-group').classList.remove('error'));
     });
 
-    const themeToggle = document.getElementById('theme-toggle');
-    if (localStorage.getItem('billbhai-theme') === 'light') {
-        document.body.classList.add('light-mode');
-    }
-    updateLogos();
 
-    themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
-        localStorage.setItem('billbhai-theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-        updateLogos();
-    });
 });

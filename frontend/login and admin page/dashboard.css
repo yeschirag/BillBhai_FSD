@@ -35,27 +35,7 @@
     --t: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.light-mode {
-    --bg: #f5f5f7;
-    --bg-raised: #ffffff;
-    --bg-sidebar: #ffffff;
-    --bg-card: rgba(255, 255, 255, 0.9);
-    --bg-card-solid: #ffffff;
-    --bg-input: rgba(0, 0, 0, 0.04);
-    --bg-hover: rgba(0, 0, 0, 0.03);
-    --border: rgba(0, 0, 0, 0.08);
-    --border-hover: rgba(0, 0, 0, 0.12);
-    --text-primary: #1d1d1f;
-    --text-secondary: rgba(0, 0, 0, 0.55);
-    --text-muted: rgba(0, 0, 0, 0.32);
-    --accent-glow: rgba(220, 53, 69, 0.06);
-    --amber-glow: rgba(232, 168, 56, 0.06);
-    --green-bg: rgba(52, 199, 89, 0.06);
-    --red-bg: rgba(255, 69, 58, 0.06);
-    --blue-bg: rgba(100, 181, 246, 0.06);
-    --orange-bg: rgba(255, 159, 10, 0.06);
-    --purple-bg: rgba(191, 90, 242, 0.06);
-}
+
 
 *,
 *::before,
@@ -367,17 +347,7 @@ body {
     border-color: var(--border-hover)
 }
 
-.icon-btn .icon-sun {
-    display: none
-}
 
-.light-mode .icon-btn .icon-moon {
-    display: none
-}
-
-.light-mode .icon-btn .icon-sun {
-    display: block
-}
 
 .notif-dot {
     position: absolute;

@@ -18,17 +18,7 @@
     --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.light-mode {
-    --bg: #f2f0ec;
-    --bg-card: rgba(255, 255, 255, 0.7);
-    --bg-input: rgba(0, 0, 0, 0.03);
-    --border: rgba(0, 0, 0, 0.08);
-    --border-focus: rgba(220, 53, 69, 0.6);
-    --text-primary: #1a1a2e;
-    --text-secondary: rgba(0, 0, 0, 0.5);
-    --text-muted: rgba(0, 0, 0, 0.3);
-    --accent-glow: rgba(220, 53, 69, 0.08);
-}
+
 
 *,
 *::before,
@@ -94,9 +84,7 @@ body {
     animation: gd3 12s ease-in-out infinite alternate;
 }
 
-.light-mode .ambient-glow {
-    opacity: 0.25;
-}
+
 
 @keyframes gd1 {
     0% {
@@ -128,43 +116,7 @@ body {
     }
 }
 
-.theme-toggle {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 100;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: var(--text-secondary);
-    transition: var(--transition);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-}
 
-.theme-toggle:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    transform: rotate(15deg);
-}
-
-.theme-toggle .icon-sun {
-    display: none;
-}
-
-.light-mode .theme-toggle .icon-moon {
-    display: none;
-}
-
-.light-mode .theme-toggle .icon-sun {
-    display: block;
-}
 
 .login-wrapper {
     position: relative;

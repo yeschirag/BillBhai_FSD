@@ -1,23 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    function updateLogos() {
-        const isLight = document.body.classList.contains('light-mode');
-        const sidebarLogo = document.querySelector('.sidebar-brand-img');
-        if (sidebarLogo) sidebarLogo.src = isLight ? 'logo.png' : 'logo-dark.png';
-    }
+    // Logo is always dark mode
+    const sidebarLogo = document.querySelector('.sidebar-brand-img');
+    if (sidebarLogo) sidebarLogo.src = 'logo.png';
 
-    // ── THEME SYNC ────────────────────────────────────────────────────────
-    if (localStorage.getItem('billbhai-theme') === 'light') {
-        document.body.classList.add('light-mode');
-    }
-    updateLogos();
-
-    const themeToggle = document.getElementById('themeToggle');
-    themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
-        localStorage.setItem('billbhai-theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-        updateLogos();
-        updateAllCharts();
-    });
 
     // ── HEADER DROPDOWNS & SEARCH ─────────────────────────────────────────
     const notifBtn = document.getElementById('notifBtn');
@@ -76,20 +61,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     overlay.addEventListener('click', () => sidebar.classList.remove('mobile-open'));
 
-    let currentPage = 'dashboard';
+    let currentPage = document.body.getAttribute('data-page') || 'dashboard';
 
     navItems.forEach(item => {
-        item.addEventListener('click', e => {
-            e.preventDefault();
-            navItems.forEach(n => n.classList.remove('active'));
+        // Highlight active item based on current page
+        if (item.dataset.page === currentPage) {
             item.classList.add('active');
-            currentPage = item.dataset.page;
-
             const span = item.querySelector('span');
-            bcPage.textContent = span ? span.textContent : item.textContent.trim();
+            if (span && bcPage) bcPage.textContent = span.textContent;
+        } else {
+            item.classList.remove('active');
+        }
 
+        item.addEventListener('click', () => {
             if (window.innerWidth <= 768) sidebar.classList.remove('mobile-open');
-            renderPage(currentPage);
         });
     });
 
@@ -507,10 +492,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function getColors() {
-        const isLight = document.body.classList.contains('light-mode');
         return {
-            text: isLight ? '#1a1a2e' : '#f0f0f0',
-            grid: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)',
+            text: '#f0f0f0',
+            grid: 'rgba(255,255,255,0.05)',
             red: '#dc3545', amber: '#e8a838', blue: '#64b5f6', green: '#51cf66', purple: '#bf5af2'
         };
     }
@@ -583,6 +567,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPage(p); // Re-render page to cleanup and redraw charts with new colors
     }
 
-    // Init
-    renderPage('dashboard');
+    // Init - Only run chart scripts if we are on a page that needs them
+    if (currentPage === 'dashboard') {
+        initDashboardCharts();
+    } else if (currentPage === 'inventory') {
+        initInventoryCharts();
+    } else if (currentPage === 'returns') {
+        initReturnCharts();
+    } else if (currentPage === 'reports') {
+        initReportCharts();
+    }
 });
