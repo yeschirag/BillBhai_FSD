@@ -102,7 +102,7 @@
         </header>
 
         <div class="content-area" id="contentArea">
-            <div class="page-header"><h2>Orders & Billing</h2><div class="page-header-actions"><button class="btn btn-primary">+ New Order</button><button class="btn btn-outline">Export CSV</button></div></div>
+            <div class="page-header"><h2>Orders &amp; Billing</h2><div class="page-header-actions"><button class="btn btn-primary" id="newOrderBtn">+ New Order</button><button class="btn btn-outline">Export CSV</button></div></div>
             <section class="stats-grid">
                 <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div class="stat-info"><span class="stat-label">Total Orders</span><span class="stat-value">156</span></div></div>
                 <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Total Revenue</span><span class="stat-value">₹1,24,850</span></div></div>
@@ -117,7 +117,7 @@
                             <thead>
                                 <tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr>
                             </thead>
-                            <tbody>
+                            <tbody id="ordersTableBody">
                                 <tr><td class="cell-main">ORD-4821</td><td>Rahul Sharma</td><td>3</td><td>₹1,250</td><td><span class="badge b-upi">UPI</span></td><td><span class="badge b-delivered">Delivered</span></td><td>17 Feb 14:32</td></tr>
                                 <tr><td class="cell-main">ORD-4820</td><td>Priya Patel</td><td>1</td><td>₹450</td><td><span class="badge b-cash">Cash</span></td><td><span class="badge b-processing">Processing</span></td><td>17 Feb 13:45</td></tr>
                                 <tr><td class="cell-main">ORD-4819</td><td>Amit Kumar</td><td>5</td><td>₹3,200</td><td><span class="badge b-card">Card</span></td><td><span class="badge b-delivered">Delivered</span></td><td>17 Feb 12:10</td></tr>
@@ -140,6 +140,73 @@
             </section>
         </div>
     </main>
+
+    <!-- New Order Modal -->
+    <div class="modal-overlay" id="newOrderModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New Order</h3>
+                <button class="modal-close" id="orderModalClose">&times;</button>
+            </div>
+            <form id="newOrderForm" novalidate>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="orderCustomer">Customer Name *</label>
+                        <input type="text" class="form-control" id="orderCustomer" placeholder="e.g. Rahul Sharma" required>
+                        <div class="form-error">Customer name is required</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="orderId">Order ID</label>
+                            <input type="text" class="form-control" id="orderId" placeholder="Auto-generated" readonly>
+                            <div class="form-hint">Auto-generated</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="orderItems">No. of Items *</label>
+                            <input type="number" class="form-control" id="orderItems" placeholder="1" min="1" step="1" required>
+                            <div class="form-error">Enter number of items</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="orderTotal">Total Amount (₹) *</label>
+                            <input type="number" class="form-control" id="orderTotal" placeholder="0.00" min="0" step="0.01" required>
+                            <div class="form-error">Enter a valid amount</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="orderPayment">Payment Method *</label>
+                            <select class="form-control" id="orderPayment" required>
+                                <option value="">Select method</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                            </select>
+                            <div class="form-error">Select payment method</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="orderStatus">Order Status</label>
+                        <select class="form-control" id="orderStatus">
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="orderModalCancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="successToast">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span id="toastMessage">Order created successfully!</span>
+    </div>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>

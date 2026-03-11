@@ -93,16 +93,16 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const inventory = [
-        { sku: 'SKU-01', name: 'Basmati Rice', cat: 'Grocery', stock: 145, price: 380, status: 'In Stock' },
-        { sku: 'SKU-02', name: 'Toor Dal', cat: 'Grocery', stock: 230, price: 120, status: 'In Stock' },
-        { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', stock: 18, price: 155, status: 'Low Stock' },
-        { sku: 'SKU-04', name: 'Wheat Flour', cat: 'Grocery', stock: 95, price: 420, status: 'In Stock' },
-        { sku: 'SKU-05', name: 'Sugar', cat: 'Grocery', stock: 5, price: 210, status: 'Critical' },
-        { sku: 'SKU-06', name: 'Milk', cat: 'Dairy', stock: 320, price: 56, status: 'In Stock' },
-        { sku: 'SKU-07', name: 'Curd', cat: 'Dairy', stock: 85, price: 35, status: 'In Stock' },
-        { sku: 'SKU-08', name: 'Paneer', cat: 'Dairy', stock: 12, price: 80, status: 'Low Stock' },
-        { sku: 'SKU-09', name: 'Tea', cat: 'Beverages', stock: 110, price: 180, status: 'In Stock' },
-        { sku: 'SKU-10', name: 'Coffee', cat: 'Beverages', stock: 8, price: 320, status: 'Critical' }
+        { sku: 'SKU-01', name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 145, price: 380, status: 'In Stock' },
+        { sku: 'SKU-02', name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 230, price: 120, status: 'In Stock' },
+        { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 18, price: 155, status: 'Low Stock' },
+        { sku: 'SKU-04', name: 'Wheat Flour', cat: 'Grocery', supplier: 'Ashirvaad Supply', stock: 95, price: 420, status: 'In Stock' },
+        { sku: 'SKU-05', name: 'Sugar', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 5, price: 210, status: 'Critical' },
+        { sku: 'SKU-06', name: 'Milk', cat: 'Dairy', supplier: 'Mother Dairy', stock: 320, price: 56, status: 'In Stock' },
+        { sku: 'SKU-07', name: 'Curd', cat: 'Dairy', supplier: 'Amul Dist.', stock: 85, price: 35, status: 'In Stock' },
+        { sku: 'SKU-08', name: 'Paneer', cat: 'Dairy', supplier: 'Mother Dairy', stock: 12, price: 80, status: 'Low Stock' },
+        { sku: 'SKU-09', name: 'Tea', cat: 'Beverages', supplier: 'HUL Supply', stock: 110, price: 180, status: 'In Stock' },
+        { sku: 'SKU-10', name: 'Coffee', cat: 'Beverages', supplier: 'Nestle India', stock: 8, price: 320, status: 'Critical' }
     ];
 
     const deliveries = [
@@ -221,25 +221,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderOrders() {
         content.innerHTML = `
-        <div class="page-header"><h2>Orders</h2><div class="page-header-actions"><button class="btn btn-primary">New Order</button></div></div>
+        <div class="page-header"><h2>Orders</h2><div class="page-header-actions"><button class="btn btn-primary" id="newOrderBtnDyn">+ New Order</button></div></div>
         <section class="card"><div class="card-bd">${table(
             ['ID', 'Customer', 'Items', 'Total', 'Payment', 'Status', 'Date'],
             orders.map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td><td>${o.date}</td></tr>`).join('')
         )}</div></section>`;
+        const dynBtn = document.getElementById('newOrderBtnDyn');
+        if (dynBtn) dynBtn.addEventListener('click', openNewOrderModal);
     }
 
     function renderInventory() {
         content.innerHTML = `
-        <div class="page-header"><h2>Inventory</h2></div>
+        <div class="page-header"><h2>Inventory</h2><div class="page-header-actions"><button class="btn btn-primary" id="addProductBtnDyn">+ Add Product</button></div></div>
         <section class="grid-2">
              <div class="card"><div class="card-hd"><h3>Category Distribution</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invCatChart"></canvas></div></div>
              <div class="card"><div class="card-hd"><h3>Stock Levels</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invStockChart"></canvas></div></div>
         </section>
         <section class="card"><div class="card-bd">${table(
-            ['SKU', 'Product', 'Category', 'Stock', 'Unit Price', 'Status'],
-            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.stock}</td><td>₹${i.price}</td><td>${statusBadge(i.status)}</td></tr>`).join('')
+            ['SKU', 'Product', 'Category', 'Supplier', 'Stock', 'Unit Price', 'Status'],
+            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.supplier || '-'}</td><td>${i.stock}</td><td>₹${i.price}</td><td>${statusBadge(i.status)}</td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initInventoryCharts, 0);
+        // Wire up dynamic Add Product button
+        const dynBtn = document.getElementById('addProductBtnDyn');
+        if (dynBtn) dynBtn.addEventListener('click', openAddProductModal);
     }
 
     function renderDelivery() {
@@ -268,8 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderUsers() {
         content.innerHTML = `
-        <div class="page-header"><h2>Users</h2><div class="page-header-actions"><button class="btn btn-primary">Add User</button></div></div>
+        <div class="page-header"><h2>Users</h2><div class="page-header-actions"><button class="btn btn-primary" id="addUserBtnDyn">+ Add User</button></div></div>
         <section class="card"><div class="card-bd">${table(['Name', 'Role', 'Status', 'Actions'], users.map(u => `<tr><td class="cell-main">${u.name}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="renderUserProfile('${u.name}')">View</button></td></tr>`).join(''))}</div></section>`;
+        const dynBtn = document.getElementById('addUserBtnDyn');
+        if (dynBtn) dynBtn.addEventListener('click', openAddUserModal);
     }
 
     function renderUserProfile(username) {
@@ -566,6 +573,375 @@ document.addEventListener('DOMContentLoaded', () => {
         const p = currentPage;
         renderPage(p); // Re-render page to cleanup and redraw charts with new colors
     }
+
+    // ── ADD PRODUCT MODAL LOGIC ────────────────────────────────────────
+    function getNextSku() {
+        const nums = inventory.map(i => parseInt(i.sku.replace('SKU-', ''), 10));
+        // Also scan the DOM table for SKUs (handles static HTML items not in JS array)
+        const tbody = document.getElementById('inventoryTableBody');
+        if (tbody) {
+            tbody.querySelectorAll('tr td:first-child').forEach(td => {
+                const match = td.textContent.match(/SKU-(\d+)/);
+                if (match) nums.push(parseInt(match[1], 10));
+            });
+        }
+        const next = Math.max(...nums) + 1;
+        return `SKU-${String(next).padStart(2, '0')}`;
+    }
+
+    function openAddProductModal() {
+        const overlay = document.getElementById('addProductModal');
+        if (!overlay) return;
+        // Set auto-generated SKU
+        const skuInput = document.getElementById('prodSku');
+        if (skuInput) skuInput.value = getNextSku();
+        // Reset form
+        const form = document.getElementById('addProductForm');
+        if (form) {
+            form.querySelectorAll('.form-group').forEach(g => g.classList.remove('has-error'));
+            form.querySelectorAll('.form-control').forEach(c => c.classList.remove('error'));
+            document.getElementById('prodName').value = '';
+            document.getElementById('prodCategory').value = '';
+            document.getElementById('prodSupplier').value = '';
+            document.getElementById('prodPrice').value = '';
+            document.getElementById('prodStock').value = '';
+            document.getElementById('prodStatus').value = 'In Stock';
+        }
+        overlay.classList.add('active');
+    }
+
+    function closeAddProductModal() {
+        const overlay = document.getElementById('addProductModal');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('successToast');
+        const msgEl = document.getElementById('toastMessage');
+        if (!toast) return;
+        if (msgEl) msgEl.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function determineStatus(stock, selectedStatus) {
+        // Auto-determine if user left it at In Stock
+        if (selectedStatus !== 'In Stock') return selectedStatus;
+        if (stock <= 0) return 'Out of Stock';
+        if (stock <= 10) return 'Critical';
+        if (stock <= 30) return 'Low Stock';
+        return 'In Stock';
+    }
+
+    function handleAddProduct(e) {
+        e.preventDefault();
+        let valid = true;
+        const fields = [
+            { id: 'prodName', check: v => v.trim() !== '' },
+            { id: 'prodCategory', check: v => v !== '' },
+            { id: 'prodSupplier', check: v => v.trim() !== '' },
+            { id: 'prodPrice', check: v => v !== '' && parseFloat(v) >= 0 },
+            { id: 'prodStock', check: v => v !== '' && parseInt(v, 10) >= 0 }
+        ];
+
+        fields.forEach(f => {
+            const el = document.getElementById(f.id);
+            const group = el.closest('.form-group');
+            if (!f.check(el.value)) {
+                group.classList.add('has-error');
+                el.classList.add('error');
+                valid = false;
+            } else {
+                group.classList.remove('has-error');
+                el.classList.remove('error');
+            }
+        });
+
+        if (!valid) return;
+
+        const stock = parseInt(document.getElementById('prodStock').value, 10);
+        const selectedStatus = document.getElementById('prodStatus').value;
+
+        const newProduct = {
+            sku: document.getElementById('prodSku').value || getNextSku(),
+            name: document.getElementById('prodName').value.trim(),
+            cat: document.getElementById('prodCategory').value,
+            supplier: document.getElementById('prodSupplier').value.trim(),
+            price: parseFloat(document.getElementById('prodPrice').value),
+            stock: stock,
+            status: determineStatus(stock, selectedStatus)
+        };
+
+        inventory.push(newProduct);
+
+        // Update table on static page
+        const tbody = document.getElementById('inventoryTableBody');
+        if (tbody) {
+            const statusClass = newProduct.status === 'In Stock' ? 'b-active'
+                : newProduct.status === 'Low Stock' ? 'b-pending'
+                : newProduct.status === 'Critical' ? 'b-cancelled'
+                : 'b-inactive';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="cell-main">${newProduct.sku}</td><td>${newProduct.name}</td><td>${newProduct.cat}</td><td>${newProduct.supplier}</td><td>${newProduct.stock}</td><td>₹${newProduct.price}</td><td><span class="badge ${statusClass}">${newProduct.status}</span></td>`;
+            tbody.appendChild(tr);
+        }
+
+        // Re-render charts if on inventory page
+        if (currentPage === 'inventory') {
+            if (activeCharts.length) {
+                activeCharts.forEach(c => c.destroy());
+                activeCharts = [];
+            }
+            initInventoryCharts();
+        }
+
+        closeAddProductModal();
+        showToast(`Product "${newProduct.name}" added successfully!`);
+    }
+
+    // Wire up modal events
+    const modalCloseBtn = document.getElementById('modalClose');
+    const modalCancelBtn = document.getElementById('modalCancel');
+    const addProductForm = document.getElementById('addProductForm');
+    const addProductOverlay = document.getElementById('addProductModal');
+
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeAddProductModal);
+    if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeAddProductModal);
+    if (addProductForm) addProductForm.addEventListener('submit', handleAddProduct);
+    if (addProductOverlay) {
+        addProductOverlay.addEventListener('click', (e) => {
+            if (e.target === addProductOverlay) closeAddProductModal();
+        });
+    }
+
+    // Wire up static page Add Product button
+    const staticAddBtn = document.getElementById('addProductBtn');
+    if (staticAddBtn) staticAddBtn.addEventListener('click', openAddProductModal);
+
+    // Clear validation on input
+    document.querySelectorAll('#addProductForm .form-control').forEach(el => {
+        el.addEventListener('input', () => {
+            const group = el.closest('.form-group');
+            if (group) group.classList.remove('has-error');
+            el.classList.remove('error');
+        });
+    });
+
+    // ── NEW ORDER MODAL LOGIC ──────────────────────────────────────────
+    function getNextOrderId() {
+        const nums = orders.map(o => parseInt(o.id.replace('ORD-', ''), 10));
+        const tbody = document.getElementById('ordersTableBody');
+        if (tbody) {
+            tbody.querySelectorAll('tr td:first-child').forEach(td => {
+                const match = td.textContent.match(/ORD-(\d+)/);
+                if (match) nums.push(parseInt(match[1], 10));
+            });
+        }
+        const next = Math.max(...nums) + 1;
+        return `ORD-${next}`;
+    }
+
+    function formatDate() {
+        const now = new Date();
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const d = now.getDate();
+        const m = months[now.getMonth()];
+        const h = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        return `${d} ${m} ${h}:${min}`;
+    }
+
+    function openNewOrderModal() {
+        const overlay = document.getElementById('newOrderModal');
+        if (!overlay) return;
+        const idInput = document.getElementById('orderId');
+        if (idInput) idInput.value = getNextOrderId();
+        const form = document.getElementById('newOrderForm');
+        if (form) {
+            form.querySelectorAll('.form-group').forEach(g => g.classList.remove('has-error'));
+            form.querySelectorAll('.form-control').forEach(c => c.classList.remove('error'));
+            document.getElementById('orderCustomer').value = '';
+            document.getElementById('orderItems').value = '';
+            document.getElementById('orderTotal').value = '';
+            document.getElementById('orderPayment').value = '';
+            document.getElementById('orderStatus').value = 'Pending';
+        }
+        overlay.classList.add('active');
+    }
+
+    function closeNewOrderModal() {
+        const overlay = document.getElementById('newOrderModal');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    function handleNewOrder(e) {
+        e.preventDefault();
+        let valid = true;
+        const fields = [
+            { id: 'orderCustomer', check: v => v.trim() !== '' },
+            { id: 'orderItems', check: v => v !== '' && parseInt(v, 10) >= 1 },
+            { id: 'orderTotal', check: v => v !== '' && parseFloat(v) >= 0 },
+            { id: 'orderPayment', check: v => v !== '' }
+        ];
+        fields.forEach(f => {
+            const el = document.getElementById(f.id);
+            const group = el.closest('.form-group');
+            if (!f.check(el.value)) {
+                group.classList.add('has-error');
+                el.classList.add('error');
+                valid = false;
+            } else {
+                group.classList.remove('has-error');
+                el.classList.remove('error');
+            }
+        });
+        if (!valid) return;
+
+        const newOrder = {
+            id: document.getElementById('orderId').value || getNextOrderId(),
+            customer: document.getElementById('orderCustomer').value.trim(),
+            items: parseInt(document.getElementById('orderItems').value, 10),
+            total: parseFloat(document.getElementById('orderTotal').value),
+            payment: document.getElementById('orderPayment').value,
+            status: document.getElementById('orderStatus').value,
+            date: formatDate()
+        };
+
+        orders.unshift(newOrder);
+
+        const tbody = document.getElementById('ordersTableBody');
+        if (tbody) {
+            const tr = document.createElement('tr');
+            const payClass = 'b-' + newOrder.payment.toLowerCase();
+            const statusClass = newOrder.status === 'Delivered' ? 'b-delivered'
+                : newOrder.status === 'Processing' ? 'b-processing'
+                : newOrder.status === 'Pending' ? 'b-pending'
+                : 'b-cancelled';
+            tr.innerHTML = `<td class="cell-main">${newOrder.id}</td><td>${newOrder.customer}</td><td>${newOrder.items}</td><td>₹${newOrder.total.toLocaleString()}</td><td><span class="badge ${payClass}">${newOrder.payment}</span></td><td><span class="badge ${statusClass}">${newOrder.status}</span></td><td>${newOrder.date}</td>`;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        closeNewOrderModal();
+        showToast(`Order "${newOrder.id}" created successfully!`);
+    }
+
+    // Wire up New Order modal events
+    const orderModalCloseBtn = document.getElementById('orderModalClose');
+    const orderModalCancelBtn = document.getElementById('orderModalCancel');
+    const newOrderForm = document.getElementById('newOrderForm');
+    const newOrderOverlay = document.getElementById('newOrderModal');
+
+    if (orderModalCloseBtn) orderModalCloseBtn.addEventListener('click', closeNewOrderModal);
+    if (orderModalCancelBtn) orderModalCancelBtn.addEventListener('click', closeNewOrderModal);
+    if (newOrderForm) newOrderForm.addEventListener('submit', handleNewOrder);
+    if (newOrderOverlay) {
+        newOrderOverlay.addEventListener('click', (e) => {
+            if (e.target === newOrderOverlay) closeNewOrderModal();
+        });
+    }
+    const staticNewOrderBtn = document.getElementById('newOrderBtn');
+    if (staticNewOrderBtn) staticNewOrderBtn.addEventListener('click', openNewOrderModal);
+
+    document.querySelectorAll('#newOrderForm .form-control').forEach(el => {
+        el.addEventListener('input', () => {
+            const group = el.closest('.form-group');
+            if (group) group.classList.remove('has-error');
+            el.classList.remove('error');
+        });
+    });
+
+    // ── ADD USER MODAL LOGIC ──────────────────────────────────────────
+    function openAddUserModal() {
+        const overlay = document.getElementById('addUserModal');
+        if (!overlay) return;
+        const form = document.getElementById('addUserForm');
+        if (form) {
+            form.querySelectorAll('.form-group').forEach(g => g.classList.remove('has-error'));
+            form.querySelectorAll('.form-control').forEach(c => c.classList.remove('error'));
+            document.getElementById('userName').value = '';
+            document.getElementById('userEmail').value = '';
+            document.getElementById('userRole').value = '';
+            const phoneEl = document.getElementById('userPhone');
+            if (phoneEl) phoneEl.value = '';
+            document.getElementById('userStatus').value = 'Active';
+        }
+        overlay.classList.add('active');
+    }
+
+    function closeAddUserModal() {
+        const overlay = document.getElementById('addUserModal');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    function handleAddUser(e) {
+        e.preventDefault();
+        let valid = true;
+        const fields = [
+            { id: 'userName', check: v => v.trim() !== '' },
+            { id: 'userEmail', check: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) },
+            { id: 'userRole', check: v => v !== '' }
+        ];
+        fields.forEach(f => {
+            const el = document.getElementById(f.id);
+            const group = el.closest('.form-group');
+            if (!f.check(el.value)) {
+                group.classList.add('has-error');
+                el.classList.add('error');
+                valid = false;
+            } else {
+                group.classList.remove('has-error');
+                el.classList.remove('error');
+            }
+        });
+        if (!valid) return;
+
+        const newUser = {
+            name: document.getElementById('userName').value.trim(),
+            role: document.getElementById('userRole').value,
+            status: document.getElementById('userStatus').value,
+            email: document.getElementById('userEmail').value.trim()
+        };
+
+        users.push(newUser);
+
+        const tbody = document.getElementById('usersTableBody');
+        if (tbody) {
+            const statusClass = newUser.status === 'Active' ? 'b-active'
+                : newUser.status === 'Offline' ? 'b-offline'
+                : 'b-cancelled';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="cell-main">${newUser.name}</td><td>${newUser.email}</td><td>${newUser.role}</td><td>Just now</td><td><span class="badge ${statusClass}">${newUser.status}</span></td><td><button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;">Edit</button></td>`;
+            tbody.appendChild(tr);
+        }
+
+        closeAddUserModal();
+        showToast(`User "${newUser.name}" added successfully!`);
+    }
+
+    // Wire up Add User modal events
+    const userModalCloseBtn = document.getElementById('userModalClose');
+    const userModalCancelBtn = document.getElementById('userModalCancel');
+    const addUserForm = document.getElementById('addUserForm');
+    const addUserOverlay = document.getElementById('addUserModal');
+
+    if (userModalCloseBtn) userModalCloseBtn.addEventListener('click', closeAddUserModal);
+    if (userModalCancelBtn) userModalCancelBtn.addEventListener('click', closeAddUserModal);
+    if (addUserForm) addUserForm.addEventListener('submit', handleAddUser);
+    if (addUserOverlay) {
+        addUserOverlay.addEventListener('click', (e) => {
+            if (e.target === addUserOverlay) closeAddUserModal();
+        });
+    }
+    const staticAddUserBtn = document.getElementById('addUserBtn');
+    if (staticAddUserBtn) staticAddUserBtn.addEventListener('click', openAddUserModal);
+
+    document.querySelectorAll('#addUserForm .form-control').forEach(el => {
+        el.addEventListener('input', () => {
+            const group = el.closest('.form-group');
+            if (group) group.classList.remove('has-error');
+            el.classList.remove('error');
+        });
+    });
 
     // Init - Only run chart scripts if we are on a page that needs them
     if (currentPage === 'dashboard') {

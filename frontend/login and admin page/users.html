@@ -36,12 +36,12 @@
             </div>
         </header>
         <div class="content-area" id="contentArea">
-            <div class="page-header"><h2>Users</h2><div class="page-header-actions"><button class="btn btn-primary">+ Add User</button></div></div>
+            <div class="page-header"><h2>Users</h2><div class="page-header-actions"><button class="btn btn-primary" id="addUserBtn">+ Add User</button></div></div>
             <section class="card">
                 <div class="card-hd"><h3>All Users</h3></div>
                 <div class="card-bd"><div class="tbl-wrap"><table class="dt">
                     <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody>
+                    <tbody id="usersTableBody">
                         <tr><td class="cell-main">Admin Demo</td><td>admindemo@billbhai.com</td><td>Ops Head</td><td>Just now</td><td><span class="badge b-active">Active</span></td><td><button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;">Edit</button></td></tr>
                         <tr><td class="cell-main">Raju Kumar</td><td>raju.k@billbhai.com</td><td>Delivery Driver</td><td>10 min ago</td><td><span class="badge b-active">Active</span></td><td><button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;">Edit</button></td></tr>
                         <tr><td class="cell-main">Sunil Mathur</td><td>sunil.m@billbhai.com</td><td>Delivery Driver</td><td>25 min ago</td><td><span class="badge b-active">Active</span></td><td><button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;">Edit</button></td></tr>
@@ -57,6 +57,69 @@
             </section>
         </div>
     </main>
+
+    <!-- Add User Modal -->
+    <div class="modal-overlay" id="addUserModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <button class="modal-close" id="userModalClose">&times;</button>
+            </div>
+            <form id="addUserForm" novalidate>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="userName">Full Name *</label>
+                        <input type="text" class="form-control" id="userName" placeholder="e.g. Rahul Sharma" required>
+                        <div class="form-error">Full name is required</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="userEmail">Email *</label>
+                        <input type="email" class="form-control" id="userEmail" placeholder="e.g. rahul.s@billbhai.com" required>
+                        <div class="form-error">Valid email is required</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="userRole">Role *</label>
+                            <select class="form-control" id="userRole" required>
+                                <option value="">Select role</option>
+                                <option value="Ops Head">Ops Head</option>
+                                <option value="Store Manager">Store Manager</option>
+                                <option value="Cashier">Cashier</option>
+                                <option value="Delivery Driver">Delivery Driver</option>
+                                <option value="Inventory Manager">Inventory Manager</option>
+                                <option value="Accountant">Accountant</option>
+                                <option value="Support Agent">Support Agent</option>
+                            </select>
+                            <div class="form-error">Please select a role</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="userPhone">Phone</label>
+                            <input type="tel" class="form-control" id="userPhone" placeholder="e.g. 9876543210">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="userStatus">Status</label>
+                        <select class="form-control" id="userStatus">
+                            <option value="Active">Active</option>
+                            <option value="Offline">Offline</option>
+                            <option value="Suspended">Suspended</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="userModalCancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="successToast">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span id="toastMessage">User added successfully!</span>
+    </div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="dashboard.js"></script>
