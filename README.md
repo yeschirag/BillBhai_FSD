@@ -1,26 +1,26 @@
 # BillBhai – Order & Billing System
 
-A web-based order and billing management system.
+A web-based order and billing management system featuring role-based access control and functional CRUD operations.
 
 ## Getting Started
 
-Open `frontend/login and admin page/index.html` in your browser to launch the application.
+Open `front-end/index.html` in your browser to launch the application's landing page, or go directly to `front-end/login.html`.
+
+## Features
+- **Role-Based UI:** The dashboard dynamically changes based on `Super User` and `Admin` permissions.
+- **Super User Access:** Full CRUD access to all modules including Users, Reports, Returns, and Delivery.
+- **Admin Access:** Restricted exclusively to store-level operations (Inventory and Orders). 
+- **Simulated CRUD:** Add, Edit, and Delete functionalities working dynamically without page reloads utilizing structured JS data arrays.
+- **Client-Side Validations:** All forms handle inputs dynamically protecting against empty insertions.
 
 ## Login Credentials
 
-Use the following credentials to log in:
+Use the following simulated accounts to experience the custom roles:
 
-| Username | Password    |
-|----------|-------------|
-| admin    | admin1234   |
-| chirag   | chirag1234  |
-| sarthak  | sarthak1234 |
-| mohit    | mohit1234   |
-| satyam   | satyam1234  |
-| aditya   | aditya1234  |
+| Role       | Username   | Password   |
+|------------|------------|------------|
+| Super User | superuser  | super123   |
+| Admin      | admin      | admin123   |
+| Super User | chirag     | chirag1234 |
 
-> **Recommended:** Use `admin` / `admin1234` to log in.
-
-> ⚠️ **Note:** These are development/demo credentials only. Do not use in a production environment.
-
-Only the above username/password combinations are accepted. Any other credentials will show an error.
+> ⚠️ **Note:** These are simulated development credentials managed strictly via `localStorage` states. Do not run this format securely in any production ecosystem.
