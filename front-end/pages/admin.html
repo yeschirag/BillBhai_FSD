@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BillBhai — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <style>
+    :root { --sidebar-w: 240px; }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr !important; }
+      #sidebar { position:fixed; left:-260px; top:0; height:100vh; z-index:200; transition:left .3s; width:var(--sidebar-w); }
+      #sidebar.mobile-open { left:0; }
+      #sidebarOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:199; }
+      #sidebarOverlay.show { display:block; }
+      #contentArea { padding:16px; }
+      .stats-grid { grid-template-columns:1fr 1fr !important; }
+      .tbl-wrap { overflow-x:auto; }
+      .crud-btn { padding:3px 7px !important; font-size:0.7rem !important; }
+      .modal-box { width:95vw !important; max-height:90vh; overflow-y:auto; }
+    }
+    @media (max-width:480px) {
+      .stats-grid { grid-template-columns:1fr !important; }
+      .top-bar { padding:10px 14px; }
+      .form-row { grid-template-columns:1fr !important; }
+    }
+    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .stat-card  { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; display:flex; align-items:center; gap:14px; }
+    .stat-icon  { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .si-green  { background:rgba(81,207,102,.15); color:#51cf66; }
+    .si-blue   { background:rgba(100,181,246,.15); color:#64b5f6; }
+    .si-amber  { background:rgba(232,168,56,.15);  color:#e8a838; }
+    .si-red    { background:rgba(220,53,69,.15);   color:#dc3545; }
+    .stat-label { font-size:.78rem; color:var(--text-muted); display:block; margin-bottom:4px; }
+    .stat-value { font-size:1.5rem; font-weight:700; color:var(--text-primary); }
+
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:20px; overflow:hidden; }
+    .card-hd { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .card-hd h3 { font-size:.95rem; font-weight:600; }
+    .card-bd { padding:20px; }
+
+    .tbl-wrap { overflow-x:auto; }
+    table.dt { width:100%; border-collapse:collapse; font-size:.875rem; }
+    table.dt th { padding:11px 14px; text-align:left; color:var(--text-muted); font-weight:500; font-size:.78rem; border-bottom:1px solid var(--border); white-space:nowrap; }
+    table.dt td { padding:13px 14px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+    table.dt tr:last-child td { border-bottom:none; }
+    table.dt tr:hover td { background:rgba(255,255,255,.03); }
+    .cell-main { font-weight:600; }
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+    .b-active     { background:rgba(81,207,102,.15);  color:#51cf66; }
+    .b-pending    { background:rgba(232,168,56,.15);   color:#e8a838; }
+    .b-cancelled  { background:rgba(220,53,69,.15);    color:#dc3545; }
+    .b-processing { background:rgba(100,181,246,.15);  color:#64b5f6; }
+
+    .crud-btn { padding:5px 10px; font-size:.78rem; border-radius:6px; cursor:pointer; border:1px solid; font-weight:500; transition:all .2s; }
+    .edit-btn { background:rgba(100,181,246,.1); color:#64b5f6; border-color:rgba(100,181,246,.4); }
+    .edit-btn:hover { background:rgba(100,181,246,.25); }
+    .del-btn  { background:rgba(220,53,69,.1); color:var(--red); border-color:rgba(220,53,69,.4); }
+    .del-btn:hover  { background:rgba(220,53,69,.25); }
+
+    .panel-title { display:flex; align-items:center; gap:10px; font-size:1.1rem; font-weight:700; margin-bottom:18px; padding:12px 18px; border-radius:10px; background:linear-gradient(135deg,rgba(100,181,246,.15),rgba(100,181,246,.05)); border-left:4px solid #64b5f6; color:var(--text-primary); }
+
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:300; align-items:center; justify-content:center; }
+    .modal-overlay.active { display:flex; }
+    .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:480px; max-width:95vw; }
+    .modal-box h3 { margin-bottom:20px; font-size:1.15rem; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-group { margin-bottom:14px; }
+    .form-label { display:block; font-size:.85rem; color:var(--text-muted); margin-bottom:6px; font-weight:500; }
+    .form-control { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 13px; color:var(--text-primary); font-size:.9rem; box-sizing:border-box; }
+    .form-control:focus { outline:none; border-color:#64b5f6; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+    .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:9px 20px; border-radius:8px; cursor:pointer; font-weight:500; }
+    .btn-save   { background:#64b5f6; border:none; color:#fff; padding:9px 22px; border-radius:8px; cursor:pointer; font-weight:600; }
+    #crudError  { display:none; background:rgba(220,53,69,.15); border:1px solid var(--red); color:var(--red); padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:.9rem; }
+
+    /* Toast */
+    .toast { position:fixed; bottom:24px; right:24px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; font-size:.9rem; font-weight:500; z-index:400; transform:translateY(80px); opacity:0; transition:all .35s; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .toast.success { border-color:#51cf66; color:#51cf66; }
+    .toast.error   { border-color:var(--red); color:var(--red); }
+
+    /* Restricted badge */
+    .restricted-note { background:rgba(220,53,69,.08); border:1px solid rgba(220,53,69,.2); border-radius:10px; padding:16px 20px; color:var(--text-muted); font-size:.9rem; text-align:center; margin-top:8px; }
+  </style>
+</head>
+<body data-page="admin">
+  <div id="sidebarOverlay"></div>
+  <div class="layout" style="display:grid;grid-template-columns:var(--sidebar-w) 1fr;min-height:100vh;">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <img src="../logo.png" alt="BillBhai" class="sidebar-brand-img" style="height:32px;">
+        <span class="sidebar-brand-name">BillBhai</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Overview</div>
+        <a class="nav-item active" href="admin.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <div class="nav-section-label">Allowed</div>
+        <a class="nav-item" href="#" onclick="showSection('productsSection')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span>Products</span>
+        </a>
+        <a class="nav-item" href="#" onclick="showSection('ordersSection')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+          <span>Orders</span>
+        </a>
+        <div class="nav-section-label">Restricted</div>
+        <a class="nav-item" style="opacity:.4;cursor:default;" title="Superuser only">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Users (No Access)</span>
+        </a>
+        <a class="nav-item" style="opacity:.4;cursor:default;" title="Superuser only">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Reports (No Access)</span>
+        </a>
+        <div class="nav-section-label">Account</div>
+        <a class="nav-item" href="#" onclick="logout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Logout</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <div style="display:flex;flex-direction:column;min-height:100vh;overflow:hidden;">
+      <header class="top-bar" style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface);">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <button onclick="toggleSidebar()" style="background:none;border:none;color:var(--text-primary);cursor:pointer;padding:6px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <span style="font-size:1.05rem;font-weight:600;" id="currentSectionTitle">Dashboard</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#64b5f6,#51cf66);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;" id="headerAvatar">A</div>
+          <div>
+            <div style="font-weight:600;font-size:.9rem;" id="headerUserName">Admin</div>
+            <div style="font-size:.75rem;color:var(--text-muted);" id="headerUserRole">Admin</div>
+          </div>
+          <button onclick="logout()" style="background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.3);color:var(--red);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;">Logout</button>
+        </div>
+      </header>
+
+      <main id="contentArea" style="flex:1;padding:24px;overflow-y:auto;">
+        <div id="adminPanel">
+
+          <!-- Stats -->
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-icon si-blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-info"><span class="stat-label">Products</span><span class="stat-value" id="statProducts">0</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div class="stat-info"><span class="stat-label">Orders</span><span class="stat-value" id="statOrders">0</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-info"><span class="stat-label">Low Stock</span><span class="stat-value" id="statAlerts">0</span></div></div>
+          </div>
+
+          <!-- Products -->
+          <div id="productsSection" class="role-panel">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Product Management
+            </div>
+            <div class="card">
+              <div class="card-hd">
+                <h3>Products</h3>
+                <button class="btn-save" onclick="openAddModal()">+ Add Product</button>
+              </div>
+              <div class="card-bd" style="padding:0;">
+                <div class="tbl-wrap">
+                  <table class="dt">
+                    <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Supplier</th><th>Stock</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="productsTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Orders -->
+          <div id="ordersSection" class="role-panel" style="display:none;">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+              Order Management
+            </div>
+            <div class="card">
+              <div class="card-hd">
+                <h3>Recent Orders</h3>
+                <button class="btn-save" onclick="openAddOrderModal()">+ New Order</button>
+              </div>
+              <div class="card-bd" style="padding:0;">
+                <div class="tbl-wrap">
+                  <table class="dt">
+                    <thead><tr><th>ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="ordersTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Restricted notice -->
+          <div class="restricted-note">
+            🔒 <strong>Users, Reports &amp; Settings</strong> are restricted to Superuser access only.
+          </div>
+        </div>
+
+        <!-- Hidden panels -->
+        <div id="superPanel" style="display:none;"></div>
+        <div id="userPanel"  style="display:none;"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Product Modal -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-box">
+      <h3 id="modalTitle">Add Product</h3>
+      <div id="crudError"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">SKU</label><input class="form-control" id="inputSku" readonly style="opacity:.6;"></div>
+        <div class="form-group"><label class="form-label">Category</label><select class="form-control" id="inputCategory"><option value="">Select</option><option>Grocery</option><option>Dairy</option><option>Beverages</option><option>Snacks</option><option>Other</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Product Name *</label><input class="form-control" id="inputName" placeholder="e.g. Basmati Rice"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><input class="form-control" id="inputSupplier" placeholder="Supplier name"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Price (₹) *</label><input class="form-control" id="inputPrice" type="number" min="0.01" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label class="form-label">Stock *</label><input class="form-control" id="inputStock" type="number" min="0" placeholder="0"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-save" onclick="handleSaveProduct()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Modal -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box">
+      <h3 id="orderModalTitle">New Order</h3>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Order ID</label><input class="form-control" id="oInputId" readonly style="opacity:.6;"></div>
+        <div class="form-group"><label class="form-label">Payment</label><select class="form-control" id="oInputPayment"><option value="">Select</option><option>UPI</option><option>Cash</option><option>Card</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Customer Name *</label><input class="form-control" id="oInputCustomer" placeholder="Customer"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Items *</label><input class="form-control" id="oInputItems" type="number" min="1" placeholder="1"></div>
+        <div class="form-group"><label class="form-label">Total (₹) *</label><input class="form-control" id="oInputTotal" type="number" min="0" placeholder="0"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="oInputStatus"><option>Pending</option><option>Processing</option><option>Delivered</option></select></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeOrderModal()">Cancel</button>
+        <button class="btn-save" onclick="handleSaveOrder()">Save Order</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/role.js"></script>
+  <script src="../js/crud.js"></script>
+  <script src="../js/state.js"></script>
+  <script>
+    guardPage(['admin']);
+    renderUI();
+
+    // Orders in-memory (localStorage-backed)
+    function loadOrders() {
+      const def = [
+        { id:'ORD-4821', customer:'Rahul Sharma', items:3, total:1250, payment:'UPI',  status:'Delivered',  date:'17 Feb 14:32' },
+        { id:'ORD-4820', customer:'Priya Patel',  items:1, total:450,  payment:'Cash', status:'Processing', date:'17 Feb 13:45' },
+        { id:'ORD-4819', customer:'Amit Kumar',   items:5, total:3200, payment:'Card', status:'Delivered',  date:'17 Feb 12:10' }
+      ];
+      try { return JSON.parse(localStorage.getItem('orders')) || def; } catch(e) { return def; }
+    }
+    function saveOrders(arr) { localStorage.setItem('orders', JSON.stringify(arr)); }
+
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      const ov = document.getElementById('sidebarOverlay');
+      if (window.innerWidth <= 768) { sb.classList.toggle('mobile-open'); ov.classList.toggle('show'); }
+      else sb.classList.toggle('collapsed');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('mobile-open');
+      document.getElementById('sidebarOverlay').classList.remove('show');
+    });
+
+    function showSection(id) {
+      ['productsSection','ordersSection'].forEach(s => document.getElementById(s).style.display = 'none');
+      document.getElementById(id).style.display = 'block';
+      document.getElementById('statsGrid').style.display = id === 'productsSection' ? '' : 'none';
+      const titles = { productsSection:'Products', ordersSection:'Orders' };
+      document.getElementById('currentSectionTitle').textContent = titles[id] || 'Dashboard';
+      if (id === 'ordersSection') renderOrders();
+      setPage(id.replace('Section',''));
+      if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('mobile-open');
+        document.getElementById('sidebarOverlay').classList.remove('show');
+      }
+    }
+
+    function updateStats() {
+      const products = loadProducts();
+      const orders   = loadOrders();
+      document.getElementById('statProducts').textContent = products.length;
+      document.getElementById('statOrders').textContent   = orders.length;
+      document.getElementById('statAlerts').textContent   = products.filter(p=>p.status!=='In Stock').length;
+    }
+
+    // ── Orders CRUD ────────────────────────────────────────────────────────────
+    function renderOrders() {
+      const tbody = document.getElementById('ordersTableBody');
+      if (!tbody) return;
+      const orders = loadOrders();
+      if (!orders.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">No orders available</td></tr>'; return; }
+      tbody.innerHTML = orders.map(o => {
+        const sc = o.status==='Delivered'?'b-active':o.status==='Processing'?'b-processing':'b-pending';
+        return `<tr>
+          <td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td>
+          <td>₹${o.total}</td><td>${o.payment}</td>
+          <td><span class="badge ${sc}">${o.status}</span></td>
+          <td>
+            <button class="crud-btn edit-btn" onclick="openEditOrder('${o.id}')">Edit</button>
+            <button class="crud-btn del-btn"  onclick="confirmDeleteOrder('${o.id}')">Delete</button>
+          </td></tr>`;
+      }).join('');
+    }
+
+    let editingOrderId = null;
+    function getNextOrderId() {
+      const orders = loadOrders();
+      const nums = orders.map(o => parseInt(o.id.replace('ORD-',''),10));
+      return 'ORD-' + (Math.max(...nums, 4821) + 1);
+    }
+    function openAddOrderModal() {
+      editingOrderId = null;
+      document.getElementById('orderModalTitle').textContent = 'New Order';
+      document.getElementById('oInputId').value = getNextOrderId();
+      ['oInputCustomer','oInputItems','oInputTotal'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('oInputPayment').value = '';
+      document.getElementById('oInputStatus').value = 'Pending';
+      document.getElementById('orderModal').classList.add('active');
+    }
+    function openEditOrder(id) {
+      const o = loadOrders().find(x => x.id === id);
+      if (!o) return;
+      editingOrderId = id;
+      document.getElementById('orderModalTitle').textContent = 'Edit Order';
+      document.getElementById('oInputId').value = o.id;
+      document.getElementById('oInputCustomer').value = o.customer;
+      document.getElementById('oInputItems').value = o.items;
+      document.getElementById('oInputTotal').value = o.total;
+      document.getElementById('oInputPayment').value = o.payment;
+      document.getElementById('oInputStatus').value = o.status;
+      document.getElementById('orderModal').classList.add('active');
+    }
+    function closeOrderModal() { document.getElementById('orderModal').classList.remove('active'); }
+    function handleSaveOrder() {
+      const customer = document.getElementById('oInputCustomer').value.trim();
+      const items    = parseInt(document.getElementById('oInputItems').value, 10);
+      const total    = parseFloat(document.getElementById('oInputTotal').value);
+      const payment  = document.getElementById('oInputPayment').value;
+      if (!customer) { alert('Customer name required'); return; }
+      if (!items || items < 1) { alert('Items must be ≥ 1'); return; }
+      if (isNaN(total) || total < 0) { alert('Invalid total'); return; }
+      if (!payment) { alert('Select payment method'); return; }
+      const now = new Date();
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const obj = { id: editingOrderId || getNextOrderId(), customer, items, total, payment, status: document.getElementById('oInputStatus').value, date: dateStr };
+      let orders = loadOrders();
+      if (editingOrderId) { orders = orders.map(o => o.id === editingOrderId ? obj : o); showToast('Order updated!','success'); }
+      else { orders.push(obj); showToast('Order added!','success'); }
+      saveOrders(orders);
+      closeOrderModal();
+      renderOrders();
+      updateStats();
+    }
+    function confirmDeleteOrder(id) {
+      if (confirm(`Delete order ${id}?`)) {
+        let orders = loadOrders().filter(o => o.id !== id);
+        saveOrders(orders);
+        renderOrders();
+        updateStats();
+        showToast('Order deleted','error');
+      }
+    }
+
+    // ── Product Modal ──────────────────────────────────────────────────────────
+    let editingSku = null;
+    function openAddModal() {
+      editingSku = null;
+      document.getElementById('modalTitle').textContent = 'Add Product';
+      document.getElementById('inputSku').value = getNextSku();
+      ['inputName','inputSupplier','inputPrice','inputStock'].forEach(id => document.getElementById(id).value='');
+      document.getElementById('inputCategory').value = '';
+      document.getElementById('productModal').classList.add('active');
+    }
+    function openEditProduct(sku) {
+      const p = loadProducts().find(x => x.sku===sku);
+      if (!p) return;
+      editingSku = sku;
+      document.getElementById('modalTitle').textContent = 'Edit Product';
+      document.getElementById('inputSku').value = p.sku;
+      document.getElementById('inputName').value = p.name;
+      document.getElementById('inputCategory').value = p.category;
+      document.getElementById('inputSupplier').value = p.supplier||'';
+      document.getElementById('inputPrice').value = p.price;
+      document.getElementById('inputStock').value = p.stock;
+      document.getElementById('productModal').classList.add('active');
+    }
+    function closeModal() { document.getElementById('productModal').classList.remove('active'); }
+    function handleSaveProduct() {
+      const name=document.getElementById('inputName').value;
+      const price=document.getElementById('inputPrice').value;
+      const stock=document.getElementById('inputStock').value;
+      if (!validateProduct(name,price,stock)) return;
+      const obj = { sku:editingSku||getNextSku(), name:name.trim(), category:document.getElementById('inputCategory').value||'Other', supplier:document.getElementById('inputSupplier').value.trim()||'—', price:parseFloat(price), stock:parseInt(stock,10), status:getStockStatus(parseInt(stock,10)) };
+      if (editingSku) { updateProduct(editingSku,obj); showToast('Product updated!','success'); }
+      else { addProduct(obj); showToast('Product added!','success'); }
+      closeModal(); updateStats();
+    }
+    function confirmDeleteProduct(sku) {
+      if (confirm(`Delete ${sku}?`)) { deleteProduct(sku); updateStats(); showToast('Deleted','error'); }
+    }
+
+    function showToast(msg,type='success') {
+      const t=document.getElementById('toast');
+      t.textContent=msg; t.className=`toast ${type} show`;
+      setTimeout(()=>t.classList.remove('show'),3000);
+    }
+
+    document.getElementById('productModal').addEventListener('click',e=>{ if(e.target===document.getElementById('productModal'))closeModal(); });
+    document.getElementById('orderModal').addEventListener('click',e=>{ if(e.target===document.getElementById('orderModal'))closeOrderModal(); });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderProducts();
+      updateStats();
+      const last = getPage();
+      if (last === 'orders') showSection('ordersSection');
+    });
+  </script>
+</body>
+</html>

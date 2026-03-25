@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BillBhai — My Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <style>
+    :root { --sidebar-w: 220px; }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns:1fr !important; }
+      #sidebar { position:fixed; left:-240px; top:0; height:100vh; z-index:200; transition:left .3s; width:var(--sidebar-w); }
+      #sidebar.mobile-open { left:0; }
+      #sidebarOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:199; }
+      #sidebarOverlay.show { display:block; }
+      #contentArea { padding:16px; }
+      .stats-grid { grid-template-columns:1fr 1fr !important; }
+      .tbl-wrap { overflow-x:auto; }
+      .top-bar { padding:10px 14px; }
+    }
+    @media (max-width:480px) { .stats-grid { grid-template-columns:1fr !important; } }
+
+    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .stat-card  { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; display:flex; align-items:center; gap:14px; }
+    .stat-icon  { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .si-green  { background:rgba(81,207,102,.15); color:#51cf66; }
+    .si-blue   { background:rgba(100,181,246,.15); color:#64b5f6; }
+    .si-amber  { background:rgba(232,168,56,.15);  color:#e8a838; }
+    .stat-label { font-size:.78rem; color:var(--text-muted); display:block; margin-bottom:4px; }
+    .stat-value { font-size:1.5rem; font-weight:700; color:var(--text-primary); }
+
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:20px; overflow:hidden; }
+    .card-hd { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .card-hd h3 { font-size:.95rem; font-weight:600; }
+    .card-bd { padding:20px; }
+
+    .tbl-wrap { overflow-x:auto; }
+    table.dt { width:100%; border-collapse:collapse; font-size:.875rem; }
+    table.dt th { padding:11px 14px; text-align:left; color:var(--text-muted); font-weight:500; font-size:.78rem; border-bottom:1px solid var(--border); white-space:nowrap; }
+    table.dt td { padding:13px 14px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+    table.dt tr:last-child td { border-bottom:none; }
+    .cell-main { font-weight:600; }
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+    .b-active     { background:rgba(81,207,102,.15);  color:#51cf66; }
+    .b-pending    { background:rgba(232,168,56,.15);   color:#e8a838; }
+    .b-processing { background:rgba(100,181,246,.15);  color:#64b5f6; }
+    .b-cancelled  { background:rgba(220,53,69,.15);    color:#dc3545; }
+
+    .panel-title { display:flex; align-items:center; gap:10px; font-size:1.1rem; font-weight:700; margin-bottom:18px; padding:12px 18px; border-radius:10px; background:linear-gradient(135deg,rgba(81,207,102,.15),rgba(81,207,102,.05)); border-left:4px solid #51cf66; color:var(--text-primary); }
+
+    /* Profile card */
+    .profile-avatar { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#51cf66,#64b5f6); display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:700; color:#fff; margin:0 auto 14px; }
+    .profile-card { text-align:center; padding:24px; }
+    .profile-name { font-size:1.2rem; font-weight:700; margin-bottom:4px; }
+    .profile-role { color:var(--text-muted); font-size:.85rem; margin-bottom:16px; }
+
+    .timeline { display:flex; flex-direction:column; gap:16px; }
+    .timeline-item { display:flex; gap:14px; align-items:flex-start; }
+    .timeline-dot { width:10px; height:10px; border-radius:50%; background:#51cf66; flex-shrink:0; margin-top:5px; }
+    .timeline-time { font-size:.75rem; color:var(--text-muted); white-space:nowrap; min-width:110px; }
+    .timeline-content { font-size:.88rem; color:var(--text-primary); }
+
+    .restricted-note { background:rgba(220,53,69,.08); border:1px solid rgba(220,53,69,.2); border-radius:10px; padding:16px 20px; color:var(--text-muted); font-size:.9rem; text-align:center; margin-top:8px; }
+
+    .toast { position:fixed; bottom:24px; right:24px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; font-size:.9rem; font-weight:500; z-index:400; transform:translateY(80px); opacity:0; transition:all .35s; }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .toast.success { border-color:#51cf66; color:#51cf66; }
+
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media(max-width:768px){ .grid-2 { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body data-page="user">
+  <div id="sidebarOverlay"></div>
+  <div class="layout" style="display:grid;grid-template-columns:var(--sidebar-w) 1fr;min-height:100vh;">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <img src="../logo.png" alt="BillBhai" class="sidebar-brand-img" style="height:32px;">
+        <span class="sidebar-brand-name">BillBhai</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">My Account</div>
+        <a class="nav-item active" href="user.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" href="#" onclick="showSection('ordersSection')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+          <span>My Orders</span>
+        </a>
+        <a class="nav-item" href="#" onclick="showSection('profileSection')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>My Profile</span>
+        </a>
+        <div class="nav-section-label">Restricted</div>
+        <a class="nav-item" style="opacity:.4;cursor:default;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Admin Only Areas</span>
+        </a>
+        <div class="nav-section-label">Account</div>
+        <a class="nav-item" href="#" onclick="logout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Logout</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <div style="display:flex;flex-direction:column;min-height:100vh;overflow:hidden;">
+      <header class="top-bar" style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface);">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <button onclick="toggleSidebar()" style="background:none;border:none;color:var(--text-primary);cursor:pointer;padding:6px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <span style="font-size:1.05rem;font-weight:600;" id="currentSectionTitle">My Dashboard</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#51cf66,#64b5f6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;" id="headerAvatar">C</div>
+          <div>
+            <div style="font-weight:600;font-size:.9rem;" id="headerUserName">Chirag</div>
+            <div style="font-size:.75rem;color:var(--text-muted);" id="headerUserRole">User</div>
+          </div>
+          <button onclick="logout()" style="background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.3);color:var(--red);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;">Logout</button>
+        </div>
+      </header>
+
+      <main id="contentArea" style="flex:1;padding:24px;overflow-y:auto;">
+        <div id="userPanel">
+
+          <!-- Overview Section -->
+          <div id="overviewSection">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Welcome, <span id="welcomeName" style="color:#51cf66;">Chirag</span>
+            </div>
+            <div class="stats-grid">
+              <div class="stat-card"><div class="stat-icon si-blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div><span class="stat-label">My Orders</span><span class="stat-value" id="statMyOrders">3</span></div></div>
+              <div class="stat-card"><div class="stat-icon si-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div><span class="stat-label">Delivered</span><span class="stat-value" id="statDelivered">2</span></div></div>
+              <div class="stat-card"><div class="stat-icon si-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><span class="stat-label">Pending</span><span class="stat-value" id="statPending">1</span></div></div>
+            </div>
+
+            <div class="grid-2">
+              <!-- My Orders quick view -->
+              <div class="card">
+                <div class="card-hd"><h3>Recent Orders</h3><button onclick="showSection('ordersSection')" style="background:none;border:none;color:#64b5f6;font-size:.82rem;cursor:pointer;font-weight:500;">View all →</button></div>
+                <div class="card-bd" style="padding:0;">
+                  <div class="tbl-wrap">
+                    <table class="dt">
+                      <thead><tr><th>Order</th><th>Total</th><th>Status</th></tr></thead>
+                      <tbody id="quickOrdersBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <!-- Activity -->
+              <div class="card">
+                <div class="card-hd"><h3>Recent Activity</h3></div>
+                <div class="card-bd">
+                  <div class="timeline">
+                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-time">Today, 14:32</div><div class="timeline-content">Order <strong>ORD-4821</strong> delivered</div></div>
+                    <div class="timeline-item"><div class="timeline-dot" style="background:#e8a838;"></div><div class="timeline-time">Today, 13:45</div><div class="timeline-content">Order <strong>ORD-4820</strong> is processing</div></div>
+                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-time">17 Mar, 12:10</div><div class="timeline-content">Order <strong>ORD-4819</strong> delivered</div></div>
+                    <div class="timeline-item"><div class="timeline-dot" style="background:#64b5f6;"></div><div class="timeline-time">15 Mar, 10:00</div><div class="timeline-content">Logged into BillBhai</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="restricted-note">
+              🔒 <strong>Inventory, Reports, Users &amp; Settings</strong> require Admin or Superuser access.
+            </div>
+          </div>
+
+          <!-- Orders Section -->
+          <div id="ordersSection" style="display:none;">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+              My Orders
+            </div>
+            <div class="card">
+              <div class="card-bd" style="padding:0;">
+                <div class="tbl-wrap">
+                  <table class="dt">
+                    <thead><tr><th>Order ID</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody id="fullOrdersBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Section -->
+          <div id="profileSection" style="display:none;">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              My Profile
+            </div>
+            <div class="grid-2">
+              <div class="card">
+                <div class="card-bd profile-card">
+                  <div class="profile-avatar" id="profileAvatar">C</div>
+                  <div class="profile-name" id="profileName">Chirag</div>
+                  <div class="profile-role">Role: <strong style="color:#51cf66;">User</strong></div>
+                  <div style="background:var(--bg);border-radius:10px;padding:16px;text-align:left;margin-top:12px;">
+                    <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:8px;">Account Details</div>
+                    <div style="font-size:.9rem;margin-bottom:6px;"><strong>Username:</strong> chirag</div>
+                    <div style="font-size:.9rem;margin-bottom:6px;"><strong>Email:</strong> chirag@billbhai.com</div>
+                    <div style="font-size:.9rem;"><strong>Member since:</strong> March 2026</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-hd"><h3>Change Password</h3></div>
+                <div class="card-bd">
+                  <div style="margin-bottom:14px;">
+                    <label style="display:block;font-size:.85rem;color:var(--text-muted);margin-bottom:6px;font-weight:500;">Current Password</label>
+                    <input type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--text-primary);box-sizing:border-box;" placeholder="••••••••">
+                  </div>
+                  <div style="margin-bottom:14px;">
+                    <label style="display:block;font-size:.85rem;color:var(--text-muted);margin-bottom:6px;font-weight:500;">New Password</label>
+                    <input type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--text-primary);box-sizing:border-box;" placeholder="••••••••">
+                  </div>
+                  <button onclick="showToast('Password update simulated ✓','success')" style="background:#51cf66;border:none;color:#fff;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;width:100%;">Update Password</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /userPanel -->
+        <div id="superPanel" style="display:none;"></div>
+        <div id="adminPanel"  style="display:none;"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/role.js"></script>
+  <script src="../js/crud.js"></script>
+  <script src="../js/state.js"></script>
+  <script>
+    guardPage(['user']);
+    renderUI();
+
+    const MY_ORDERS = [
+      { id:'ORD-4821', items:3, total:1250, payment:'UPI',  status:'Delivered',  date:'17 Feb 14:32' },
+      { id:'ORD-4820', items:1, total:450,  payment:'Cash', status:'Processing', date:'17 Feb 13:45' },
+      { id:'ORD-4819', items:5, total:3200, payment:'Card', status:'Delivered',  date:'17 Feb 12:10' }
+    ];
+
+    function toggleSidebar() {
+      const sb=document.getElementById('sidebar'), ov=document.getElementById('sidebarOverlay');
+      if (window.innerWidth<=768) { sb.classList.toggle('mobile-open'); ov.classList.toggle('show'); }
+      else sb.classList.toggle('collapsed');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click',()=>{
+      document.getElementById('sidebar').classList.remove('mobile-open');
+      document.getElementById('sidebarOverlay').classList.remove('show');
+    });
+
+    function showSection(id) {
+      ['overviewSection','ordersSection','profileSection'].forEach(s=>document.getElementById(s).style.display='none');
+      document.getElementById(id).style.display='block';
+      const titles={overviewSection:'My Dashboard',ordersSection:'My Orders',profileSection:'My Profile'};
+      document.getElementById('currentSectionTitle').textContent=titles[id]||'Dashboard';
+      setPage(id.replace('Section',''));
+      if (window.innerWidth<=768) {
+        document.getElementById('sidebar').classList.remove('mobile-open');
+        document.getElementById('sidebarOverlay').classList.remove('show');
+      }
+    }
+
+    function renderQuickOrders() {
+      const tbody=document.getElementById('quickOrdersBody');
+      if (!tbody) return;
+      tbody.innerHTML = MY_ORDERS.slice(0,3).map(o=>{
+        const sc=o.status==='Delivered'?'b-active':o.status==='Processing'?'b-processing':'b-pending';
+        return `<tr><td class="cell-main">${o.id}</td><td>₹${o.total}</td><td><span class="badge ${sc}">${o.status}</span></td></tr>`;
+      }).join('');
+    }
+
+    function renderFullOrders() {
+      const tbody=document.getElementById('fullOrdersBody');
+      if (!tbody) return;
+      if (!MY_ORDERS.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No orders found</td></tr>'; return; }
+      tbody.innerHTML=MY_ORDERS.map(o=>{
+        const sc=o.status==='Delivered'?'b-active':o.status==='Processing'?'b-processing':'b-pending';
+        return `<tr><td class="cell-main">${o.id}</td><td>${o.items}</td><td>₹${o.total}</td><td>${o.payment}</td><td><span class="badge ${sc}">${o.status}</span></td><td>${o.date}</td></tr>`;
+      }).join('');
+    }
+
+    function showToast(msg,type='success') {
+      const t=document.getElementById('toast');
+      t.textContent=msg; t.className=`toast ${type} show`;
+      setTimeout(()=>t.classList.remove('show'),3000);
+    }
+
+    // Personalise with actual user data
+    function personalise() {
+      const user=getCurrentUser();
+      if (!user) return;
+      const n=user.name;
+      document.getElementById('welcomeName').textContent=n;
+      document.getElementById('headerAvatar').textContent=n.charAt(0).toUpperCase();
+      document.getElementById('profileAvatar').textContent=n.charAt(0).toUpperCase();
+      document.getElementById('profileName').textContent=n;
+      document.getElementById('headerUserName').textContent=n;
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      personalise();
+      renderQuickOrders();
+      renderFullOrders();
+      const last=getPage();
+      if (last==='orders') showSection('ordersSection');
+      else if (last==='profile') showSection('profileSection');
+    });
+  </script>
+</body>
+</html>

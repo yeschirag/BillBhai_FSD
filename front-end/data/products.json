@@ -1,0 +1,7 @@
+[
+  { "sku": "SKU-01", "name": "Basmati Rice",  "category": "Grocery", "supplier": "Agarwal Traders",  "stock": 145, "price": 380, "status": "In Stock"  },
+  { "sku": "SKU-02", "name": "Toor Dal",      "category": "Grocery", "supplier": "Sharma Wholesale",  "stock": 230, "price": 120, "status": "In Stock"  },
+  { "sku": "SKU-03", "name": "Refined Oil",   "category": "Grocery", "supplier": "Fortune Dist.",     "stock": 18,  "price": 155, "status": "Low Stock" },
+  { "sku": "SKU-04", "name": "Whole Wheat",   "category": "Grocery", "supplier": "Kissan Mills",      "stock": 95,  "price": 65,  "status": "In Stock"  },
+  { "sku": "SKU-05", "name": "Sugar",         "category": "Grocery", "supplier": "Local Supplier",    "stock": 5,   "price": 42,  "status": "Critical"  }
+]

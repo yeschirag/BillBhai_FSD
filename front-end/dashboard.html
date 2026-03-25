@@ -1,162 +1,496 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BillBhai - Admin Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard.css">
-</head>
-<body data-page="dashboard">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BillBhai — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <style>
+    /* ── Layout ── */
+    :root { --sw: 240px; }
+    .layout { display: grid; grid-template-columns: var(--sw) 1fr; min-height: 100vh; }
 
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <img src="logo.png" alt="BillBhai" class="sidebar-brand-img">
-        </div>
-        <nav class="sidebar-nav" id="sidebarNav">
-            <div class="nav-section-label">Main</div>
-            <a href="dashboard.html" class="nav-item active" data-page="dashboard">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span>Dashboard</span>
-            </a>
-            <a href="orders.html" class="nav-item" data-page="orders">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                <span>Orders & Billing</span>
-            </a>
-            <a href="inventory.html" class="nav-item" data-page="inventory">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                <span>Inventory</span>
-            </a>
-            <a href="delivery.html" class="nav-item" data-page="delivery">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                <span>Delivery</span>
-            </a>
-            <div class="nav-section-label">Management</div>
-            <a href="returns.html" class="nav-item" data-page="returns">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                <span>Returns & Refunds</span>
-            </a>
-            <a href="reports.html" class="nav-item" data-page="reports">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span>Reports</span>
-            </a>
-            <a href="users.html" class="nav-item" data-page="users">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>Users</span>
-            </a>
-        </nav>
-        <div class="sidebar-footer">
-            <a href="login.html" class="nav-item nav-logout">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                <span>Logout</span>
-            </a>
-        </div>
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      #sidebar { position: fixed; left: -260px; top: 0; height: 100vh; z-index: 200; transition: left .3s; width: var(--sw); }
+      #sidebar.open { left: 0; }
+      #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 199; }
+      #overlay.show { display: block; }
+      #main { padding: 14px; }
+      .stats { grid-template-columns: 1fr 1fr !important; }
+      .grid2 { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 480px) {
+      .stats { grid-template-columns: 1fr !important; }
+    }
+
+    /* ── Stats ── */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat  { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; align-items: center; gap: 14px; }
+    .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ic-green  { background: rgba(81,207,102,.15); color: #51cf66; }
+    .ic-blue   { background: rgba(100,181,246,.15); color: #64b5f6; }
+    .ic-amber  { background: rgba(232,168,56,.15);  color: #e8a838; }
+    .ic-red    { background: rgba(220,53,69,.15);   color: #dc3545; }
+    .ic-purple { background: rgba(191,90,242,.15);  color: #bf5af2; }
+    .stat-label { font-size: .78rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; overflow: hidden; }
+    .card-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-head h3 { font-size: .95rem; font-weight: 600; }
+    .card-body { padding: 20px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+    /* ── Table ── */
+    .tbl { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th { padding: 11px 14px; text-align: left; color: var(--text-muted); font-weight: 500; font-size: .78rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.03); }
+    .bold { font-weight: 600; }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+    .bg-green  { background: rgba(81,207,102,.15);  color: #51cf66; }
+    .bg-blue   { background: rgba(100,181,246,.15); color: #64b5f6; }
+    .bg-amber  { background: rgba(232,168,56,.15);  color: #e8a838; }
+    .bg-red    { background: rgba(220,53,69,.15);   color: #dc3545; }
+    .bg-purple { background: rgba(191,90,242,.15);  color: #bf5af2; }
+
+    /* ── Buttons ── */
+    .btn-primary { background: var(--accent, #dc3545); border: none; color: #fff; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: .85rem; }
+    .btn-edit    { padding: 4px 10px; font-size: .75rem; border-radius: 6px; cursor: pointer; background: rgba(100,181,246,.1); color: #64b5f6; border: 1px solid rgba(100,181,246,.4); font-weight: 500; }
+    .btn-del     { padding: 4px 10px; font-size: .75rem; border-radius: 6px; cursor: pointer; background: rgba(220,53,69,.1);   color: #dc3545; border: 1px solid rgba(220,53,69,.4);   font-weight: 500; }
+    .btn-edit:hover { background: rgba(100,181,246,.25); }
+    .btn-del:hover  { background: rgba(220,53,69,.25); }
+
+    /* ── Panel title ── */
+    .panel-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; padding: 12px 16px; border-radius: 10px; border-left: 4px solid var(--accent, #dc3545); background: rgba(220,53,69,.06); margin-bottom: 18px; }
+
+    /* ── Timeline ── */
+    .timeline { display: flex; flex-direction: column; gap: 16px; }
+    .tl-item  { display: flex; gap: 12px; align-items: flex-start; }
+    .tl-dot   { width: 10px; height: 10px; border-radius: 50%; background: #51cf66; flex-shrink: 0; margin-top: 5px; }
+    .tl-time  { font-size: .75rem; color: var(--text-muted); white-space: nowrap; min-width: 110px; }
+    .tl-text  { font-size: .88rem; }
+
+    /* ── Modal ── */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 300; align-items: center; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 460px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 18px; font-size: 1.1rem; }
+    .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .frow { grid-template-columns: 1fr; } }
+    .fg { margin-bottom: 13px; }
+    .fg label { display: block; font-size: .82rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 500; }
+    .fg input, .fg select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text-primary); font-size: .88rem; box-sizing: border-box; }
+    .fg input:focus, .fg select:focus { outline: none; border-color: #64b5f6; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+    .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+    .btn-save   { background: #dc3545; border: none; color: #fff; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+    /* ── Error ── */
+    #err { display: none; background: rgba(220,53,69,.12); border: 1px solid #dc3545; color: #dc3545; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: .88rem; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 20px; font-size: .88rem; font-weight: 500; z-index: 400; transform: translateY(80px); opacity: 0; transition: all .3s; }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.ok  { border-color: #51cf66; color: #51cf66; }
+    #toast.bad { border-color: #dc3545; color: #dc3545; }
+
+    /* ── Restricted notice ── */
+    .restricted { background: rgba(220,53,69,.06); border: 1px solid rgba(220,53,69,.18); border-radius: 10px; padding: 14px 18px; color: var(--text-muted); font-size: .88rem; text-align: center; margin-top: 8px; }
+
+    /* ── Profile ── */
+    .avatar-big { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #51cf66, #64b5f6); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0 auto 14px; }
+  </style>
+</head>
+<body>
+  <!-- Sidebar overlay (mobile) -->
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <div class="layout">
+    <!-- ══ SIDEBAR ══ -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <img src="assets/logo.png" alt="BillBhai" class="sidebar-brand-img" style="height:32px;">
+        <span class="sidebar-brand-name">BillBhai</span>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebarNav">
+        <!-- rendered by JS based on role -->
+      </nav>
     </aside>
 
-    <main class="main-content" id="mainContent">
-        <header class="top-header">
-            <div class="header-left">
-                <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
-                <div class="breadcrumb">
-                    <span class="bc-app">BillBhai</span>
-                    <span class="bc-sep">/</span>
-                    <span class="bc-page" id="bcPage">Dashboard</span>
-                </div>
-            </div>
-            <div class="header-right">
-                <div class="header-search">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" placeholder="Search..." id="globalSearch">
-                </div>
-                
-                <div class="dropdown-container" id="notifContainer">
-                    <button class="icon-btn notif-btn" id="notifBtn" aria-label="Notifications">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                        <span class="notif-dot"></span>
-                    </button>
-                    <div class="dropdown-menu" id="notifDropdown" style="width: 260px;">
-                        <div class="dropdown-header">
-                            <strong>Notifications</strong>
-                            <div class="text-sm text-muted">You have 2 new notifications</div>
-                        </div>
-                        <div class="dropdown-item" style="align-items: flex-start; cursor: default;">
-                            <div style="background: var(--blue-bg); color: var(--blue); padding: 6px; border-radius: 6px; margin-right: 4px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-primary);">New Order #4821</div>
-                                <div class="text-sm text-muted">2 mins ago</div>
-                            </div>
-                        </div>
-                        <div class="dropdown-item" style="align-items: flex-start; cursor: default;">
-                            <div style="background: var(--red-bg); color: var(--red); padding: 6px; border-radius: 6px; margin-right: 4px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-primary);">Low Stock: Sugar</div>
-                                <div class="text-sm text-muted">1 hour ago</div>
-                            </div>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item nav-item" data-page="notifications" style="justify-content: center; font-weight: 500; color: var(--accent);">
-                            View all notifications
-                        </a>
-                    </div>
-                </div>
+    <!-- ══ MAIN ══ -->
+    <div style="display:flex;flex-direction:column;min-height:100vh;overflow:hidden;">
 
-                <div class="dropdown-container" id="userContainer">
-                    <div class="header-user" id="userMenuBtn">
-                        <div class="user-avatar">A</div>
-                        <div class="user-info">
-                            <span class="user-name">Admin</span>
-                            <span class="user-role">Head of Ops</span>
-                        </div>
-                    </div>
-                    <div class="dropdown-menu" id="userDropdown">
-                        <div class="dropdown-header">
-                            <strong>Admin</strong>
-                            <div class="text-sm text-muted">admindemo@billbhai.com</div>
-                        </div>
-                        <a href="profile.html" class="dropdown-item nav-item" data-page="profile">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            My Profile
-                        </a>
-                        <a href="settings.html" class="dropdown-item nav-item" data-page="settings">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                            Settings
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="login.html" class="dropdown-item text-danger">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                            Logout
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <div class="content-area" id="contentArea">
-            <div class="page-header"><h2>Dashboard</h2><div class="page-header-actions"><button class="btn btn-outline" onclick="window.print()">Print</button></div></div>
-            <section class="stats-grid">
-                <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Revenue</span><span class="stat-value">₹58,680</span></div></div>
-                <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div class="stat-info"><span class="stat-label">Orders</span><span class="stat-value">10</span></div></div>
-                <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div><div class="stat-info"><span class="stat-label">Returns</span><span class="stat-value">4</span></div></div>
-                <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-info"><span class="stat-label">Alerts</span><span class="stat-value">3</span></div></div>
-            </section>
-            <section class="grid-2">
-                <div class="card"><div class="card-hd"><h3>Sales Trend</h3></div><div class="card-bd" style="position:relative;height:240px"><canvas id="dashSalesChart"></canvas></div></div>
-                <div class="card"><div class="card-hd"><h3>Order Status</h3></div><div class="card-bd" style="position:relative;height:240px"><canvas id="dashStatusChart"></canvas></div></div>
-            </section>
-            <section class="card"><div class="card-hd"><h3>Recent Orders</h3></div><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody><tr><td class="cell-main">ORD-4821</td><td>Rahul Sharma</td><td>₹1250</td><td><span class="badge b-upi">UPI</span></td><td><span class="badge b-delivered">Delivered</span></td></tr><tr><td class="cell-main">ORD-4820</td><td>Priya Patel</td><td>₹450</td><td><span class="badge b-cash">Cash</span></td><td><span class="badge b-processing">Processing</span></td></tr><tr><td class="cell-main">ORD-4819</td><td>Amit Kumar</td><td>₹3200</td><td><span class="badge b-card">Card</span></td><td><span class="badge b-delivered">Delivered</span></td></tr></tbody></table></div></div></section>
+      <!-- Top bar -->
+      <header class="top-header" style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface);">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <button onclick="toggleSidebar()" style="background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <span style="font-size:1rem;font-weight:600;" id="pageTitle">Dashboard</span>
         </div>
-    </main>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="headerAvatar" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#dc3545,#bf5af2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff;"></div>
+          <div style="display:none;" id="headerInfo">
+            <div style="font-weight:600;font-size:.88rem;" id="headerName"></div>
+            <div style="font-size:.73rem;color:var(--text-muted);" id="headerRole"></div>
+          </div>
+          <button onclick="logout()" style="background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 13px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600;">Logout</button>
+        </div>
+      </header>
 
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="dashboard.js"></script>
+      <!-- Content -->
+      <main id="main" style="flex:1;padding:24px;overflow-y:auto;">
+
+        <!-- ── SUPERUSER PANEL ── -->
+        <div id="superPanel" style="display:none;">
+          <div class="stats" id="superStats">
+            <div class="stat"><div class="stat-icon ic-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><span class="stat-label">Inventory Value</span><span class="stat-value" id="s-revenue">₹0</span></div></div>
+            <div class="stat"><div class="stat-icon ic-blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div><span class="stat-label">Products</span><span class="stat-value" id="s-products">0</span></div></div>
+            <div class="stat"><div class="stat-icon ic-purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><span class="stat-label">Total Users</span><span class="stat-value">7</span></div></div>
+            <div class="stat"><div class="stat-icon ic-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div><span class="stat-label">Low Stock Alerts</span><span class="stat-value" id="s-alerts">0</span></div></div>
+          </div>
+          <!-- Products table -->
+          <div class="panel-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Products</div>
+          <div class="card">
+            <div class="card-head"><h3>Product List</h3><button class="btn-primary" onclick="openModal()">+ Add Product</button></div>
+            <div class="card-body" style="padding:0;"><div class="tbl"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Supplier</th><th>Stock</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody id="prodTbody"></tbody></table></div></div>
+          </div>
+          <!-- Users table -->
+          <div class="panel-title" style="border-color:#bf5af2;background:rgba(191,90,242,.06);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Users <span class="badge bg-purple" style="font-size:.7rem;margin-left:6px;">Superuser Only</span></div>
+          <div class="card">
+            <div class="card-body" style="padding:0;"><div class="tbl"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th></tr></thead><tbody>
+              <tr><td class="bold">superuser</td><td>Super User</td><td><span class="badge bg-purple">Superuser</span></td><td><span class="badge bg-green">Active</span></td></tr>
+              <tr><td class="bold">sarthak</td><td>Sarthak</td><td><span class="badge bg-purple">Superuser</span></td><td><span class="badge bg-green">Active</span></td></tr>
+              <tr><td class="bold">admin</td><td>Admin</td><td><span class="badge bg-blue">Admin</span></td><td><span class="badge bg-green">Active</span></td></tr>
+              <tr><td class="bold">mohit</td><td>Mohit</td><td><span class="badge bg-blue">Admin</span></td><td><span class="badge bg-green">Active</span></td></tr>
+              <tr><td class="bold">aditya</td><td>Aditya</td><td><span class="badge bg-blue">Admin</span></td><td><span class="badge bg-green">Active</span></td></tr>
+              <tr><td class="bold">chirag</td><td>Chirag</td><td><span class="badge bg-green">User</span></td><td><span class="badge bg-green">Active</span></td></tr>
+              <tr><td class="bold">satyam</td><td>Satyam</td><td><span class="badge bg-green">User</span></td><td><span class="badge bg-green">Active</span></td></tr>
+            </tbody></table></div></div>
+          </div>
+        </div>
+
+        <!-- ── ADMIN PANEL ── -->
+        <div id="adminPanel" style="display:none;">
+          <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+            <div class="stat"><div class="stat-icon ic-blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div><span class="stat-label">Products</span><span class="stat-value" id="a-products">0</span></div></div>
+            <div class="stat"><div class="stat-icon ic-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div><span class="stat-label">Orders</span><span class="stat-value" id="a-orders">0</span></div></div>
+            <div class="stat"><div class="stat-icon ic-red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div><span class="stat-label">Low Stock</span><span class="stat-value" id="a-alerts">0</span></div></div>
+          </div>
+          <!-- Products -->
+          <div class="panel-title" style="border-color:#64b5f6;background:rgba(100,181,246,.06);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Products</div>
+          <div class="card">
+            <div class="card-head"><h3>Product List</h3><button class="btn-primary" style="background:#64b5f6;" onclick="openModal()">+ Add Product</button></div>
+            <div class="card-body" style="padding:0;"><div class="tbl"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Supplier</th><th>Stock</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody id="adminProdTbody"></tbody></table></div></div>
+          </div>
+          <!-- Orders -->
+          <div class="panel-title" style="border-color:#64b5f6;background:rgba(100,181,246,.06);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg> Orders</div>
+          <div class="card">
+            <div class="card-body" style="padding:0;"><div class="tbl"><table><thead><tr><th>ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>
+              <tr><td class="bold">ORD-4821</td><td>Rahul Sharma</td><td>3</td><td>₹1250</td><td>UPI</td><td><span class="badge bg-green">Delivered</span></td></tr>
+              <tr><td class="bold">ORD-4820</td><td>Priya Patel</td><td>1</td><td>₹450</td><td>Cash</td><td><span class="badge bg-blue">Processing</span></td></tr>
+              <tr><td class="bold">ORD-4819</td><td>Amit Kumar</td><td>5</td><td>₹3200</td><td>Card</td><td><span class="badge bg-green">Delivered</span></td></tr>
+            </tbody></table></div></div>
+          </div>
+          <div class="restricted">🔒 Users, Reports &amp; Settings are restricted to Superuser access.</div>
+        </div>
+
+        <!-- ── USER PANEL ── -->
+        <div id="userPanel" style="display:none;">
+          <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+            <div class="stat"><div class="stat-icon ic-blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div><span class="stat-label">My Orders</span><span class="stat-value">3</span></div></div>
+            <div class="stat"><div class="stat-icon ic-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div><span class="stat-label">Delivered</span><span class="stat-value">2</span></div></div>
+            <div class="stat"><div class="stat-icon ic-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><span class="stat-label">Pending</span><span class="stat-value">1</span></div></div>
+          </div>
+          <div class="grid2">
+            <!-- My orders -->
+            <div class="card">
+              <div class="card-head"><h3>My Orders</h3></div>
+              <div class="card-body" style="padding:0;"><div class="tbl"><table><thead><tr><th>Order</th><th>Total</th><th>Status</th></tr></thead><tbody>
+                <tr><td class="bold">ORD-4821</td><td>₹1250</td><td><span class="badge bg-green">Delivered</span></td></tr>
+                <tr><td class="bold">ORD-4820</td><td>₹450</td><td><span class="badge bg-blue">Processing</span></td></tr>
+                <tr><td class="bold">ORD-4819</td><td>₹3200</td><td><span class="badge bg-green">Delivered</span></td></tr>
+              </tbody></table></div></div>
+            </div>
+            <!-- Activity -->
+            <div class="card">
+              <div class="card-head"><h3>Recent Activity</h3></div>
+              <div class="card-body">
+                <div class="timeline">
+                  <div class="tl-item"><div class="tl-dot"></div><div class="tl-time">Today, 14:32</div><div class="tl-text">Order <strong>ORD-4821</strong> delivered</div></div>
+                  <div class="tl-item"><div class="tl-dot" style="background:#e8a838;"></div><div class="tl-time">Today, 13:45</div><div class="tl-text">Order <strong>ORD-4820</strong> is processing</div></div>
+                  <div class="tl-item"><div class="tl-dot"></div><div class="tl-time">17 Mar, 12:10</div><div class="tl-text">Order <strong>ORD-4819</strong> delivered</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Profile -->
+          <div class="card">
+            <div class="card-head"><h3>My Profile</h3></div>
+            <div class="card-body" style="text-align:center;padding:28px;">
+              <div class="avatar-big" id="userAvatar"></div>
+              <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;" id="userName2"></div>
+              <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px;">Role: <strong style="color:#51cf66;">User</strong></div>
+              <div style="background:var(--bg);border-radius:10px;padding:16px;text-align:left;display:inline-block;min-width:260px;">
+                <div style="font-size:.85rem;margin-bottom:6px;"><strong>Username:</strong> <span id="userUsername"></span></div>
+                <div style="font-size:.85rem;">       <strong>Member since:</strong> March 2026</div>
+              </div>
+            </div>
+          </div>
+          <div class="restricted">🔒 Products, Inventory, Reports &amp; Users require Admin or Superuser access.</div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ── Add / Edit Product Modal ── -->
+  <div class="modal-bg" id="modal">
+    <div class="modal">
+      <h3 id="modalTitle">Add Product</h3>
+      <div id="err"></div>
+      <div class="frow">
+        <div class="fg"><label>SKU (auto)</label><input id="mSku" readonly style="opacity:.6;"></div>
+        <div class="fg"><label>Category</label><select id="mCat"><option value="">Select</option><option>Grocery</option><option>Dairy</option><option>Beverages</option><option>Snacks</option><option>Other</option></select></div>
+      </div>
+      <div class="fg"><label>Product Name *</label><input id="mName" placeholder="e.g. Basmati Rice"></div>
+      <div class="fg"><label>Supplier</label><input id="mSupplier" placeholder="Supplier name"></div>
+      <div class="frow">
+        <div class="fg"><label>Price (₹) *</label><input id="mPrice" type="number" min="0.01" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>Stock *</label><input id="mStock" type="number" min="0" placeholder="0"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-save" onclick="saveProduct()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="js/auth.js"></script>
+  <script src="js/role.js"></script>
+  <script src="js/crud.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    // ── Guard & init ────────────────────────────────────────────────────────────
+    guardPage();
+    const user = getCurrentUser();
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    document.getElementById('headerAvatar').textContent = user.name.charAt(0).toUpperCase();
+    document.getElementById('headerName').textContent   = user.name;
+    document.getElementById('headerRole').textContent   = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+
+    // ── Build sidebar nav by role ─────────────────────────────────────────────
+    const NAV = {
+      superuser: [
+        { icon: 'grid', label: 'Dashboard',  section: 'superPanel' },
+        { icon: 'box',  label: 'Products',   section: 'superPanel' },
+        { icon: 'users',label: 'Users',      section: 'superPanel' },
+      ],
+      admin: [
+        { icon: 'grid', label: 'Dashboard',  section: 'adminPanel' },
+        { icon: 'box',  label: 'Products',   section: 'adminPanel' },
+        { icon: 'cart', label: 'Orders',     section: 'adminPanel' },
+      ],
+      user: [
+        { icon: 'grid', label: 'Dashboard',   section: 'userPanel' },
+        { icon: 'cart', label: 'My Orders',   section: 'userPanel' },
+        { icon: 'user', label: 'My Profile',  section: 'userPanel' },
+      ]
+    };
+
+    const ICONS = {
+      grid:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+      box:   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+      users: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      cart:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>',
+      user:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+      logout:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>'
+    };
+
+    const nav = document.getElementById('sidebarNav');
+    (NAV[user.role] || []).forEach((item, i) => {
+      const a = document.createElement('a');
+      a.className = 'nav-item' + (i === 0 ? ' active' : '');
+      a.href = '#';
+      a.innerHTML = ICONS[item.icon] + `<span>${item.label}</span>`;
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        a.classList.add('active');
+        document.getElementById('pageTitle').textContent = item.label;
+        closeSidebar();
+      });
+      nav.appendChild(a);
+    });
+
+    // Logout item
+    const logoutA = document.createElement('a');
+    logoutA.className = 'nav-item nav-logout';
+    logoutA.href = '#';
+    logoutA.innerHTML = ICONS.logout + '<span>Logout</span>';
+    logoutA.addEventListener('click', e => { e.preventDefault(); logout(); });
+    nav.appendChild(logoutA);
+
+    // ── Show correct panel ────────────────────────────────────────────────────
+    function showPanel() {
+      ['superPanel','adminPanel','userPanel'].forEach(id => document.getElementById(id).style.display = 'none');
+      const panels = { superuser: 'superPanel', admin: 'adminPanel', user: 'userPanel' };
+      const el = document.getElementById(panels[user.role]);
+      if (el) el.style.display = 'block';
+    }
+    showPanel();
+
+    // ── Render products table ─────────────────────────────────────────────────
+    // Override renderProducts from crud.js to target the right tbody
+    function renderProducts() {
+      const products = loadProducts();
+      const targets = user.role === 'admin' ? ['adminProdTbody'] : user.role === 'superuser' ? ['prodTbody'] : [];
+
+      targets.forEach(tbodyId => {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        if (!products.length) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:36px;color:var(--text-muted);">No products available</td></tr>';
+          return;
+        }
+        tbody.innerHTML = products.map(p => {
+          const sc = p.status === 'In Stock' ? 'bg-green' : p.status === 'Low Stock' ? 'bg-amber' : 'bg-red';
+          return `<tr>
+            <td class="bold">${p.sku}</td><td>${p.name}</td><td>${p.category}</td><td>${p.supplier}</td>
+            <td>${p.stock}</td><td>₹${p.price}</td><td><span class="badge ${sc}">${p.status}</span></td>
+            <td><button class="btn-edit" onclick="openEditModal('${p.sku}')">Edit</button> <button class="btn-del" onclick="delProduct('${p.sku}')">Delete</button></td>
+          </tr>`;
+        }).join('');
+      });
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    function updateStats() {
+      const products = loadProducts();
+      const val    = products.reduce((a, p) => a + p.price * p.stock, 0);
+      const alerts = products.filter(p => p.status !== 'In Stock').length;
+      if (document.getElementById('s-revenue'))  document.getElementById('s-revenue').textContent  = '₹' + val.toLocaleString('en-IN');
+      if (document.getElementById('s-products')) document.getElementById('s-products').textContent = products.length;
+      if (document.getElementById('s-alerts'))   document.getElementById('s-alerts').textContent   = alerts;
+      if (document.getElementById('a-products')) document.getElementById('a-products').textContent = products.length;
+      if (document.getElementById('a-alerts'))   document.getElementById('a-alerts').textContent   = alerts;
+      if (document.getElementById('a-orders'))   document.getElementById('a-orders').textContent   = 3;
+    }
+
+    // ── User panel personalisation ────────────────────────────────────────────
+    if (user.role === 'user') {
+      const av = document.getElementById('userAvatar');
+      if (av) av.textContent = user.name.charAt(0).toUpperCase();
+      const un = document.getElementById('userName2');
+      if (un) un.textContent = user.name;
+      const uu = document.getElementById('userUsername');
+      if (uu) uu.textContent = user.username;
+    }
+
+    // ── Sidebar helpers ───────────────────────────────────────────────────────
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('overlay').classList.toggle('show');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('overlay').classList.remove('show');
+    }
+
+    // ── Modal ─────────────────────────────────────────────────────────────────
+    let editSku = null;
+
+    function openModal() {
+      editSku = null;
+      document.getElementById('modalTitle').textContent = 'Add Product';
+      document.getElementById('mSku').value      = getNextSku();
+      document.getElementById('mName').value     = '';
+      document.getElementById('mCat').value      = '';
+      document.getElementById('mSupplier').value = '';
+      document.getElementById('mPrice').value    = '';
+      document.getElementById('mStock').value    = '';
+      document.getElementById('err').style.display = 'none';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function openEditModal(sku) {
+      const p = loadProducts().find(x => x.sku === sku);
+      if (!p) return;
+      editSku = sku;
+      document.getElementById('modalTitle').textContent = 'Edit Product';
+      document.getElementById('mSku').value      = p.sku;
+      document.getElementById('mName').value     = p.name;
+      document.getElementById('mCat').value      = p.category;
+      document.getElementById('mSupplier').value = p.supplier;
+      document.getElementById('mPrice').value    = p.price;
+      document.getElementById('mStock').value    = p.stock;
+      document.getElementById('err').style.display = 'none';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+    function saveProduct() {
+      const name  = document.getElementById('mName').value;
+      const price = document.getElementById('mPrice').value;
+      const stock = document.getElementById('mStock').value;
+
+      if (!validateProduct(name, price, stock)) return;
+
+      const obj = {
+        sku:      editSku || getNextSku(),
+        name:     name.trim(),
+        category: document.getElementById('mCat').value || 'Other',
+        supplier: document.getElementById('mSupplier').value.trim() || '—',
+        price:    parseFloat(price),
+        stock:    parseInt(stock, 10),
+        status:   getStockStatus(parseInt(stock, 10))
+      };
+
+      if (editSku) { updateProduct(editSku, obj); toast('Product updated!', 'ok'); }
+      else         { addProduct(obj);              toast('Product added!',   'ok'); }
+
+      closeModal();
+      updateStats();
+    }
+
+    function delProduct(sku) {
+      if (!confirm('Delete ' + sku + '?')) return;
+      deleteProduct(sku);
+      updateStats();
+      toast('Product deleted', 'bad');
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    function toast(msg, type) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'show ' + type;
+      setTimeout(() => t.className = '', 3000);
+    }
+
+    // ── Close modal on backdrop ───────────────────────────────────────────────
+    document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    renderProducts();
+    updateStats();
+  </script>
 </body>
 </html>
