@@ -9,11 +9,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
     if (sidebarLogo) sidebarLogo.src = '../public/logo.png';
 
+    const ROLE_DISPLAY_MAP = { superuser: 'Super User', admin: 'Admin', user: 'User' };
+
     // Apply Role-Based UI
     function applyRoleBasedUI() {
-        const uName = localStorage.getItem('userName') || 'Admin Demo';
-        const uRole = localStorage.getItem('userRole') || 'Super User';
-        
+        let uName, uRole;
+
+        // Primary: read from currentUser set by auth.js
+        try {
+            const cu = JSON.parse(localStorage.getItem('currentUser'));
+            if (cu && cu.role) {
+                uName = cu.name || cu.username || '';
+                uRole = ROLE_DISPLAY_MAP[cu.role.toLowerCase().replace(/\s+/g, '')] || cu.role;
+            }
+        } catch (e) {
+            console.error('Failed to parse currentUser from localStorage:', e);
+        }
+
+        // Fallback: legacy keys set by older login flow
+        if (!uName) uName = localStorage.getItem('userName') || 'Admin Demo';
+        if (!uRole) uRole = localStorage.getItem('userRole') || 'Super User';
+
         const nameEl = document.querySelector('.user-name');
         const roleEl = document.querySelector('.user-role');
         const avatarEl = document.querySelector('.user-avatar');
