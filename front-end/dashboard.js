@@ -3,8 +3,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
     if (sidebarLogo) sidebarLogo.src = 'logo.png';
 
+    // Apply Role-Based UI
+    function applyRoleBasedUI() {
+        const uName = localStorage.getItem('userName') || 'Admin Demo';
+        const uRole = localStorage.getItem('userRole') || 'Super User';
+        
+        const nameEl = document.querySelector('.user-name');
+        const roleEl = document.querySelector('.user-role');
+        const avatarEl = document.querySelector('.user-avatar');
+        
+        if (nameEl) nameEl.textContent = uName;
+        if (roleEl) roleEl.textContent = uRole;
+        if (avatarEl) avatarEl.textContent = uName.charAt(0).toUpperCase();
 
-    // ── HEADER DROPDOWNS & SEARCH ─────────────────────────────────────────
+        if (uRole === 'Admin') {
+            const restrictedPages = ['users', 'reports', 'delivery', 'returns', 'settings'];
+            restrictedPages.forEach(p => {
+                const navItem = document.querySelector(`.nav-item[data-page="${p}"]`);
+                if (navItem) navItem.style.display = 'none';
+            });
+            
+            // Hide the Management section label to look cleaner
+            const labels = document.querySelectorAll('.nav-section-label');
+            labels.forEach(l => {
+                if (l.textContent.trim() === 'Management') l.style.display = 'none';
+            });
+
+            const p = document.body.getAttribute('data-page');
+            if (restrictedPages.includes(p)) {
+                window.location.href = 'dashboard.html';
+            }
+        }
+    }
+    applyRoleBasedUI();
+
+    // Header & Search
     const notifBtn = document.getElementById('notifBtn');
     const notifDropdown = document.getElementById('notifDropdown');
     const userMenuBtn = document.getElementById('userMenuBtn');
@@ -47,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ── NAVIGATION & SIDEBAR ──────────────────────────────────────────────
+    // Navigation & Sidebar
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.getElementById('menuToggle');
     const overlay = document.getElementById('sidebarOverlay');
@@ -78,54 +111,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── DATA ──────────────────────────────────────────────────────────────
+    // Data
     const orders = [
         { id: 'ORD-4821', customer: 'Rahul Sharma', items: 3, total: 1250, payment: 'UPI', status: 'Delivered', date: '17 Feb 14:32' },
         { id: 'ORD-4820', customer: 'Priya Patel', items: 1, total: 450, payment: 'Cash', status: 'Processing', date: '17 Feb 13:45' },
-        { id: 'ORD-4819', customer: 'Amit Kumar', items: 5, total: 3200, payment: 'Card', status: 'Delivered', date: '17 Feb 12:10' },
-        { id: 'ORD-4818', customer: 'Sneha Gupta', items: 2, total: 890, payment: 'UPI', status: 'Pending', date: '17 Feb 11:50' },
-        { id: 'ORD-4817', customer: 'Vikram Joshi', items: 4, total: 2100, payment: 'Cash', status: 'Delivered', date: '16 Feb 18:22' },
-        { id: 'ORD-4816', customer: 'Neha Reddy', items: 1, total: 320, payment: 'UPI', status: 'Cancelled', date: '16 Feb 17:05' },
-        { id: 'ORD-4815', customer: 'Karan Mehta', items: 6, total: 4750, payment: 'Card', status: 'Processing', date: '16 Feb 15:30' },
-        { id: 'ORD-4814', customer: 'Anjali Desai', items: 2, total: 1100, payment: 'Cash', status: 'Delivered', date: '16 Feb 14:15' },
-        { id: 'ORD-4813', customer: 'Rohan Verma', items: 3, total: 1680, payment: 'UPI', status: 'Delivered', date: '15 Feb 19:40' },
-        { id: 'ORD-4812', customer: 'Divya Nair', items: 1, total: 560, payment: 'Card', status: 'Pending', date: '15 Feb 16:55' }
+        { id: 'ORD-4819', customer: 'Amit Kumar', items: 5, total: 3200, payment: 'Card', status: 'Delivered', date: '17 Feb 12:10' }
     ];
 
     const inventory = [
         { sku: 'SKU-01', name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 145, price: 380, status: 'In Stock' },
         { sku: 'SKU-02', name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 230, price: 120, status: 'In Stock' },
-        { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 18, price: 155, status: 'Low Stock' },
-        { sku: 'SKU-04', name: 'Wheat Flour', cat: 'Grocery', supplier: 'Ashirvaad Supply', stock: 95, price: 420, status: 'In Stock' },
-        { sku: 'SKU-05', name: 'Sugar', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 5, price: 210, status: 'Critical' },
-        { sku: 'SKU-06', name: 'Milk', cat: 'Dairy', supplier: 'Mother Dairy', stock: 320, price: 56, status: 'In Stock' },
-        { sku: 'SKU-07', name: 'Curd', cat: 'Dairy', supplier: 'Amul Dist.', stock: 85, price: 35, status: 'In Stock' },
-        { sku: 'SKU-08', name: 'Paneer', cat: 'Dairy', supplier: 'Mother Dairy', stock: 12, price: 80, status: 'Low Stock' },
-        { sku: 'SKU-09', name: 'Tea', cat: 'Beverages', supplier: 'HUL Supply', stock: 110, price: 180, status: 'In Stock' },
-        { sku: 'SKU-10', name: 'Coffee', cat: 'Beverages', supplier: 'Nestle India', stock: 8, price: 320, status: 'Critical' }
+        { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 18, price: 155, status: 'Low Stock' }
     ];
 
     const deliveries = [
         { id: 'DEL-901', oid: 'ORD-4821', partner: 'Rajesh K.', status: 'Delivered', time: '14:10' },
-        { id: 'DEL-900', oid: 'ORD-4820', partner: 'Sunil M.', status: 'Out for Delivery', time: '-' },
-        { id: 'DEL-899', oid: 'ORD-4819', partner: 'Deepak R.', status: 'Delivered', time: '12:05' },
-        { id: 'DEL-898', oid: 'ORD-4818', partner: '-', status: 'Pending Dispatch', time: '-' },
-        { id: 'DEL-897', oid: 'ORD-4817', partner: 'Amit S.', status: 'Delivered', time: '18:00' }
+        { id: 'DEL-900', oid: 'ORD-4820', partner: 'Sunil M.', status: 'Out for Delivery', time: '-' }
     ];
 
     const returns = [
         { id: 'RET-201', oid: 'ORD-4810', reason: 'Damaged', amount: 420, status: 'Approved' },
-        { id: 'RET-200', oid: 'ORD-4805', reason: 'Wrong Item', amount: 155, status: 'Refunded' },
-        { id: 'RET-199', oid: 'ORD-4798', reason: 'Expired', amount: 80, status: 'Approved' },
-        { id: 'RET-198', oid: 'ORD-4792', reason: 'Stale', amount: 45, status: 'Rejected' }
+        { id: 'RET-200', oid: 'ORD-4805', reason: 'Wrong Item', amount: 155, status: 'Refunded' }
     ];
 
     const users = [
         { name: 'Admin', role: 'Ops Head', status: 'Active' },
         { name: 'Ramesh Gupta', role: 'Cashier', status: 'Active' },
-        { name: 'Sunita Verma', role: 'Cashier', status: 'Active' },
-        { name: 'Deepak Singh', role: 'Manager', status: 'Active' },
-        { name: 'David Lee', role: 'Support', status: 'Offline' }
+        { name: 'Sunita Verma', role: 'Cashier', status: 'Active' }
     ];
 
     const notificationsList = [
@@ -154,28 +166,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 { file: 'inventory/SKU-05/quantity', old: '15', new: '5' },
                 { file: 'inventory/SKU-05/status', old: 'In Stock', new: 'Low Stock' }
             ]
-        },
-        {
-            id: 'NOTIF-003',
-            title: 'Database Backup Completed',
-            type: 'system',
-            time: 'Yesterday',
-            desc: 'Automated weekly backup was successful.',
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-            color: 'green',
-            changes: [
-                { file: 'system/backups/latest', old: 'backup_2026-02-10.sql', new: 'backup_2026-02-17.sql' },
-                { file: 'system/storage/used', old: '4.2 GB', new: '4.3 GB' }
-            ]
         }
     ];
 
-    // ── HELPERS ───────────────────────────────────────────────────────────
+    // Helpers
     function badge(txt, type) { return `<span class="badge b-${type}">${txt}</span>`; }
     function statusBadge(s) { return badge(s, s.toLowerCase().replace(/ /g, '')); }
     function table(hdrs, rows) { return `<div class="tbl-wrap"><table class="dt"><thead><tr>${hdrs.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`; }
 
-    // ── PAGE RENDERERS ────────────────────────────────────────────────────
+    // Page Renderers
     let activeCharts = []; // Track active charts for cleanup
 
     function renderPage(page) {
@@ -223,8 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
         content.innerHTML = `
         <div class="page-header"><h2>Orders</h2><div class="page-header-actions"><button class="btn btn-primary" id="newOrderBtnDyn">+ New Order</button></div></div>
         <section class="card"><div class="card-bd">${table(
-            ['ID', 'Customer', 'Items', 'Total', 'Payment', 'Status', 'Date'],
-            orders.map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td><td>${o.date}</td></tr>`).join('')
+            ['ID', 'Customer', 'Items', 'Total', 'Payment', 'Status', 'Date', 'Actions'],
+            orders.map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td><td>${o.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${o.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${o.id}')">Delete</button></td></tr>`).join('')
         )}</div></section>`;
         const dynBtn = document.getElementById('newOrderBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openNewOrderModal);
@@ -238,8 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
              <div class="card"><div class="card-hd"><h3>Stock Levels</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invStockChart"></canvas></div></div>
         </section>
         <section class="card"><div class="card-bd">${table(
-            ['SKU', 'Product', 'Category', 'Supplier', 'Stock', 'Unit Price', 'Status'],
-            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.supplier || '-'}</td><td>${i.stock}</td><td>₹${i.price}</td><td>${statusBadge(i.status)}</td></tr>`).join('')
+            ['SKU', 'Product', 'Category', 'Supplier', 'Stock', 'Unit Price', 'Status', 'Actions'],
+            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.supplier || '-'}</td><td>${i.stock}</td><td>₹${i.price}</td><td>${statusBadge(i.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${i.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${i.sku}')">Delete</button></td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initInventoryCharts, 0);
         // Wire up dynamic Add Product button
@@ -274,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderUsers() {
         content.innerHTML = `
         <div class="page-header"><h2>Users</h2><div class="page-header-actions"><button class="btn btn-primary" id="addUserBtnDyn">+ Add User</button></div></div>
-        <section class="card"><div class="card-bd">${table(['Name', 'Role', 'Status', 'Actions'], users.map(u => `<tr><td class="cell-main">${u.name}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="renderUserProfile('${u.name}')">View</button></td></tr>`).join(''))}</div></section>`;
+        <section class="card"><div class="card-bd">${table(['Name', 'Email', 'Role', 'Status', 'Actions'], users.map(u => `<tr><td class="cell-main">${u.name}</td><td>${u.email || ''}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${u.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${u.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${u.name}')">Delete</button></td></tr>`).join(''))}</div></section>`;
         const dynBtn = document.getElementById('addUserBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openAddUserModal);
     }
@@ -574,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPage(p); // Re-render page to cleanup and redraw charts with new colors
     }
 
-    // ── ADD PRODUCT MODAL LOGIC ────────────────────────────────────────
+    // Product Modal Logic
     function getNextSku() {
         const nums = inventory.map(i => parseInt(i.sku.replace('SKU-', ''), 10));
         // Also scan the DOM table for SKUs (handles static HTML items not in JS array)
@@ -661,9 +660,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const stock = parseInt(document.getElementById('prodStock').value, 10);
         const selectedStatus = document.getElementById('prodStatus').value;
+        const sku = document.getElementById('prodSku').value || getNextSku();
 
-        const newProduct = {
-            sku: document.getElementById('prodSku').value || getNextSku(),
+        const existingIdx = inventory.findIndex(i => i.sku === sku);
+        const pData = {
+            sku: sku,
             name: document.getElementById('prodName').value.trim(),
             cat: document.getElementById('prodCategory').value,
             supplier: document.getElementById('prodSupplier').value.trim(),
@@ -672,21 +673,30 @@ document.addEventListener('DOMContentLoaded', () => {
             status: determineStatus(stock, selectedStatus)
         };
 
-        inventory.push(newProduct);
-
-        // Update table on static page
-        const tbody = document.getElementById('inventoryTableBody');
-        if (tbody) {
-            const statusClass = newProduct.status === 'In Stock' ? 'b-active'
-                : newProduct.status === 'Low Stock' ? 'b-pending'
-                : newProduct.status === 'Critical' ? 'b-cancelled'
-                : 'b-inactive';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="cell-main">${newProduct.sku}</td><td>${newProduct.name}</td><td>${newProduct.cat}</td><td>${newProduct.supplier}</td><td>${newProduct.stock}</td><td>₹${newProduct.price}</td><td><span class="badge ${statusClass}">${newProduct.status}</span></td>`;
-            tbody.appendChild(tr);
+        if (existingIdx !== -1) {
+            inventory[existingIdx] = pData;
+        } else {
+            inventory.push(pData);
         }
 
-        // Re-render charts if on inventory page
+        // Update DOM row if editing, else append
+        const statusClass = pData.status === 'In Stock' ? 'b-active' : pData.status === 'Low Stock' ? 'b-pending' : pData.status === 'Critical' ? 'b-cancelled' : 'b-inactive';
+        const trHtml = `<td class="cell-main">${pData.sku}</td><td>${pData.name}</td><td>${pData.cat}</td><td>${pData.supplier}</td><td>${pData.stock}</td><td>₹${pData.price}</td><td><span class="badge ${statusClass}">${pData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${pData.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${pData.sku}')">Delete</button></td>`;
+        
+        let existingRow = null;
+        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) existingRow = r; });
+        
+        if (existingRow) {
+            existingRow.innerHTML = trHtml;
+        } else {
+            const tbody = document.getElementById('inventoryTableBody') || (document.querySelector('table.dt tbody'));
+            if (tbody) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = trHtml;
+                tbody.appendChild(tr);
+            }
+        }
+
         if (currentPage === 'inventory') {
             if (activeCharts.length) {
                 activeCharts.forEach(c => c.destroy());
@@ -696,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         closeAddProductModal();
-        showToast(`Product "${newProduct.name}" added successfully!`);
+        showToast(`Product "${pData.name}" saved successfully!`);
     }
 
     // Wire up modal events
@@ -727,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── NEW ORDER MODAL LOGIC ──────────────────────────────────────────
+    // Order Modal Logic
     function getNextOrderId() {
         const nums = orders.map(o => parseInt(o.id.replace('ORD-', ''), 10));
         const tbody = document.getElementById('ordersTableBody');
@@ -797,32 +807,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (!valid) return;
 
-        const newOrder = {
-            id: document.getElementById('orderId').value || getNextOrderId(),
+        const oid = document.getElementById('orderId').value || getNextOrderId();
+        const existingIdx = orders.findIndex(o => o.id === oid);
+        
+        const oData = {
+            id: oid,
             customer: document.getElementById('orderCustomer').value.trim(),
             items: parseInt(document.getElementById('orderItems').value, 10),
             total: parseFloat(document.getElementById('orderTotal').value),
             payment: document.getElementById('orderPayment').value,
             status: document.getElementById('orderStatus').value,
-            date: formatDate()
+            date: existingIdx !== -1 ? orders[existingIdx].date : formatDate()
         };
 
-        orders.unshift(newOrder);
+        if (existingIdx !== -1) {
+            orders[existingIdx] = oData;
+        } else {
+            orders.unshift(oData);
+        }
 
-        const tbody = document.getElementById('ordersTableBody');
-        if (tbody) {
-            const tr = document.createElement('tr');
-            const payClass = 'b-' + newOrder.payment.toLowerCase();
-            const statusClass = newOrder.status === 'Delivered' ? 'b-delivered'
-                : newOrder.status === 'Processing' ? 'b-processing'
-                : newOrder.status === 'Pending' ? 'b-pending'
-                : 'b-cancelled';
-            tr.innerHTML = `<td class="cell-main">${newOrder.id}</td><td>${newOrder.customer}</td><td>${newOrder.items}</td><td>₹${newOrder.total.toLocaleString()}</td><td><span class="badge ${payClass}">${newOrder.payment}</span></td><td><span class="badge ${statusClass}">${newOrder.status}</span></td><td>${newOrder.date}</td>`;
-            tbody.insertBefore(tr, tbody.firstChild);
+        const payClass = 'b-' + oData.payment.toLowerCase();
+        const statusClass = oData.status === 'Delivered' ? 'b-delivered' : oData.status === 'Processing' ? 'b-processing' : oData.status === 'Pending' ? 'b-pending' : 'b-cancelled';
+        const trHtml = `<td class="cell-main">${oData.id}</td><td>${oData.customer}</td><td>${oData.items}</td><td>₹${oData.total.toLocaleString()}</td><td><span class="badge ${payClass}">${oData.payment}</span></td><td><span class="badge ${statusClass}">${oData.status}</span></td><td>${oData.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${oData.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${oData.id}')">Delete</button></td>`;
+
+        let existingRow = null;
+        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === oid) existingRow = r; });
+        
+        if (existingRow) {
+            existingRow.innerHTML = trHtml;
+        } else {
+            const tbody = document.getElementById('ordersTableBody') || (document.querySelector('table.dt tbody'));
+            if (tbody) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = trHtml;
+                tbody.insertBefore(tr, tbody.firstChild);
+            }
         }
 
         closeNewOrderModal();
-        showToast(`Order "${newOrder.id}" created successfully!`);
+        showToast(`Order "${oData.id}" saved successfully!`);
     }
 
     // Wire up New Order modal events
@@ -850,7 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── ADD USER MODAL LOGIC ──────────────────────────────────────────
+    // User Modal Logic
     function openAddUserModal() {
         const overlay = document.getElementById('addUserModal');
         if (!overlay) return;
@@ -895,27 +918,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (!valid) return;
 
-        const newUser = {
-            name: document.getElementById('userName').value.trim(),
+        const uname = document.getElementById('userName').value.trim();
+        const existingIdx = users.findIndex(u => u.name === uname);
+        
+        const uData = {
+            name: uname,
             role: document.getElementById('userRole').value,
             status: document.getElementById('userStatus').value,
             email: document.getElementById('userEmail').value.trim()
         };
 
-        users.push(newUser);
+        if (existingIdx !== -1) {
+            users[existingIdx] = uData;
+        } else {
+            users.push(uData);
+        }
 
-        const tbody = document.getElementById('usersTableBody');
-        if (tbody) {
-            const statusClass = newUser.status === 'Active' ? 'b-active'
-                : newUser.status === 'Offline' ? 'b-offline'
-                : 'b-cancelled';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="cell-main">${newUser.name}</td><td>${newUser.email}</td><td>${newUser.role}</td><td>Just now</td><td><span class="badge ${statusClass}">${newUser.status}</span></td><td><button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;">Edit</button></td>`;
-            tbody.appendChild(tr);
+        const statusClass = uData.status === 'Active' ? 'b-active' : uData.status === 'Offline' ? 'b-offline' : 'b-cancelled';
+        const trHtml = `<td class="cell-main">${uData.name}</td><td>${uData.email}</td><td>${uData.role}</td><td>Just now</td><td><span class="badge ${statusClass}">${uData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${uData.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${uData.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${uData.name}')">Delete</button></td>`;
+
+        let existingRow = null;
+        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === uname) existingRow = r; });
+        
+        if (existingRow) {
+            existingRow.innerHTML = trHtml;
+        } else {
+            const tbody = document.getElementById('usersTableBody') || (document.querySelector('table.dt tbody'));
+            if (tbody) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = trHtml;
+                tbody.appendChild(tr);
+            }
         }
 
         closeAddUserModal();
-        showToast(`User "${newUser.name}" added successfully!`);
+        showToast(`User "${uData.name}" saved successfully!`);
     }
 
     // Wire up Add User modal events
@@ -942,6 +979,75 @@ document.addEventListener('DOMContentLoaded', () => {
             el.classList.remove('error');
         });
     });
+
+    // Global CRUD handlers for Product, Order, User
+    window.editProduct = function(sku) {
+        const p = inventory.find(i => i.sku === sku);
+        if (!p) return;
+        openAddProductModal();
+        document.querySelector('#addProductModal h3').textContent = 'Edit Product';
+        document.getElementById('prodSku').value = p.sku;
+        document.getElementById('prodName').value = p.name;
+        document.getElementById('prodCategory').value = p.cat;
+        document.getElementById('prodSupplier').value = p.supplier || '';
+        document.getElementById('prodPrice').value = p.price;
+        document.getElementById('prodStock').value = p.stock;
+        document.getElementById('prodStatus').value = p.status;
+    };
+    window.deleteProduct = function(sku) {
+        if(!confirm('Delete Product ' + sku + '?')) return;
+        const index = inventory.findIndex(i => i.sku === sku);
+        if (index !== -1) inventory.splice(index, 1);
+        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) r.remove(); });
+        showToast(`Product "${sku}" deleted!`);
+    };
+
+    window.editOrder = function(id) {
+        const o = orders.find(i => i.id === id);
+        if (!o) return;
+        openNewOrderModal();
+        document.querySelector('#newOrderModal h3').textContent = 'Edit Order';
+        document.getElementById('orderId').value = o.id;
+        document.getElementById('orderCustomer').value = o.customer;
+        document.getElementById('orderItems').value = o.items;
+        document.getElementById('orderTotal').value = o.total;
+        document.getElementById('orderPayment').value = o.payment;
+        document.getElementById('orderStatus').value = o.status;
+    };
+    window.deleteOrder = function(id) {
+        if(!confirm('Delete Order ' + id + '?')) return;
+        const index = orders.findIndex(i => i.id === id);
+        if (index !== -1) orders.splice(index, 1);
+        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === id) r.remove(); });
+        showToast(`Order "${id}" deleted!`);
+    };
+
+    window.editUser = function(name) {
+        const u = users.find(i => i.name === name);
+        if (!u) return;
+        openAddUserModal();
+        document.querySelector('#addUserModal h3').textContent = 'Edit User';
+        document.getElementById('userName').value = u.name;
+        document.getElementById('userName').readOnly = true; // Name acts as ID, so don't change
+        document.getElementById('userEmail').value = u.email || '';
+        document.getElementById('userRole').value = u.role;
+        document.getElementById('userStatus').value = u.status;
+    };
+    window.deleteUser = function(name) {
+        if(!confirm('Delete User ' + name + '?')) return;
+        const index = users.findIndex(i => i.name === name);
+        if (index !== -1) users.splice(index, 1);
+        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === name) r.remove(); });
+        showToast(`User "${name}" deleted!`);
+    };
+
+    // Reset modals to "Add" state when opened manually
+    const btnAddProd = document.getElementById('addProductBtn');
+    if (btnAddProd) btnAddProd.addEventListener('click', () => { const h3 = document.querySelector('#addProductModal h3'); if (h3) h3.textContent = 'Add New Product'; });
+    const btnNewOrd = document.getElementById('newOrderBtn');
+    if (btnNewOrd) btnNewOrd.addEventListener('click', () => { const h3 = document.querySelector('#newOrderModal h3'); if (h3) h3.textContent = 'Create New Order'; });
+    const btnAddUsr = document.getElementById('addUserBtn');
+    if (btnAddUsr) btnAddUsr.addEventListener('click', () => { const h3 = document.querySelector('#addUserModal h3'); if (h3) h3.textContent = 'Add New User'; const inName = document.getElementById('userName'); if (inName) inName.readOnly = false; });
 
     // Init - Only run chart scripts if we are on a page that needs them
     if (currentPage === 'dashboard') {

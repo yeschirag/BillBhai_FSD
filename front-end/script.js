@@ -35,13 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogin = document.getElementById('btnLogin');
     const loginError = document.getElementById('loginError');
 
-    const CREDENTIALS = {
-        chirag: 'chirag1234',
-        sarthak: 'sarthak1234',
-        mohit: 'mohit1234',
-        satyam: 'satyam1234',
-        aditya: 'aditya1234',
-        admin: 'admin1234'
+    const USERS = {
+        'superuser': { password: 'super123', role: 'Super User', name: 'Super Admin' },
+        'admin': { password: 'admin123', role: 'Admin', name: 'Store Admin' },
+        'chirag': { password: 'chirag1234', role: 'Super User', name: 'Chirag' }
     };
 
     loginForm.addEventListener('submit', e => {
@@ -53,13 +50,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!u) { const g = document.getElementById('usernameGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (!p) { const g = document.getElementById('passwordGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (err) return;
-        if (!Object.prototype.hasOwnProperty.call(CREDENTIALS, u) || CREDENTIALS[u] !== p) {
+        if (!Object.prototype.hasOwnProperty.call(USERS, u) || USERS[u].password !== p) {
             const pg = document.getElementById('passwordGroup');
             pg.classList.add('error', 'shake');
             pg.addEventListener('animationend', () => pg.classList.remove('shake'), { once: true });
             loginError.textContent = 'Incorrect username or password.';
             return;
         }
+
+        // Store session state
+        localStorage.setItem('userRole', USERS[u].role);
+        localStorage.setItem('userName', USERS[u].name);
+
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
             btnLogin.classList.remove('loading'); btnLogin.classList.add('success');
