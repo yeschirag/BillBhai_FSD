@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="../styles/style.css">
     <style>
       .creds-hint { margin-top:18px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:14px 16px; font-size:.78rem; color:rgba(255,255,255,.6); line-height:1.8; }
       .creds-hint strong { color:#dc3545; }
@@ -25,7 +25,7 @@
     <div class="login-wrapper">
         <div class="login-card" id="loginCard">
             <div class="brand-header">
-                <img src="assets/logo.png" alt="BillBhai Logo" class="brand-logo-img">
+                <img src="../public/logo.png" alt="BillBhai Logo" class="brand-logo-img">
                 <p class="brand-subtitle" id="brandSubtitle"></p>
             </div>
             <form id="loginForm" class="login-form" autocomplete="off">
@@ -64,25 +64,14 @@
                     <span class="btn-success"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
                 </button>
             </form>
-            <!-- Demo credentials hint for evaluators -->
-            <div class="creds-hint">
-              <strong>Demo Accounts:</strong><br>
-              superuser / super123 &nbsp;<span class="role-chip rc-super">Superuser</span><br>
-              sarthak / sarthak123 &nbsp;<span class="role-chip rc-super">Superuser</span><br>
-              admin / admin123 &nbsp;&nbsp;&nbsp;<span class="role-chip rc-admin">Admin</span><br>
-              mohit / mohit123 &nbsp;&nbsp;&nbsp;<span class="role-chip rc-admin">Admin</span><br>
-              aditya / aditya123 &nbsp;&nbsp;<span class="role-chip rc-admin">Admin</span><br>
-              chirag / chirag1234 &nbsp;<span class="role-chip rc-user">User</span><br>
-              satyam / satyam123 &nbsp;&nbsp;<span class="role-chip rc-user">User</span>
-            </div>
             <div class="login-footer">
                 <p style="margin-bottom: 12px; font-size: 0.85rem; color: rgba(255,255,255,0.5);">Don't have an account? <a href="register-business.html" style="color: #dc3545; font-weight: 600; text-decoration: none;">Sign Up</a></p>
                 <p>&copy; 2026 BillBhai Systems</p>
             </div>
         </div>
     </div>
-    <script src="js/auth.js"></script>
-    <script src="js/state.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/state.js"></script>
     <script>
       // Redirect if already logged in
       (function() {
@@ -100,8 +89,8 @@
         btn.classList.add('loading');
         errEl.textContent = '';
 
-        setTimeout(() => {
-          const user = login(username, password);
+        setTimeout(async () => {
+          const user = await login(username, password);
           if (user) {
             btn.classList.remove('loading');
             btn.classList.add('success');

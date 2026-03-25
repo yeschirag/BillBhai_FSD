@@ -6,7 +6,7 @@
   <title>BillBhai — Superuser Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/dashboard.css">
+  <link rel="stylesheet" href="../styles/dashboard.css">
   <style>
     /* ── Mobile-first responsive overrides ── */
     :root { --sidebar-w: 240px; }
@@ -119,7 +119,7 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-brand">
-        <img src="../logo.png" alt="BillBhai" class="sidebar-brand-img" style="height:32px;">
+        <img src="../public/logo.png" alt="BillBhai" class="sidebar-brand-img" style="height:32px;">
         <span class="sidebar-brand-name">BillBhai</span>
       </div>
       <nav class="sidebar-nav">
@@ -305,10 +305,10 @@
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
-  <script src="../js/auth.js"></script>
-  <script src="../js/role.js"></script>
-  <script src="../js/crud.js"></script>
-  <script src="../js/state.js"></script>
+  <script src="../scripts/auth.js"></script>
+  <script src="../scripts/role.js"></script>
+  <script src="../scripts/crud.js"></script>
+  <script src="../scripts/state.js"></script>
   <script>
     // ── Guard ──────────────────────────────────────────────────────────────────
     guardPage(['superuser']);

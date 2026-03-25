@@ -1,7 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    function resolvePagePath(pageFile) {
+        const path = window.location.pathname.replace(/\\/g, '/');
+        const inPagesDir = path.includes('/pages/');
+        return (inPagesDir ? '' : 'pages/') + pageFile;
+    }
+
     // Logo is always dark mode
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
-    if (sidebarLogo) sidebarLogo.src = 'logo.png';
+    if (sidebarLogo) sidebarLogo.src = '../public/logo.png';
 
     // Apply Role-Based UI
     function applyRoleBasedUI() {
@@ -31,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const p = document.body.getAttribute('data-page');
             if (restrictedPages.includes(p)) {
-                window.location.href = 'dashboard.html';
+                window.location.href = resolvePagePath('dashboard.html');
             }
         }
     }

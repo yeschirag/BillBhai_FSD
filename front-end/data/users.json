@@ -1,9 +1,9 @@
 [
-  { "username": "superuser", "name": "Super User", "role": "superuser", "status": "Active" },
-  { "username": "sarthak",   "name": "Sarthak",    "role": "superuser", "status": "Active" },
-  { "username": "admin",     "name": "Admin",       "role": "admin",     "status": "Active" },
-  { "username": "mohit",     "name": "Mohit",       "role": "admin",     "status": "Active" },
-  { "username": "aditya",    "name": "Aditya",      "role": "admin",     "status": "Active" },
-  { "username": "chirag",    "name": "Chirag",      "role": "user",      "status": "Active" },
-  { "username": "satyam",    "name": "Satyam",      "role": "user",      "status": "Active" }
+  { "username": "superuser", "password": "super123",   "name": "Super User", "role": "superuser", "status": "Active" },
+  { "username": "sarthak",   "password": "sarthak123", "name": "Sarthak",    "role": "superuser", "status": "Active" },
+  { "username": "admin",     "password": "admin123",   "name": "Admin",       "role": "admin",     "status": "Active" },
+  { "username": "mohit",     "password": "mohit123",   "name": "Mohit",       "role": "admin",     "status": "Active" },
+  { "username": "aditya",    "password": "aditya123",  "name": "Aditya",      "role": "admin",     "status": "Active" },
+  { "username": "chirag",    "password": "chirag1234", "name": "Chirag",      "role": "user",      "status": "Active" },
+  { "username": "satyam",    "password": "satyam123",  "name": "Satyam",      "role": "user",      "status": "Active" }
 ]

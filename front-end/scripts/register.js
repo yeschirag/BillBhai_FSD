@@ -1,5 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    function resolvePagePath(pageFile) {
+        const path = window.location.pathname.replace(/\\/g, '/');
+        const inPagesDir = path.includes('/pages/');
+        return (inPagesDir ? '' : 'pages/') + pageFile;
+    }
+
     // ===== Typewriter subtitle =====
     const subtitleEl = document.getElementById('brandSubtitle');
     if (subtitleEl) {
@@ -194,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnRegister.classList.remove('loading');
                 btnRegister.classList.add('success');
                 setTimeout(() => {
-                    window.location.href = 'login.html';
+                    window.location.href = resolvePagePath('login.html');
                 }, 1000);
             }, 2000);
         });

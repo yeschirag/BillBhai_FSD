@@ -1,21 +1,32 @@
 // crud.js — Product CRUD with localStorage + Form Validation
 
-const DEFAULT_PRODUCTS = [
-  { sku: 'SKU-01', name: 'Basmati Rice',  category: 'Grocery',   supplier: 'Agarwal Traders',  stock: 145, price: 380, status: 'In Stock'  },
-  { sku: 'SKU-02', name: 'Toor Dal',      category: 'Grocery',   supplier: 'Sharma Wholesale',  stock: 230, price: 120, status: 'In Stock'  },
-  { sku: 'SKU-03', name: 'Refined Oil',   category: 'Grocery',   supplier: 'Fortune Dist.',     stock: 18,  price: 155, status: 'Low Stock' },
-  { sku: 'SKU-04', name: 'Whole Wheat',   category: 'Grocery',   supplier: 'Kissan Mills',      stock: 95,  price: 65,  status: 'In Stock'  },
-  { sku: 'SKU-05', name: 'Sugar',         category: 'Grocery',   supplier: 'Local Supplier',    stock: 5,   price: 42,  status: 'Critical'  }
-];
+async function fetchProductsJSON() {
+  try {
+    let res = await fetch('../data/products.json');
+    if (!res.ok) throw new Error();
+    return await res.json();
+  } catch(e) {
+    let res = await fetch('data/products.json');
+    return await res.json();
+  }
+}
 
 function loadProducts() {
   const stored = localStorage.getItem('products');
   if (stored) {
     try { return JSON.parse(stored); } catch(e) {}
   }
-  // Seed default data on first use
-  localStorage.setItem('products', JSON.stringify(DEFAULT_PRODUCTS));
-  return DEFAULT_PRODUCTS.slice();
+  return [];
+}
+
+async function loadAndSeedProducts() {
+  const stored = localStorage.getItem('products');
+  if (stored) {
+    try { return JSON.parse(stored); } catch(e) {}
+  }
+  const defaults = await fetchProductsJSON();
+  localStorage.setItem('products', JSON.stringify(defaults));
+  return defaults;
 }
 
 function saveProducts(arr) {
@@ -102,11 +113,11 @@ function getNextSku() {
 }
 
 // ── Render products table ─────────────────────────────────────────────────────
-function renderProducts() {
+async function renderProducts() {
   const tbody = document.getElementById('productsTableBody');
   if (!tbody) return;
 
-  const products = loadProducts();
+  const products = await loadAndSeedProducts();
 
   if (products.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">No products available</td></tr>';

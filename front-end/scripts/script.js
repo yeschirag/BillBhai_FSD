@@ -1,5 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    function resolvePagePath(pageFile) {
+        const path = window.location.pathname.replace(/\\/g, '/');
+        const inPagesDir = path.includes('/pages/');
+        return (inPagesDir ? '' : 'pages/') + pageFile;
+    }
+
 
     const subtitleEl = document.getElementById('brandSubtitle');
     const text = 'ORDER & BILLING SYSTEM';
@@ -58,14 +64,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Store session state
+        // Store session state (legacy + auth-compatible shape)
         localStorage.setItem('userRole', USERS[u].role);
         localStorage.setItem('userName', USERS[u].name);
+        localStorage.setItem('currentUser', JSON.stringify({
+            username: u,
+            password: USERS[u].password,
+            name: USERS[u].name,
+            role: USERS[u].role.toLowerCase().replace(/\s+/g, ''),
+            status: 'Active'
+        }));
 
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
             btnLogin.classList.remove('loading'); btnLogin.classList.add('success');
-            setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+            setTimeout(() => { window.location.href = resolvePagePath('dashboard.html'); }, 800);
         }, 1800);
     });
 
