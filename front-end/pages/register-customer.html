@@ -3,35 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BillBhai — Register Your Business</title>
-    <meta name="description" content="Sign up for BillBhai and start managing your business billing, inventory, and orders in minutes.">
+    <title>BillBhai — Customer Sign Up</title>
+    <meta name="description" content="Create your BillBhai customer account to shop, track orders, and enjoy seamless billing at your favourite stores.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="register.css">
+    <link rel="stylesheet" href="../styles/register.css">
 </head>
 <body>
     <div class="ambient-glow glow-1"></div>
     <div class="ambient-glow glow-2"></div>
     <div class="ambient-glow glow-3"></div>
 
-    <div class="register-wrapper wide">
+    <div class="register-wrapper">
         <div class="register-card" id="registerCard">
             <div class="brand-header">
-                <img src="logo.png" alt="BillBhai Logo" class="brand-logo-img">
-                <p class="brand-subtitle" id="brandSubtitle" data-text="REGISTER YOUR BUSINESS"></p>
+                <img src="../public/logo.png" alt="BillBhai Logo" class="brand-logo-img">
+                <p class="brand-subtitle" id="brandSubtitle" data-text="CREATE YOUR ACCOUNT"></p>
             </div>
 
             <!-- Account Type Selector -->
             <div class="account-type-selector">
-                <a href="register-business.html" class="type-card active">
+                <a href="register-business.html" class="type-card">
                     <div class="type-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                     </div>
                     <span class="type-label">Business Owner</span>
                     <span class="type-desc">For shops & businesses</span>
                 </a>
-                <a href="register-customer.html" class="type-card">
+                <a href="register-customer.html" class="type-card active">
                     <div class="type-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </div>
@@ -40,30 +40,19 @@
                 </a>
             </div>
 
-            <h2 class="form-section-title">Business Registration</h2>
-            <p class="form-section-desc">Set up your shop on BillBhai in under a minute</p>
+            <h2 class="form-section-title">Customer Sign Up</h2>
+            <p class="form-section-desc">Join BillBhai to shop smarter at your favourite stores</p>
 
             <form id="registerForm" class="register-form" autocomplete="off">
-                <!-- Business & Owner Info -->
-                <div class="form-row">
-                    <div class="input-group" id="businessNameGroup">
-                        <input type="text" id="businessName" name="businessName" required placeholder="Business Name">
-                        <label for="businessName">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                            <span>Business Name</span>
-                        </label>
-                        <div class="input-highlight"></div>
-                        <div class="field-error"></div>
-                    </div>
-                    <div class="input-group" id="ownerNameGroup">
-                        <input type="text" id="ownerName" name="ownerName" required placeholder="Owner Full Name">
-                        <label for="ownerName">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            <span>Owner Full Name</span>
-                        </label>
-                        <div class="input-highlight"></div>
-                        <div class="field-error"></div>
-                    </div>
+                <!-- Full Name -->
+                <div class="input-group" id="fullNameGroup">
+                    <input type="text" id="fullName" name="fullName" required placeholder="Full Name">
+                    <label for="fullName">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Full Name</span>
+                    </label>
+                    <div class="input-highlight"></div>
+                    <div class="field-error"></div>
                 </div>
 
                 <!-- Email & Phone -->
@@ -88,40 +77,15 @@
                     </div>
                 </div>
 
-                <!-- GSTIN & Business Type -->
-                <div class="form-row">
-                    <div class="input-group" id="gstinGroup">
-                        <input type="text" id="gstin" name="gstin" placeholder="GSTIN (Optional)">
-                        <label for="gstin">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                            <span>GSTIN</span>
-                        </label>
-                        <span class="optional-tag">Optional</span>
-                        <div class="input-highlight"></div>
-                    </div>
-                    <div class="input-group" id="businessTypeGroup">
-                        <select id="businessType" name="businessType" required>
-                            <option value="" disabled selected>Business Type</option>
-                            <option value="retail">Retail Store</option>
-                            <option value="wholesale">Wholesale</option>
-                            <option value="restaurant">Restaurant / Café</option>
-                            <option value="grocery">Grocery / Kirana</option>
-                            <option value="electronics">Electronics</option>
-                            <option value="clothing">Clothing / Fashion</option>
-                            <option value="pharmacy">Pharmacy / Medical</option>
-                            <option value="services">Services</option>
-                            <option value="other">Other</option>
-                        </select>
-                        <label for="businessType">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                            <span>Business Type</span>
-                        </label>
-                        <div class="select-arrow">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                        </div>
-                        <div class="input-highlight"></div>
-                        <div class="field-error"></div>
-                    </div>
+                <!-- Address (Optional) -->
+                <div class="input-group" id="addressGroup">
+                    <input type="text" id="address" name="address" placeholder="Delivery Address (Optional)">
+                    <label for="address">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span>Delivery Address</span>
+                    </label>
+                    <span class="optional-tag">Optional</span>
+                    <div class="input-highlight"></div>
                 </div>
 
                 <div class="form-divider"><span>Security</span></div>
@@ -175,7 +139,7 @@
                 <p class="form-error" id="formError"></p>
 
                 <button type="submit" class="btn-register" id="btnRegister">
-                    <span class="btn-text">Create Business Account</span>
+                    <span class="btn-text">Create Customer Account</span>
                     <span class="btn-loader"><svg class="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle></svg></span>
                     <span class="btn-success"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
                 </button>
@@ -188,6 +152,6 @@
         </div>
     </div>
 
-    <script src="register.js"></script>
+    <script src="../scripts/register.js"></script>
 </body>
 </html>

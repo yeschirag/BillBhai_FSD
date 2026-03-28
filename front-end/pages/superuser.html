@@ -3,17 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BillBhai - Businesses Overview</title>
+    <title>BillBhai - Super User Portal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="../styles/dashboard.css">
+    <style>
+        #sidebar,
+        #sidebarOverlay {
+            display: none !important;
+        }
+
+        .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+
+        #menuToggle {
+            display: none !important;
+        }
+    </style>
 </head>
-<body data-page="businesses">
+<body data-page="superuser">
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="logo.png" alt="BillBhai" class="sidebar-brand-img">
+            <img src="../public/logo.png" alt="BillBhai" class="sidebar-brand-img">
         </div>
         <nav class="sidebar-nav" id="sidebarNav">
             <div class="nav-section-label">Main</div>
@@ -64,7 +79,7 @@
                 <div class="breadcrumb">
                     <span class="bc-app">BillBhai</span>
                     <span class="bc-sep">/</span>
-                    <span class="bc-page" id="bcPage">Businesses</span>
+                    <span class="bc-page" id="bcPage">Super User Portal</span>
                 </div>
             </div>
             <div class="header-right">
@@ -147,6 +162,6 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="dashboard.js"></script>
+    <script src="../scripts/dashboard.js"></script>
 </body>
 </html>
