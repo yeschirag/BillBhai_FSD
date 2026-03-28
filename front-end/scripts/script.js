@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function routeByRole(role) {
         const r = normalizeRole(role);
-        if (r === 'superuser' || r === 'super') return 'dashboard.html';
+        if (r === 'superuser' || r === 'super') return 'superuser.html';
         if (r === 'admin') return 'dashboard.html';
         if (r === 'cashier') return 'end_user/index.html';
         if (r === 'returnhandler') return 'returns.html';
@@ -52,21 +52,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const USERS = {
-        'superuser': { password: 'super123', role: 'Super User', name: 'Super Admin' },
+        'superuser': { password: 'super123', role: 'Admin', name: 'Legacy Admin Account' },
         'admin': { password: 'admin123', role: 'Admin', name: 'Store Admin' },
         'cashier': { password: 'cashier123', role: 'Cashier', name: 'POS Cashier' },
         'returnhandler': { password: 'return123', role: 'Return Handler', name: 'Returns Desk' },
         'inventorymanager': { password: 'inventory123', role: 'Inventory Manager', name: 'Inventory Lead' },
         'deliveryops': { password: 'delivery123', role: 'Delivery Ops', name: 'Delivery Manager' },
         'customer': { password: 'customer123', role: 'Customer', name: 'Self Checkout User' },
-        'chirag': { password: 'chirag1234', role: 'Customer', name: 'Chirag' }
+        'chirag': { password: 'chirag1234', role: 'Super User', name: 'Chirag' }
     };
+
+    const USER_ALIASES = {
+        super: 'superuser',
+        'superuser@billbhai.com': 'superuser',
+        'admin@billbhai.com': 'admin',
+        'cashier@billbhai.com': 'cashier',
+        returns: 'returnhandler',
+        'returnhandler@billbhai.com': 'returnhandler',
+        inventory: 'inventorymanager',
+        'inventorymanager@billbhai.com': 'inventorymanager',
+        delivery: 'deliveryops',
+        'deliveryops@billbhai.com': 'deliveryops',
+        user: 'customer',
+        'customer@billbhai.com': 'customer',
+        'chirag@billbhai.com': 'chirag'
+    };
+
+    function resolveUserKey(input) {
+        const normalized = String(input || '').trim().toLowerCase();
+        if (!normalized) return '';
+        if (Object.prototype.hasOwnProperty.call(USERS, normalized)) return normalized;
+        return USER_ALIASES[normalized] || '';
+    }
 
     loginForm.addEventListener('submit', e => {
         e.preventDefault();
         document.querySelectorAll('.input-group').forEach(g => g.classList.remove('error', 'shake'));
         loginError.textContent = '';
-        const u = usernameInput.value.trim(), p = passwordInput.value.trim();
+        const u = resolveUserKey(usernameInput.value), p = passwordInput.value.trim();
         let err = false;
         if (!u) { const g = document.getElementById('usernameGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (!p) { const g = document.getElementById('passwordGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
@@ -82,6 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Store session state
         localStorage.setItem('userRole', USERS[u].role);
         localStorage.setItem('userName', USERS[u].name);
+        // Reset tenant context on every fresh login. Super User sets this when opening a business.
+        localStorage.removeItem('activeBusinessId');
+        localStorage.removeItem('activeBusinessName');
         localStorage.setItem('currentUser', JSON.stringify({
             username: u,
             name: USERS[u].name,

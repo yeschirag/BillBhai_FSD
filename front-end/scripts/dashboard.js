@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Logo is always dark mode
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
-    if (sidebarLogo) sidebarLogo.src = 'logo.png';
+    if (sidebarLogo) sidebarLogo.src = '../public/logo.png';
 
     const ROLE_LABELS = {
         superuser: 'Super User',
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const ROLE_ALLOWED_PAGES = {
-        superuser: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
+        superuser: ['superuser', 'businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
         admin: ['dashboard', 'orders', 'inventory', 'profile', 'notifications'],
         cashier: ['dashboard', 'orders', 'profile', 'notifications'],
         returnhandler: ['dashboard', 'returns', 'orders', 'profile', 'notifications'],
@@ -24,13 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const ROLE_ACTIONS = {
-        superuser: { orders: true, inventory: true, users: true, returns: true, delivery: true },
-        admin: { orders: true, inventory: true, users: false, returns: false, delivery: false },
-        cashier: { orders: true, inventory: false, users: false, returns: false, delivery: false },
-        returnhandler: { orders: false, inventory: false, users: false, returns: true, delivery: false },
-        inventorymanager: { orders: false, inventory: true, users: false, returns: false, delivery: false },
-        deliveryops: { orders: false, inventory: false, users: false, returns: false, delivery: true },
-        customer: { orders: false, inventory: false, users: false, returns: false, delivery: false }
+        superuser: { orders: true, inventory: true, users: true, returns: true, delivery: true, businesses: true },
+        admin: { orders: true, inventory: true, users: false, returns: false, delivery: false, businesses: false },
+        cashier: { orders: true, inventory: false, users: false, returns: false, delivery: false, businesses: false },
+        returnhandler: { orders: false, inventory: false, users: false, returns: true, delivery: false, businesses: false },
+        inventorymanager: { orders: false, inventory: true, users: false, returns: false, delivery: false, businesses: false },
+        deliveryops: { orders: false, inventory: false, users: false, returns: false, delivery: true, businesses: false },
+        customer: { orders: false, inventory: false, users: false, returns: false, delivery: false, businesses: false }
     };
 
     let activeRoleKey = 'customer';
@@ -55,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('activeBusinessId');
+        localStorage.removeItem('activeBusinessName');
     }
 
     function goToLogin() {
@@ -96,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasActionAccess('delivery')) {
             hide("button[data-action='delivery']");
         }
+        if (!hasActionAccess('businesses')) {
+            hide("button[data-action='businesses']");
+        }
     }
 
     // Apply Role-Based UI
@@ -131,6 +136,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const currentPage = document.body.getAttribute('data-page') || 'dashboard';
         const allowedPages = ROLE_ALLOWED_PAGES[roleKey] || [];
+        let activeBusinessName = localStorage.getItem('activeBusinessName') || '';
+
+        if (roleKey === 'superuser' && currentPage === 'superuser') {
+            localStorage.removeItem('activeBusinessId');
+            localStorage.removeItem('activeBusinessName');
+            activeBusinessName = '';
+        }
+
+        const bcAppEl = document.querySelector('.bc-app');
+        if (bcAppEl) {
+            bcAppEl.textContent = activeBusinessName ? `BillBhai / ${activeBusinessName}` : 'BillBhai';
+        }
+
+        function ensureBusinessesNavItem() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav || nav.querySelector('.nav-item[data-page="superuser"]')) return;
+
+            const usersLink = nav.querySelector('.nav-item[data-page="users"]');
+            const item = document.createElement('a');
+            item.href = 'superuser.html';
+            item.className = 'nav-item';
+            item.setAttribute('data-page', 'superuser');
+            item.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/><path d="M8 7h0M8 11h0M8 15h0M16 11h0M16 15h0"/></svg><span>Super User Portal</span>';
+
+            if (usersLink && usersLink.parentElement === nav) {
+                usersLink.insertAdjacentElement('afterend', item);
+            } else {
+                nav.appendChild(item);
+            }
+
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    const sidebarEl = document.getElementById('sidebar');
+                    if (sidebarEl) sidebarEl.classList.remove('mobile-open');
+                }
+            });
+        }
+
+        ensureBusinessesNavItem();
 
         // Route-level guard for direct URL access.
         if (!allowedPages.includes(currentPage)) {
@@ -142,13 +186,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.nav-item[data-page]').forEach(item => {
             const page = item.getAttribute('data-page');
             item.style.display = allowedPages.includes(page) ? '' : 'none';
+            item.classList.toggle('active', page === currentPage);
         });
+
+        const bcPageEl = document.getElementById('bcPage');
+        if (bcPageEl) {
+            const activeItem = document.querySelector(`.nav-item[data-page="${currentPage}"] span`);
+            if (activeItem) bcPageEl.textContent = activeItem.textContent;
+        }
 
         // Keep section labels tidy if no visible entries under management.
         const labels = document.querySelectorAll('.nav-section-label');
         labels.forEach(label => {
             if (label.textContent.trim() !== 'Management') return;
-            const managementPages = ['returns', 'reports', 'users'];
+            const managementPages = ['returns', 'reports', 'users', 'superuser'];
             const hasAny = managementPages.some(p => allowedPages.includes(p));
             label.style.display = hasAny ? '' : 'none';
         });
@@ -220,11 +271,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const bcPage = document.getElementById('bcPage');
     const content = document.getElementById('contentArea');
 
-    menuToggle.addEventListener('click', () => {
-        if (window.innerWidth <= 768) sidebar.classList.toggle('mobile-open');
-        else sidebar.classList.toggle('collapsed');
-    });
-    overlay.addEventListener('click', () => sidebar.classList.remove('mobile-open'));
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => {
+            if (window.innerWidth <= 768) sidebar.classList.toggle('mobile-open');
+            else sidebar.classList.toggle('collapsed');
+        });
+    }
+    if (overlay && sidebar) {
+        overlay.addEventListener('click', () => sidebar.classList.remove('mobile-open'));
+    }
 
     let currentPage = document.body.getAttribute('data-page') || 'dashboard';
 
@@ -255,8 +310,102 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function loadObject(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return fallback;
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
+        } catch (err) {
+            return fallback;
+        }
+    }
+
     function saveList(key, list) {
         localStorage.setItem(key, JSON.stringify(list));
+    }
+
+    function saveObject(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    async function loadJsonArray(path, fallback) {
+        try {
+            const response = await fetch(path, { cache: 'no-store' });
+            if (!response.ok) return fallback;
+            const parsed = await response.json();
+            return Array.isArray(parsed) ? parsed : fallback;
+        } catch (err) {
+            return fallback;
+        }
+    }
+
+    async function loadJsonObject(path, fallback) {
+        try {
+            const response = await fetch(path, { cache: 'no-store' });
+            if (!response.ok) return fallback;
+            const parsed = await response.json();
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
+        } catch (err) {
+            return fallback;
+        }
+    }
+
+    function normalizeBusinessRecord(raw, fallbackId, fallbackName) {
+        const safe = raw && typeof raw === 'object' ? raw : {};
+        const id = String(safe.id || fallbackId || 'BIZ-000').trim();
+        const name = String(safe.name || fallbackName || id).trim();
+
+        const usersList = Array.isArray(safe.users)
+            ? safe.users.map((u, idx) => ({
+                name: String((u && u.name) || `User ${idx + 1}`).trim(),
+                role: String((u && u.role) || 'Staff').trim(),
+                status: String((u && u.status) || 'Active').trim()
+            }))
+            : [];
+
+        const storesList = Array.isArray(safe.stores)
+            ? safe.stores.map((s, idx) => ({
+                code: String((s && s.code) || `${id}-S${idx + 1}`).trim(),
+                city: String((s && s.city) || 'Unknown').trim(),
+                status: String((s && s.status) || 'Active').trim()
+            }))
+            : [];
+
+        const paymentsList = Array.isArray(safe.payments)
+            ? safe.payments.map((p, idx) => ({
+                month: String((p && p.month) || `Entry ${idx + 1}`).trim(),
+                amount: Math.max(0, Number((p && p.amount) || 0) || 0),
+                status: String((p && p.status) || 'Due').trim()
+            }))
+            : [];
+
+        const storesCount = Number.isFinite(Number(safe.storesCount))
+            ? Math.max(0, Number(safe.storesCount))
+            : storesList.length;
+
+        const paymentDue = Number.isFinite(Number(safe.paymentDue))
+            ? Math.max(0, Number(safe.paymentDue))
+            : paymentsList.filter(p => String(p.status).toLowerCase() !== 'paid').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+        return {
+            id,
+            name,
+            owner: String(safe.owner || 'Unknown Owner').trim(),
+            adminName: String(safe.adminName || 'Store Admin').trim(),
+            type: String(safe.type || 'Retail').trim(),
+            email: String(safe.email || 'na@business.local').trim(),
+            phone: String(safe.phone || 'NA').trim(),
+            status: String(safe.status || 'Active').trim(),
+            productsPlan: String(safe.productsPlan || 'Billing Starter').trim(),
+            tenureMonths: Math.max(0, Number(safe.tenureMonths) || 0),
+            storesCount,
+            profit: Math.max(0, Number(safe.profit) || 0),
+            paymentDue,
+            users: usersList,
+            stores: storesList,
+            payments: paymentsList
+        };
     }
 
     const defaultOrders = [
@@ -287,11 +436,303 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: 'Sunita Verma', role: 'Cashier', status: 'Active' }
     ];
 
-    const orders = loadList('bb_orders', defaultOrders);
-    const inventory = loadList('bb_inventory', defaultInventory);
-    const deliveries = loadList('bb_deliveries', defaultDeliveries);
-    const returns = loadList('bb_returns', defaultReturns);
-    const users = loadList('bb_users', defaultUsers);
+    const defaultBusinesses = [
+        {
+            id: 'BIZ-101',
+            name: 'FreshKart Central',
+            owner: 'Ritu Malhotra',
+            adminName: 'Arjun Mehta',
+            type: 'Grocery Retail',
+            email: 'central@freshkart.in',
+            phone: '+91-9870011101',
+            status: 'Active',
+            productsPlan: 'Core POS + Inventory',
+            tenureMonths: 32,
+            storesCount: 6,
+            profit: 1245000,
+            paymentDue: 0,
+            users: [
+                { name: 'Arjun Mehta', role: 'Admin', status: 'Active' },
+                { name: 'Komal Shah', role: 'Cashier', status: 'Active' },
+                { name: 'Irfan Ali', role: 'Inventory Manager', status: 'Active' },
+                { name: 'Gopal Yadav', role: 'Delivery Ops', status: 'Active' }
+            ],
+            stores: [
+                { code: 'FK-CEN-01', city: 'Delhi', status: 'Active' },
+                { code: 'FK-CEN-02', city: 'Noida', status: 'Active' },
+                { code: 'FK-CEN-03', city: 'Gurugram', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 48000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 48000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 48000, status: 'Paid' }
+            ]
+        },
+        {
+            id: 'BIZ-102',
+            name: 'Metro Mart East',
+            owner: 'Aman Bedi',
+            adminName: 'Shreya Nair',
+            type: 'Supermarket',
+            email: 'ops@metromarteast.in',
+            phone: '+91-9870011102',
+            status: 'Active',
+            productsPlan: 'Billing + Returns',
+            tenureMonths: 18,
+            storesCount: 4,
+            profit: 842000,
+            paymentDue: 15000,
+            users: [
+                { name: 'Shreya Nair', role: 'Admin', status: 'Active' },
+                { name: 'Hemant Rawat', role: 'Return Handler', status: 'Active' },
+                { name: 'Rakesh Pal', role: 'Cashier', status: 'Active' }
+            ],
+            stores: [
+                { code: 'MM-E-11', city: 'Kolkata', status: 'Active' },
+                { code: 'MM-E-12', city: 'Howrah', status: 'Active' },
+                { code: 'MM-E-13', city: 'Durgapur', status: 'Active' },
+                { code: 'MM-E-14', city: 'Siliguri', status: 'Maintenance' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 39000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 39000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 39000, status: 'Partial' }
+            ]
+        },
+        {
+            id: 'BIZ-103',
+            name: 'DailyNeeds Hub',
+            owner: 'Neha Saini',
+            adminName: 'Bhavesh Gupta',
+            type: 'Convenience Store',
+            email: 'admin@dailyneedshub.in',
+            phone: '+91-9870011103',
+            status: 'Trial',
+            productsPlan: 'Billing Starter',
+            tenureMonths: 6,
+            storesCount: 2,
+            profit: 221000,
+            paymentDue: 9000,
+            users: [
+                { name: 'Bhavesh Gupta', role: 'Admin', status: 'Active' },
+                { name: 'Manju K', role: 'Cashier', status: 'Active' }
+            ],
+            stores: [
+                { code: 'DN-H-01', city: 'Jaipur', status: 'Active' },
+                { code: 'DN-H-02', city: 'Ajmer', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 15000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 15000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 15000, status: 'Due' }
+            ]
+        },
+        {
+            id: 'BIZ-104',
+            name: 'Value Basket North',
+            owner: 'Imran Khan',
+            adminName: 'Nitika Arora',
+            type: 'Wholesale + Retail',
+            email: 'north@valuebasket.in',
+            phone: '+91-9870011104',
+            status: 'Active',
+            productsPlan: 'Full Suite',
+            tenureMonths: 44,
+            storesCount: 9,
+            profit: 2354000,
+            paymentDue: 0,
+            users: [
+                { name: 'Nitika Arora', role: 'Admin', status: 'Active' },
+                { name: 'Rohit Dabas', role: 'Inventory Manager', status: 'Active' },
+                { name: 'Seema Arif', role: 'Return Handler', status: 'Active' },
+                { name: 'Pankaj Rana', role: 'Delivery Ops', status: 'Active' },
+                { name: 'Rupa S', role: 'Cashier', status: 'Active' }
+            ],
+            stores: [
+                { code: 'VB-N-01', city: 'Chandigarh', status: 'Active' },
+                { code: 'VB-N-02', city: 'Ludhiana', status: 'Active' },
+                { code: 'VB-N-03', city: 'Jalandhar', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 69000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 69000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 69000, status: 'Paid' }
+            ]
+        }
+    ];
+
+    const businesses = loadList('bb_businesses', defaultBusinesses)
+        .map((b, idx) => normalizeBusinessRecord(b, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name));
+
+    if (!localStorage.getItem('bb_businesses')) {
+        saveList('bb_businesses', businesses);
+    } else {
+        // Persist normalized schema so older saved data does not break new UI.
+        saveList('bb_businesses', businesses);
+    }
+
+    const activeBusinessId = String(localStorage.getItem('activeBusinessId') || '').trim();
+    const activeBusinessName = String(localStorage.getItem('activeBusinessName') || '').trim();
+
+    function cloneRows(rows) {
+        return JSON.parse(JSON.stringify(rows));
+    }
+
+    function buildBusinessSeedData(business, idx) {
+        const userList = Array.isArray(business.users) ? business.users : [];
+        const adminName = userList.find(u => String(u.role || '').toLowerCase() === 'admin')?.name || business.adminName || 'Store Admin';
+        const cashierName = userList.find(u => String(u.role || '').toLowerCase().includes('cashier'))?.name || 'POS Counter';
+        const city = Array.isArray(business.stores) && business.stores[0] ? business.stores[0].city : 'Primary City';
+        const seedNum = 500 + idx * 50;
+
+        return {
+            orders: [
+                { id: `ORD-${seedNum + 1}`, customer: `${city} Walk-in`, items: 3, total: 1540 + idx * 120, payment: 'UPI', status: 'Delivered', date: '17 Feb 11:10' },
+                { id: `ORD-${seedNum + 2}`, customer: 'Anita Verma', items: 2, total: 980 + idx * 90, payment: 'Card', status: 'Processing', date: '17 Feb 12:35' },
+                { id: `ORD-${seedNum + 3}`, customer: 'Vikram Singh', items: 1, total: 350 + idx * 70, payment: 'Cash', status: 'Pending', date: '17 Feb 13:20' },
+                { id: `ORD-${seedNum + 4}`, customer: 'Suman Rao', items: 4, total: 2250 + idx * 100, payment: 'UPI', status: 'Delivered', date: '16 Feb 18:04' },
+                { id: `ORD-${seedNum + 5}`, customer: 'Karan Joshi', items: 2, total: 1160 + idx * 85, payment: 'Card', status: 'Delivered', date: '16 Feb 16:40' }
+            ],
+            inventory: [
+                { sku: `SKU-${seedNum + 1}`, name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 160 - idx * 3, price: 390 + idx * 5, status: 'In Stock' },
+                { sku: `SKU-${seedNum + 2}`, name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 92 - idx * 4, price: 130 + idx * 4, status: 'In Stock' },
+                { sku: `SKU-${seedNum + 3}`, name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 24 - idx * 2, price: 170 + idx * 3, status: 'Low Stock' },
+                { sku: `SKU-${seedNum + 4}`, name: 'Milk Pack', cat: 'Dairy', supplier: 'City Dairy', stock: 12 + idx, price: 58, status: 'Low Stock' },
+                { sku: `SKU-${seedNum + 5}`, name: 'Soft Drink', cat: 'Beverages', supplier: 'Cool Bev', stock: 84 + idx * 3, price: 42, status: 'In Stock' }
+            ],
+            deliveries: [
+                { id: `DEL-${seedNum + 1}`, oid: `ORD-${seedNum + 1}`, partner: 'Rider Team A', status: 'Delivered', time: '11:55' },
+                { id: `DEL-${seedNum + 2}`, oid: `ORD-${seedNum + 2}`, partner: 'Rider Team B', status: 'Out for Delivery', time: '-' },
+                { id: `DEL-${seedNum + 3}`, oid: `ORD-${seedNum + 4}`, partner: 'Rider Team C', status: 'Delivered', time: '18:45' }
+            ],
+            returns: [
+                { id: `RET-${seedNum + 1}`, oid: `ORD-${seedNum + 5}`, reason: 'Damaged', amount: 220 + idx * 10, status: 'Approved', requestedBy: cashierName, updatedAt: '16 Feb 17:40' },
+                { id: `RET-${seedNum + 2}`, oid: `ORD-${seedNum + 3}`, reason: 'Wrong Item', amount: 180 + idx * 8, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 13:50' }
+            ],
+            users: userList.length
+                ? cloneRows(userList)
+                : [
+                    { name: adminName, role: 'Admin', status: 'Active' },
+                    { name: cashierName, role: 'Cashier', status: 'Active' }
+                ]
+        };
+    }
+
+    const businessDataStore = loadObject('bb_business_data', {});
+    businesses.forEach((business, idx) => {
+        const seed = buildBusinessSeedData(business, idx);
+        const existing = businessDataStore[business.id];
+        if (!existing || typeof existing !== 'object') {
+            businessDataStore[business.id] = seed;
+            return;
+        }
+
+        businessDataStore[business.id] = {
+            orders: Array.isArray(existing.orders) ? existing.orders : seed.orders,
+            inventory: Array.isArray(existing.inventory) ? existing.inventory : seed.inventory,
+            deliveries: Array.isArray(existing.deliveries) ? existing.deliveries : seed.deliveries,
+            returns: Array.isArray(existing.returns) ? existing.returns : seed.returns,
+            users: Array.isArray(existing.users) ? existing.users : seed.users
+        };
+    });
+    saveObject('bb_business_data', businessDataStore);
+
+    const selectedBusiness = activeBusinessId ? businesses.find(b => b.id === activeBusinessId) : null;
+    const isBusinessScoped = !!selectedBusiness;
+    const businessScopedData = isBusinessScoped ? businessDataStore[selectedBusiness.id] : null;
+
+    if (activeBusinessId && !selectedBusiness) {
+        localStorage.removeItem('activeBusinessId');
+        localStorage.removeItem('activeBusinessName');
+    }
+
+    let orders = isBusinessScoped
+        ? (Array.isArray(businessScopedData.orders) ? businessScopedData.orders : cloneRows(defaultOrders))
+        : loadList('bb_orders', defaultOrders);
+    let inventory = isBusinessScoped
+        ? (Array.isArray(businessScopedData.inventory) ? businessScopedData.inventory : cloneRows(defaultInventory))
+        : loadList('bb_inventory', defaultInventory);
+    let deliveries = isBusinessScoped
+        ? (Array.isArray(businessScopedData.deliveries) ? businessScopedData.deliveries : cloneRows(defaultDeliveries))
+        : loadList('bb_deliveries', defaultDeliveries);
+    let returns = isBusinessScoped
+        ? (Array.isArray(businessScopedData.returns) ? businessScopedData.returns : cloneRows(defaultReturns))
+        : loadList('bb_returns', defaultReturns);
+    let users = isBusinessScoped
+        ? (Array.isArray(businessScopedData.users) ? businessScopedData.users : cloneRows(defaultUsers))
+        : loadList('bb_users', defaultUsers);
+
+    function persistOperationalData() {
+        if (isBusinessScoped && selectedBusiness) {
+            businessDataStore[selectedBusiness.id] = {
+                orders,
+                inventory,
+                deliveries,
+                returns,
+                users
+            };
+            saveObject('bb_business_data', businessDataStore);
+            return;
+        }
+
+        saveList('bb_orders', orders);
+        saveList('bb_inventory', inventory);
+        saveList('bb_deliveries', deliveries);
+        saveList('bb_returns', returns);
+        saveList('bb_users', users);
+    }
+
+    async function hydrateDataFromJsonFiles() {
+        const jsonOrders = await loadJsonArray('../data/orders.json', defaultOrders);
+        const jsonInventory = await loadJsonArray('../data/inventory.json', defaultInventory);
+        const jsonDeliveries = await loadJsonArray('../data/deliveries.json', defaultDeliveries);
+        const jsonReturns = await loadJsonArray('../data/returns.json', defaultReturns);
+        const jsonUsers = await loadJsonArray('../data/users.json', defaultUsers);
+        const jsonBusinessesRaw = await loadJsonArray('../data/businesses.json', defaultBusinesses);
+        const jsonBusinessData = await loadJsonObject('../data/business_data.json', {});
+        const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(b, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name));
+
+        const hasOrders = localStorage.getItem('bb_orders') !== null;
+        const hasInventory = localStorage.getItem('bb_inventory') !== null;
+        const hasDeliveries = localStorage.getItem('bb_deliveries') !== null;
+        const hasReturns = localStorage.getItem('bb_returns') !== null;
+        const hasUsers = localStorage.getItem('bb_users') !== null;
+        const hasBusinesses = localStorage.getItem('bb_businesses') !== null;
+        const hasBusinessData = localStorage.getItem('bb_business_data') !== null;
+
+        if (!isBusinessScoped) {
+            if (!hasOrders) orders = jsonOrders;
+            if (!hasInventory) inventory = jsonInventory;
+            if (!hasDeliveries) deliveries = jsonDeliveries;
+            if (!hasReturns) returns = jsonReturns;
+            if (!hasUsers) users = jsonUsers;
+            persistOperationalData();
+        }
+
+        if (!hasBusinesses) {
+            businesses.splice(0, businesses.length, ...jsonBusinesses);
+            saveList('bb_businesses', businesses);
+        }
+
+        Object.keys(jsonBusinessData).forEach((bizId) => {
+            if (!jsonBusinessData[bizId] || typeof jsonBusinessData[bizId] !== 'object') return;
+            if (!hasBusinessData || !businessDataStore[bizId]) {
+                businessDataStore[bizId] = jsonBusinessData[bizId];
+            }
+        });
+        if (!hasBusinessData) {
+            saveObject('bb_business_data', businessDataStore);
+        }
+
+        if (isBusinessScoped && selectedBusiness && businessDataStore[selectedBusiness.id]) {
+            const scoped = businessDataStore[selectedBusiness.id];
+            orders = Array.isArray(scoped.orders) ? scoped.orders : orders;
+            inventory = Array.isArray(scoped.inventory) ? scoped.inventory : inventory;
+            deliveries = Array.isArray(scoped.deliveries) ? scoped.deliveries : deliveries;
+            returns = Array.isArray(scoped.returns) ? scoped.returns : returns;
+            users = Array.isArray(scoped.users) ? scoped.users : users;
+        }
+    }
 
     const notificationsList = [
         {
@@ -341,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderers = {
             dashboard: renderDashboard, orders: renderOrders, inventory: renderInventory,
             delivery: renderDelivery, returns: renderReturns, reports: renderReports, users: renderUsers,
-            profile: renderProfile, settings: renderSettings, notifications: renderNotifications
+            superuser: renderBusinesses, businesses: renderBusinesses, profile: renderProfile, settings: renderSettings, notifications: renderNotifications
         };
         if (renderers[page]) renderers[page]();
         content.scrollTop = 0;
@@ -353,8 +794,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderDashboard() {
         const totalSales = orders.reduce((a, o) => a + o.total, 0);
+        const scopedName = selectedBusiness ? selectedBusiness.name : activeBusinessName;
         content.innerHTML = `
-        <div class="page-header"><h2>Dashboard</h2><div class="page-header-actions"><button class="btn btn-outline" onclick="window.print()">Print</button></div></div>
+        <div class="page-header"><h2>Dashboard${scopedName ? ` - ${scopedName}` : ''}</h2><div class="page-header-actions"><button class="btn btn-outline" onclick="window.print()">Print</button></div></div>
         <section class="stats-grid">
             <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Revenue</span><span class="stat-value">₹${totalSales.toLocaleString()}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div class="stat-info"><span class="stat-label">Orders</span><span class="stat-value">${orders.length}</span></div></div>
@@ -441,6 +883,92 @@ document.addEventListener('DOMContentLoaded', () => {
         <section class="card"><div class="card-bd">${table(['Name', 'Email', 'Role', 'Status', 'Actions'], users.map(u => `<tr><td class="cell-main">${u.name}</td><td>${u.email || ''}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${u.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${u.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${u.name}')">Delete</button></td></tr>`).join(''))}</div></section>`;
         const dynBtn = document.getElementById('addUserBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openAddUserModal);
+    }
+
+    function renderBusinesses() {
+        const paymentDueTotal = businesses.reduce((sum, b) => sum + Number(b.paymentDue || 0), 0);
+        const activeCount = businesses.filter(b => b.status === 'Active').length;
+        const trialCount = businesses.filter(b => b.status === 'Trial').length;
+
+        content.innerHTML = `
+        <div class="page-header"><h2>Businesses Using Your Products</h2><div class="page-header-actions"><button class="btn btn-primary" data-action="businesses" onclick="window.addBusiness()">+ Add Business</button><button class="btn btn-outline" onclick="window.location.href='reports.html'">View Revenue Reports</button></div></div>
+        <section class="stats-grid">
+            <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/></svg></div><div class="stat-info"><span class="stat-label">Total Businesses</span><span class="stat-value">${businesses.length}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="stat-info"><span class="stat-label">Active Stores</span><span class="stat-value">${activeCount}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="stat-info"><span class="stat-label">Trial Stores</span><span class="stat-value">${trialCount}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-info"><span class="stat-label">Pending Payments</span><span class="stat-value">₹${paymentDueTotal.toLocaleString()}</span></div></div>
+        </section>
+        <section class="card"><div class="card-hd"><h3>All Client Businesses</h3></div><div class="card-bd">${table(
+            ['Business ID', 'Business Name', 'Using BillBhai', 'Stores', 'Profit', 'Payment Due', 'Status', 'Actions'],
+            businesses.map(b => `<tr><td class="cell-main">${b.id}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.openBusinessDetails('${b.id}')">${b.name}</button></td><td>${b.tenureMonths} months</td><td>${b.storesCount}</td><td>₹${Number(b.profit || 0).toLocaleString()}</td><td>₹${Number(b.paymentDue || 0).toLocaleString()}</td><td>${statusBadge(b.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.openBusinessAdminDashboard('${b.id}')">View</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></td></tr>`).join('')
+        )}</div></section>`;
+    }
+
+    function renderBusinessDetails(businessId) {
+        const b = businesses.find(x => x.id === businessId);
+        if (!b) {
+            renderBusinesses();
+            return;
+        }
+
+        const usersRows = (b.users || []).map((u, idx) => `<tr><td class="cell-main">${u.name}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessUser('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessUser('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+        const storesRows = (b.stores || []).map((s, idx) => `<tr><td class="cell-main">${s.code}</td><td>${s.city}</td><td>${statusBadge(s.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessStore('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessStore('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+        const paymentRows = (b.payments || []).map((p, idx) => `<tr><td class="cell-main">${p.month}</td><td>₹${Number(p.amount || 0).toLocaleString()}</td><td>${statusBadge(p.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessPayment('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessPayment('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+
+        content.innerHTML = `
+        <div class="page-header"><h2>${b.name}</h2><div class="page-header-actions"><button class="btn btn-outline" data-action="businesses" onclick="window.renderBusinessesHome()">Back to Businesses</button><button class="btn btn-outline" data-action="businesses" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></div></div>
+        <section class="stats-grid">
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Using BillBhai</span><span class="stat-value">${b.tenureMonths} months</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Stores</span><span class="stat-value">${b.storesCount}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Profit</span><span class="stat-value">₹${Number(b.profit || 0).toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Payment Due</span><span class="stat-value">₹${Number(b.paymentDue || 0).toLocaleString()}</span></div></div>
+        </section>
+        <section class="grid-2" style="margin-top: 12px;">
+            <div class="card"><div class="card-hd"><h3>Business Profile</h3></div><div class="card-bd"><div class="text-muted" style="display:flex;flex-direction:column;gap:8px;"><div><strong>Owner:</strong> ${b.owner}</div><div><strong>Admin:</strong> ${b.adminName}</div><div><strong>Type:</strong> ${b.type}</div><div><strong>Email:</strong> ${b.email}</div><div><strong>Phone:</strong> ${b.phone}</div><div><strong>Plan:</strong> ${b.productsPlan}</div><div><strong>Status:</strong> ${statusBadge(b.status)}</div></div></div></div>
+            <div class="card"><div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;"><h3>Store Locations</h3><button class="btn btn-outline" data-action="businesses" style="padding: 4px 10px;" onclick="window.addBusinessStore('${b.id}')">+ Add Store</button></div><div class="card-bd">${table(['Store Code', 'City', 'Status', 'Actions'], storesRows || '<tr><td colspan="4" class="text-muted">No stores found.</td></tr>')}</div></div>
+        </section>
+        <section class="grid-2" style="margin-top: 12px;">
+            <div class="card"><div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;"><h3>Business Users</h3><button class="btn btn-outline" data-action="businesses" style="padding: 4px 10px;" onclick="window.addBusinessUser('${b.id}')">+ Add User</button></div><div class="card-bd">${table(['Name', 'Role', 'Status', 'Actions'], usersRows || '<tr><td colspan="4" class="text-muted">No users found.</td></tr>')}</div></div>
+            <div class="card"><div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;"><h3>Payment History</h3><button class="btn btn-outline" data-action="businesses" style="padding: 4px 10px;" onclick="window.addBusinessPayment('${b.id}')">+ Add Payment</button></div><div class="card-bd">${table(['Month', 'Amount', 'Status', 'Actions'], paymentRows || '<tr><td colspan="4" class="text-muted">No payments found.</td></tr>')}</div></div>
+        </section>`;
+        enforceActionPermissions();
+    }
+
+    function getNextBusinessId() {
+        const nums = businesses.map(b => parseInt(String(b.id || '').replace('BIZ-', ''), 10)).filter(n => !Number.isNaN(n));
+        const next = nums.length ? Math.max(...nums) + 1 : 101;
+        return `BIZ-${next}`;
+    }
+
+    function upsertBusiness(record, existingId) {
+        const existingIdx = businesses.findIndex(b => b.id === existingId || b.id === record.id);
+        if (existingIdx !== -1) {
+            businesses[existingIdx] = record;
+        } else {
+            businesses.unshift(record);
+        }
+        saveList('bb_businesses', businesses);
+    }
+
+    function findBusinessIndex(id) {
+        return businesses.findIndex(b => b.id === id);
+    }
+
+    function recalcBusinessDerivedFields(b) {
+        if (!b) return;
+        b.storesCount = Array.isArray(b.stores) ? b.stores.length : 0;
+        const paymentEntries = Array.isArray(b.payments) ? b.payments : [];
+        b.paymentDue = paymentEntries
+            .filter(p => String(p.status || '').toLowerCase() !== 'paid')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    }
+
+    function saveBusinessAndRefresh(id) {
+        const idx = findBusinessIndex(id);
+        if (idx === -1) return;
+        recalcBusinessDerivedFields(businesses[idx]);
+        saveList('bb_businesses', businesses);
+        renderBusinessDetails(id);
     }
 
     function renderUserProfile(username) {
@@ -792,6 +1320,124 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
+    function openQuickFormModal(config) {
+        const {
+            title,
+            submitLabel,
+            fields,
+            initialValues,
+            onSubmit
+        } = config;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+
+        const fieldHtml = fields.map(f => {
+            const value = initialValues && Object.prototype.hasOwnProperty.call(initialValues, f.name) ? initialValues[f.name] : (f.defaultValue || '');
+            if (f.type === 'select') {
+                return `<div class="form-group"><label class="form-label">${f.label}</label><select class="form-control" name="${f.name}" ${f.required ? 'required' : ''}>${(f.options || []).map(opt => `<option value="${opt}" ${String(value) === String(opt) ? 'selected' : ''}>${opt}</option>`).join('')}</select></div>`;
+            }
+            return `<div class="form-group"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type || 'text'}" value="${String(value).replace(/"/g, '&quot;')}" placeholder="${f.placeholder || ''}" ${f.min !== undefined ? `min="${f.min}"` : ''} ${f.step !== undefined ? `step="${f.step}"` : ''} ${f.required ? 'required' : ''}></div>`;
+        }).join('');
+
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:540px;">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="modal-close" type="button">&times;</button>
+                </div>
+                <form class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+                    ${fieldHtml}
+                    <div class="text-sm" style="color:var(--red);display:none;" data-form-error></div>
+                    <div class="modal-footer" style="margin-top: 6px;">
+                        <button class="btn btn-outline" type="button" data-action="cancel">Cancel</button>
+                        <button class="btn btn-primary" type="submit">${submitLabel || 'Save'}</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        function closeModal() {
+            overlay.remove();
+        }
+
+        overlay.querySelector('.modal-close').addEventListener('click', closeModal);
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', closeModal);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal();
+        });
+
+        const form = overlay.querySelector('form');
+        const errEl = overlay.querySelector('[data-form-error]');
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            const values = {};
+
+            for (const field of fields) {
+                let raw = String(fd.get(field.name) || '').trim();
+                if (field.required && !raw) {
+                    errEl.textContent = `${field.label} is required.`;
+                    errEl.style.display = 'block';
+                    return;
+                }
+                if ((field.type === 'number') && raw !== '') {
+                    const n = Number(raw);
+                    if (Number.isNaN(n) || (field.min !== undefined && n < field.min)) {
+                        errEl.textContent = `${field.label} is invalid.`;
+                        errEl.style.display = 'block';
+                        return;
+                    }
+                    values[field.name] = n;
+                } else {
+                    values[field.name] = raw;
+                }
+            }
+
+            errEl.style.display = 'none';
+            onSubmit(values, closeModal);
+        });
+
+        document.body.appendChild(overlay);
+    }
+
+    function openQuickConfirmModal(config) {
+        const { title, message, confirmLabel, onConfirm } = config;
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:460px;">
+                <div class="modal-header">
+                    <h3>${title || 'Confirm Action'}</h3>
+                    <button class="modal-close" type="button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">${message}</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" type="button" data-action="cancel">Cancel</button>
+                    <button class="btn btn-primary" type="button" data-action="confirm">${confirmLabel || 'Confirm'}</button>
+                </div>
+            </div>
+        `;
+
+        function closeModal() {
+            overlay.remove();
+        }
+
+        overlay.querySelector('.modal-close').addEventListener('click', closeModal);
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', closeModal);
+        overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+            onConfirm();
+            closeModal();
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal();
+        });
+
+        document.body.appendChild(overlay);
+    }
+
     function determineStatus(stock, selectedStatus) {
         // Auto-determine if user left it at In Stock
         if (selectedStatus !== 'In Stock') return selectedStatus;
@@ -851,7 +1497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             inventory.push(pData);
         }
-        saveList('bb_inventory', inventory);
+        persistOperationalData();
 
         // Update DOM row if editing, else append
         const statusClass = pData.status === 'In Stock' ? 'b-active' : pData.status === 'Low Stock' ? 'b-pending' : pData.status === 'Critical' ? 'b-cancelled' : 'b-inactive';
@@ -1015,7 +1661,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             orders.unshift(oData);
         }
-        saveList('bb_orders', orders);
+        persistOperationalData();
 
         const payClass = 'b-' + oData.payment.toLowerCase();
         const statusClass = oData.status === 'Delivered' ? 'b-delivered' : oData.status === 'Processing' ? 'b-processing' : oData.status === 'Pending' ? 'b-pending' : 'b-cancelled';
@@ -1132,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             users.push(uData);
         }
-        saveList('bb_users', users);
+        persistOperationalData();
 
         const statusClass = uData.status === 'Active' ? 'b-active' : uData.status === 'Offline' ? 'b-offline' : 'b-cancelled';
         const trHtml = `<td class="cell-main">${uData.name}</td><td>${uData.email}</td><td>${uData.role}</td><td>Just now</td><td><span class="badge ${statusClass}">${uData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${uData.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${uData.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${uData.name}')">Delete</button></td>`;
@@ -1203,12 +1849,18 @@ document.addEventListener('DOMContentLoaded', () => {
             denyAction('Inventory delete');
             return;
         }
-        if(!confirm('Delete Product ' + sku + '?')) return;
-        const index = inventory.findIndex(i => i.sku === sku);
-        if (index !== -1) inventory.splice(index, 1);
-        saveList('bb_inventory', inventory);
-        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) r.remove(); });
-        showToast(`Product "${sku}" deleted!`);
+        openQuickConfirmModal({
+            title: 'Delete Product',
+            message: `Delete Product ${sku}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                const index = inventory.findIndex(i => i.sku === sku);
+                if (index !== -1) inventory.splice(index, 1);
+                persistOperationalData();
+                document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) r.remove(); });
+                showToast(`Product "${sku}" deleted!`);
+            }
+        });
     };
 
     window.editOrder = function(id) {
@@ -1232,12 +1884,18 @@ document.addEventListener('DOMContentLoaded', () => {
             denyAction('Order delete');
             return;
         }
-        if(!confirm('Delete Order ' + id + '?')) return;
-        const index = orders.findIndex(i => i.id === id);
-        if (index !== -1) orders.splice(index, 1);
-        saveList('bb_orders', orders);
-        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === id) r.remove(); });
-        showToast(`Order "${id}" deleted!`);
+        openQuickConfirmModal({
+            title: 'Delete Order',
+            message: `Delete Order ${id}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                const index = orders.findIndex(i => i.id === id);
+                if (index !== -1) orders.splice(index, 1);
+                persistOperationalData();
+                document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === id) r.remove(); });
+                showToast(`Order "${id}" deleted!`);
+            }
+        });
     };
 
     window.editUser = function(name) {
@@ -1260,12 +1918,18 @@ document.addEventListener('DOMContentLoaded', () => {
             denyAction('User delete');
             return;
         }
-        if(!confirm('Delete User ' + name + '?')) return;
-        const index = users.findIndex(i => i.name === name);
-        if (index !== -1) users.splice(index, 1);
-        saveList('bb_users', users);
-        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === name) r.remove(); });
-        showToast(`User "${name}" deleted!`);
+        openQuickConfirmModal({
+            title: 'Delete User',
+            message: `Delete User ${name}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                const index = users.findIndex(i => i.name === name);
+                if (index !== -1) users.splice(index, 1);
+                persistOperationalData();
+                document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === name) r.remove(); });
+                showToast(`User "${name}" deleted!`);
+            }
+        });
     };
 
     window.raiseReturnRequest = function() {
@@ -1273,29 +1937,31 @@ document.addEventListener('DOMContentLoaded', () => {
             denyAction('Return request create');
             return;
         }
-        const oid = prompt('Order ID for return (for example ORD-4821):');
-        if (!oid) return;
-        const reason = prompt('Reason (Damaged/Wrong Item/Expired):', 'Damaged');
-        if (!reason) return;
-        const amountInput = prompt('Refund amount:', '0');
-        const amount = Number(amountInput);
-        if (Number.isNaN(amount) || amount < 0) {
-            alert('Invalid amount.');
-            return;
-        }
-
-        returns.unshift({
-            id: getNextReturnId(),
-            oid: oid.trim().toUpperCase(),
-            reason: reason.trim(),
-            amount,
-            status: 'Pending',
-            requestedBy: localStorage.getItem('userName') || 'Operator',
-            updatedAt: formatDate()
+        openQuickFormModal({
+            title: 'Raise Return Request',
+            submitLabel: 'Create',
+            fields: [
+                { name: 'oid', label: 'Order ID', type: 'text', required: true, placeholder: 'ORD-4821' },
+                { name: 'reason', label: 'Reason', type: 'select', required: true, options: ['Damaged', 'Wrong Item', 'Expired', 'Stale'] },
+                { name: 'amount', label: 'Refund Amount', type: 'number', required: true, min: 0, step: 0.01 }
+            ],
+            initialValues: { reason: 'Damaged', amount: 0 },
+            onSubmit: (values, closeModal) => {
+                returns.unshift({
+                    id: getNextReturnId(),
+                    oid: String(values.oid).trim().toUpperCase(),
+                    reason: String(values.reason).trim(),
+                    amount: Number(values.amount),
+                    status: 'Pending',
+                    requestedBy: localStorage.getItem('userName') || 'Operator',
+                    updatedAt: formatDate()
+                });
+                persistOperationalData();
+                renderPage('returns');
+                closeModal();
+                showToast('Return request raised successfully.');
+            }
         });
-        saveList('bb_returns', returns);
-        renderPage('returns');
-        showToast('Return request raised successfully.');
     };
 
     window.approveReturn = function(id) {
@@ -1307,7 +1973,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item) return;
         item.status = 'Approved';
         item.updatedAt = formatDate();
-        saveList('bb_returns', returns);
+        persistOperationalData();
         renderPage('returns');
         showToast(`Return ${id} approved.`);
     };
@@ -1321,7 +1987,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item) return;
         item.status = 'Refunded';
         item.updatedAt = formatDate();
-        saveList('bb_returns', returns);
+        persistOperationalData();
         renderPage('returns');
         showToast(`Return ${id} refunded.`);
     };
@@ -1335,7 +2001,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item) return;
         item.status = 'Rejected';
         item.updatedAt = formatDate();
-        saveList('bb_returns', returns);
+        persistOperationalData();
         renderPage('returns');
         showToast(`Return ${id} rejected.`);
     };
@@ -1347,14 +2013,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const item = deliveries.find(d => d.id === id);
         if (!item) return;
-        const partner = prompt('Assign delivery partner:', item.partner || '');
-        if (!partner) return;
-        item.partner = partner.trim();
-        if (item.status === 'Pending') item.status = 'Out for Delivery';
-        item.time = formatDate().split(' ').slice(-1)[0];
-        saveList('bb_deliveries', deliveries);
-        renderPage('delivery');
-        showToast(`Partner assigned for ${id}.`);
+        openQuickFormModal({
+            title: `Assign Partner - ${id}`,
+            submitLabel: 'Assign',
+            fields: [
+                { name: 'partner', label: 'Delivery Partner', type: 'text', required: true }
+            ],
+            initialValues: { partner: item.partner || '' },
+            onSubmit: (values, closeModal) => {
+                item.partner = String(values.partner).trim();
+                if (item.status === 'Pending') item.status = 'Out for Delivery';
+                item.time = formatDate().split(' ').slice(-1)[0];
+                persistOperationalData();
+                renderPage('delivery');
+                closeModal();
+                showToast(`Partner assigned for ${id}.`);
+            }
+        });
     };
 
     window.markDeliveryDelivered = function(id) {
@@ -1366,9 +2041,416 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item) return;
         item.status = 'Delivered';
         item.time = formatDate().split(' ').slice(-1)[0];
-        saveList('bb_deliveries', deliveries);
+        persistOperationalData();
         renderPage('delivery');
         showToast(`${id} marked delivered.`);
+    };
+
+    window.renderBusinessesHome = function() {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Businesses view');
+            return;
+        }
+        renderPage('superuser');
+    };
+
+    window.openBusinessDetails = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Businesses detail view');
+            return;
+        }
+        renderBusinessDetails(id);
+    };
+
+    window.openBusinessAdminDashboard = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Businesses dashboard view');
+            return;
+        }
+        const business = businesses.find(b => b.id === id);
+        if (!business) {
+            showToast('Business not found.');
+            return;
+        }
+
+        localStorage.setItem('activeBusinessId', business.id);
+        localStorage.setItem('activeBusinessName', business.name);
+        window.location.href = 'dashboard.html';
+    };
+
+    window.addBusiness = function() {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business create');
+            return;
+        }
+
+        openQuickFormModal({
+            title: 'Add New Business',
+            submitLabel: 'Create Business',
+            fields: [
+                { name: 'name', label: 'Business Name', type: 'text', required: true },
+                { name: 'owner', label: 'Owner Name', type: 'text', required: true },
+                { name: 'adminName', label: 'Admin Name', type: 'text', required: true },
+                { name: 'type', label: 'Business Type', type: 'text', required: true },
+                { name: 'email', label: 'Business Email', type: 'email', required: true },
+                { name: 'phone', label: 'Business Phone', type: 'text', required: true },
+                { name: 'tenureMonths', label: 'Using BillBhai (Months)', type: 'number', required: true, min: 0 },
+                { name: 'storesCount', label: 'Stores Count', type: 'number', required: true, min: 0 },
+                { name: 'profit', label: 'Profit', type: 'number', required: true, min: 0, step: 0.01 },
+                { name: 'paymentDue', label: 'Payment Due', type: 'number', required: true, min: 0, step: 0.01 },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Active', 'Trial', 'Paused'] },
+                { name: 'productsPlan', label: 'Products Plan', type: 'text', required: true }
+            ],
+            initialValues: { status: 'Active', productsPlan: 'Billing Starter', tenureMonths: 1, storesCount: 1, profit: 0, paymentDue: 0 },
+            onSubmit: (values, closeModal) => {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+                    showToast('Please enter a valid email.');
+                    return;
+                }
+
+                const id = getNextBusinessId();
+                const record = {
+                    id,
+                    name: String(values.name).trim(),
+                    owner: String(values.owner).trim(),
+                    adminName: String(values.adminName).trim(),
+                    type: String(values.type).trim(),
+                    email: String(values.email).trim(),
+                    phone: String(values.phone).trim(),
+                    status: String(values.status).trim(),
+                    productsPlan: String(values.productsPlan).trim(),
+                    tenureMonths: Number(values.tenureMonths),
+                    storesCount: Number(values.storesCount),
+                    profit: Number(values.profit),
+                    paymentDue: Number(values.paymentDue),
+                    users: [
+                        { name: String(values.adminName).trim(), role: 'Admin', status: 'Active' }
+                    ],
+                    stores: [
+                        { code: `${id}-S1`, city: 'Primary City', status: 'Active' }
+                    ],
+                    payments: [
+                        { month: 'Mar 2026', amount: 0, status: 'Due' }
+                    ]
+                };
+
+                upsertBusiness(record);
+                renderPage('superuser');
+                closeModal();
+                showToast(`Business "${record.name}" created successfully.`);
+            }
+        });
+    };
+
+    window.editBusiness = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business update');
+            return;
+        }
+        const existing = businesses.find(b => b.id === id);
+        if (!existing) return;
+
+        openQuickFormModal({
+            title: `Edit Business - ${existing.name}`,
+            submitLabel: 'Save Changes',
+            fields: [
+                { name: 'name', label: 'Business Name', type: 'text', required: true },
+                { name: 'owner', label: 'Owner Name', type: 'text', required: true },
+                { name: 'adminName', label: 'Admin Name', type: 'text', required: true },
+                { name: 'type', label: 'Business Type', type: 'text', required: true },
+                { name: 'email', label: 'Business Email', type: 'email', required: true },
+                { name: 'phone', label: 'Business Phone', type: 'text', required: true },
+                { name: 'tenureMonths', label: 'Using BillBhai (Months)', type: 'number', required: true, min: 0 },
+                { name: 'storesCount', label: 'Stores Count', type: 'number', required: true, min: 0 },
+                { name: 'profit', label: 'Profit', type: 'number', required: true, min: 0, step: 0.01 },
+                { name: 'paymentDue', label: 'Payment Due', type: 'number', required: true, min: 0, step: 0.01 },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Active', 'Trial', 'Paused'] },
+                { name: 'productsPlan', label: 'Products Plan', type: 'text', required: true }
+            ],
+            initialValues: existing,
+            onSubmit: (values, closeModal) => {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+                    showToast('Please enter a valid email.');
+                    return;
+                }
+
+                const updated = {
+                    ...existing,
+                    name: String(values.name).trim(),
+                    owner: String(values.owner).trim(),
+                    adminName: String(values.adminName).trim(),
+                    type: String(values.type).trim(),
+                    email: String(values.email).trim(),
+                    phone: String(values.phone).trim(),
+                    tenureMonths: Number(values.tenureMonths),
+                    storesCount: Number(values.storesCount),
+                    profit: Number(values.profit),
+                    paymentDue: Number(values.paymentDue),
+                    status: String(values.status).trim(),
+                    productsPlan: String(values.productsPlan).trim()
+                };
+
+                upsertBusiness(updated, existing.id);
+                renderBusinessDetails(updated.id);
+                closeModal();
+                showToast(`Business "${updated.name}" updated successfully.`);
+            }
+        });
+    };
+
+    window.deleteBusiness = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business delete');
+            return;
+        }
+        const existing = businesses.find(b => b.id === id);
+        if (!existing) return;
+        openQuickConfirmModal({
+            title: 'Delete Business',
+            message: `Delete Business ${existing.name}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                const index = businesses.findIndex(b => b.id === id);
+                if (index !== -1) businesses.splice(index, 1);
+                saveList('bb_businesses', businesses);
+                renderPage('superuser');
+                showToast(`Business "${existing.name}" deleted.`);
+            }
+        });
+    };
+
+    window.addBusinessUser = function(businessId) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business user create');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        openQuickFormModal({
+            title: 'Add Business User',
+            submitLabel: 'Add User',
+            fields: [
+                { name: 'name', label: 'User Name', type: 'text', required: true },
+                { name: 'role', label: 'Role', type: 'select', required: true, options: ['Admin', 'Cashier', 'Inventory Manager', 'Return Handler', 'Delivery Ops'] },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Active', 'Inactive'] }
+            ],
+            initialValues: { role: 'Cashier', status: 'Active' },
+            onSubmit: (values, closeModal) => {
+                businesses[idx].users = Array.isArray(businesses[idx].users) ? businesses[idx].users : [];
+                businesses[idx].users.push({ name: String(values.name).trim(), role: String(values.role).trim(), status: String(values.status).trim() });
+                saveBusinessAndRefresh(businessId);
+                closeModal();
+                showToast('Business user added.');
+            }
+        });
+    };
+
+    window.editBusinessUser = function(businessId, userIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business user update');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].users) ? businesses[idx].users : [];
+        const user = arr[userIndex];
+        if (!user) return;
+        openQuickFormModal({
+            title: `Edit User - ${user.name}`,
+            submitLabel: 'Save Changes',
+            fields: [
+                { name: 'name', label: 'User Name', type: 'text', required: true },
+                { name: 'role', label: 'Role', type: 'select', required: true, options: ['Admin', 'Cashier', 'Inventory Manager', 'Return Handler', 'Delivery Ops'] },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Active', 'Inactive'] }
+            ],
+            initialValues: user,
+            onSubmit: (values, closeModal) => {
+                arr[userIndex] = { name: String(values.name).trim(), role: String(values.role).trim(), status: String(values.status).trim() };
+                businesses[idx].users = arr;
+                saveBusinessAndRefresh(businessId);
+                closeModal();
+                showToast('Business user updated.');
+            }
+        });
+    };
+
+    window.deleteBusinessUser = function(businessId, userIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business user delete');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].users) ? businesses[idx].users : [];
+        const user = arr[userIndex];
+        if (!user) return;
+        openQuickConfirmModal({
+            title: 'Delete Business User',
+            message: `Delete user ${user.name}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                arr.splice(userIndex, 1);
+                businesses[idx].users = arr;
+                saveBusinessAndRefresh(businessId);
+                showToast('Business user deleted.');
+            }
+        });
+    };
+
+    window.addBusinessStore = function(businessId) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business store create');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        openQuickFormModal({
+            title: 'Add Store',
+            submitLabel: 'Add Store',
+            fields: [
+                { name: 'code', label: 'Store Code', type: 'text', required: true },
+                { name: 'city', label: 'City', type: 'text', required: true },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Active', 'Maintenance', 'Inactive'] }
+            ],
+            initialValues: { code: `${businessId}-S${(businesses[idx].stores || []).length + 1}`, status: 'Active' },
+            onSubmit: (values, closeModal) => {
+                businesses[idx].stores = Array.isArray(businesses[idx].stores) ? businesses[idx].stores : [];
+                businesses[idx].stores.push({ code: String(values.code).trim(), city: String(values.city).trim(), status: String(values.status).trim() });
+                saveBusinessAndRefresh(businessId);
+                closeModal();
+                showToast('Store added.');
+            }
+        });
+    };
+
+    window.editBusinessStore = function(businessId, storeIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business store update');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].stores) ? businesses[idx].stores : [];
+        const store = arr[storeIndex];
+        if (!store) return;
+        openQuickFormModal({
+            title: `Edit Store - ${store.code}`,
+            submitLabel: 'Save Changes',
+            fields: [
+                { name: 'code', label: 'Store Code', type: 'text', required: true },
+                { name: 'city', label: 'City', type: 'text', required: true },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Active', 'Maintenance', 'Inactive'] }
+            ],
+            initialValues: store,
+            onSubmit: (values, closeModal) => {
+                arr[storeIndex] = { code: String(values.code).trim(), city: String(values.city).trim(), status: String(values.status).trim() };
+                businesses[idx].stores = arr;
+                saveBusinessAndRefresh(businessId);
+                closeModal();
+                showToast('Store updated.');
+            }
+        });
+    };
+
+    window.deleteBusinessStore = function(businessId, storeIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business store delete');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].stores) ? businesses[idx].stores : [];
+        const store = arr[storeIndex];
+        if (!store) return;
+        openQuickConfirmModal({
+            title: 'Delete Store',
+            message: `Delete store ${store.code}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                arr.splice(storeIndex, 1);
+                businesses[idx].stores = arr;
+                saveBusinessAndRefresh(businessId);
+                showToast('Store deleted.');
+            }
+        });
+    };
+
+    window.addBusinessPayment = function(businessId) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business payment create');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        openQuickFormModal({
+            title: 'Add Payment Entry',
+            submitLabel: 'Add Payment',
+            fields: [
+                { name: 'month', label: 'Month', type: 'text', required: true },
+                { name: 'amount', label: 'Amount', type: 'number', required: true, min: 0, step: 0.01 },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Paid', 'Partial', 'Due'] }
+            ],
+            initialValues: { month: 'Apr 2026', amount: 0, status: 'Due' },
+            onSubmit: (values, closeModal) => {
+                businesses[idx].payments = Array.isArray(businesses[idx].payments) ? businesses[idx].payments : [];
+                businesses[idx].payments.push({ month: String(values.month).trim(), amount: Number(values.amount), status: String(values.status).trim() });
+                saveBusinessAndRefresh(businessId);
+                closeModal();
+                showToast('Payment entry added.');
+            }
+        });
+    };
+
+    window.editBusinessPayment = function(businessId, paymentIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business payment update');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].payments) ? businesses[idx].payments : [];
+        const payment = arr[paymentIndex];
+        if (!payment) return;
+        openQuickFormModal({
+            title: `Edit Payment - ${payment.month}`,
+            submitLabel: 'Save Changes',
+            fields: [
+                { name: 'month', label: 'Month', type: 'text', required: true },
+                { name: 'amount', label: 'Amount', type: 'number', required: true, min: 0, step: 0.01 },
+                { name: 'status', label: 'Status', type: 'select', required: true, options: ['Paid', 'Partial', 'Due'] }
+            ],
+            initialValues: payment,
+            onSubmit: (values, closeModal) => {
+                arr[paymentIndex] = { month: String(values.month).trim(), amount: Number(values.amount), status: String(values.status).trim() };
+                businesses[idx].payments = arr;
+                saveBusinessAndRefresh(businessId);
+                closeModal();
+                showToast('Payment entry updated.');
+            }
+        });
+    };
+
+    window.deleteBusinessPayment = function(businessId, paymentIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business payment delete');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].payments) ? businesses[idx].payments : [];
+        const payment = arr[paymentIndex];
+        if (!payment) return;
+        openQuickConfirmModal({
+            title: 'Delete Payment Entry',
+            message: `Delete payment record ${payment.month}?`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+                arr.splice(paymentIndex, 1);
+                businesses[idx].payments = arr;
+                saveBusinessAndRefresh(businessId);
+                showToast('Payment entry deleted.');
+            }
+        });
     };
 
     // Reset modals to "Add" state when opened manually
@@ -1379,14 +2461,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddUsr = document.getElementById('addUserBtn');
     if (btnAddUsr) btnAddUsr.addEventListener('click', () => { const h3 = document.querySelector('#addUserModal h3'); if (h3) h3.textContent = 'Add New User'; const inName = document.getElementById('userName'); if (inName) inName.readOnly = false; });
 
-    // Init - Only run chart scripts if we are on a page that needs them
-    if (currentPage === 'dashboard') {
-        initDashboardCharts();
-    } else if (currentPage === 'inventory') {
-        initInventoryCharts();
-    } else if (currentPage === 'returns') {
-        initReturnCharts();
-    } else if (currentPage === 'reports') {
-        initReportCharts();
-    }
+    (async function startApp() {
+        await hydrateDataFromJsonFiles();
+        renderPage(currentPage);
+    })();
 });
