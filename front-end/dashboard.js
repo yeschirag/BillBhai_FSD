@@ -3,10 +3,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
     if (sidebarLogo) sidebarLogo.src = 'logo.png';
 
+    const ROLE_LABELS = {
+        superuser: 'Super User',
+        admin: 'Admin',
+        cashier: 'Cashier',
+        returnhandler: 'Return Handler',
+        inventorymanager: 'Inventory Manager',
+        deliveryops: 'Delivery Ops',
+        customer: 'Customer'
+    };
+
+    const ROLE_ALLOWED_PAGES = {
+        superuser: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
+        admin: ['dashboard', 'orders', 'inventory', 'profile', 'notifications'],
+        cashier: ['dashboard', 'orders', 'profile', 'notifications'],
+        returnhandler: ['dashboard', 'returns', 'orders', 'profile', 'notifications'],
+        inventorymanager: ['dashboard', 'inventory', 'reports', 'profile', 'notifications'],
+        deliveryops: ['dashboard', 'delivery', 'orders', 'profile', 'notifications'],
+        customer: ['profile', 'notifications']
+    };
+
+    function normalizeRole(role) {
+        return String(role || '').toLowerCase().replace(/\s+/g, '');
+    }
+
+    function roleFromStorage(value) {
+        const key = normalizeRole(value);
+        if (key === 'super' || key === 'superuser') return 'superuser';
+        if (key === 'admin') return 'admin';
+        if (key === 'cashier') return 'cashier';
+        if (key === 'returnhandler' || key === 'returns') return 'returnhandler';
+        if (key === 'inventorymanager' || key === 'inventory') return 'inventorymanager';
+        if (key === 'deliveryops' || key === 'deliverymanager' || key === 'delivery') return 'deliveryops';
+        if (key === 'customer' || key === 'user') return 'customer';
+        return '';
+    }
+
+    function clearSession() {
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('currentUser');
+    }
+
+    function goToLogin() {
+        window.location.href = 'login.html';
+    }
+
     // Apply Role-Based UI
     function applyRoleBasedUI() {
-        const uName = localStorage.getItem('userName') || 'Admin Demo';
-        const uRole = localStorage.getItem('userRole') || 'Super User';
+        const storedName = localStorage.getItem('userName');
+        const storedRole = localStorage.getItem('userRole');
+
+        if (!storedName || !storedRole) {
+            clearSession();
+            goToLogin();
+            return;
+        }
+
+        const roleKey = roleFromStorage(storedRole);
+        if (!roleKey || !ROLE_ALLOWED_PAGES[roleKey]) {
+            clearSession();
+            goToLogin();
+            return;
+        }
+
+        const uName = storedName;
+        const uRole = ROLE_LABELS[roleKey] || storedRole;
         
         const nameEl = document.querySelector('.user-name');
         const roleEl = document.querySelector('.user-role');
@@ -16,24 +78,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roleEl) roleEl.textContent = uRole;
         if (avatarEl) avatarEl.textContent = uName.charAt(0).toUpperCase();
 
-        if (uRole === 'Admin') {
-            const restrictedPages = ['users', 'reports', 'delivery', 'returns', 'settings'];
-            restrictedPages.forEach(p => {
-                const navItem = document.querySelector(`.nav-item[data-page="${p}"]`);
-                if (navItem) navItem.style.display = 'none';
-            });
-            
-            // Hide the Management section label to look cleaner
-            const labels = document.querySelectorAll('.nav-section-label');
-            labels.forEach(l => {
-                if (l.textContent.trim() === 'Management') l.style.display = 'none';
-            });
+        const currentPage = document.body.getAttribute('data-page') || 'dashboard';
+        const allowedPages = ROLE_ALLOWED_PAGES[roleKey] || [];
 
-            const p = document.body.getAttribute('data-page');
-            if (restrictedPages.includes(p)) {
-                window.location.href = 'dashboard.html';
-            }
+        // Route-level guard for direct URL access.
+        if (!allowedPages.includes(currentPage)) {
+            window.location.href = (allowedPages[0] || 'dashboard') + '.html';
+            return;
         }
+
+        // Hide all nav pages not allowed for this role.
+        document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+            const page = item.getAttribute('data-page');
+            item.style.display = allowedPages.includes(page) ? '' : 'none';
+        });
+
+        // Keep section labels tidy if no visible entries under management.
+        const labels = document.querySelectorAll('.nav-section-label');
+        labels.forEach(label => {
+            if (label.textContent.trim() !== 'Management') return;
+            const managementPages = ['returns', 'reports', 'users'];
+            const hasAny = managementPages.some(p => allowedPages.includes(p));
+            label.style.display = hasAny ? '' : 'none';
+        });
+
+        // Optional superuser marker in header role text.
+        if (roleEl && roleKey === 'superuser') roleEl.textContent = 'Super User (Full Access)';
+
+        // Wire logout links to clear session first.
+        document.querySelectorAll('.nav-logout, .dropdown-item.text-danger').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                clearSession();
+                goToLogin();
+            });
+        });
     }
     applyRoleBasedUI();
 

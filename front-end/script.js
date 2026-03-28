@@ -35,10 +35,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogin = document.getElementById('btnLogin');
     const loginError = document.getElementById('loginError');
 
+    function normalizeRole(role) {
+        return String(role || '').toLowerCase().replace(/\s+/g, '');
+    }
+
+    function routeByRole(role) {
+        const r = normalizeRole(role);
+        if (r === 'superuser' || r === 'super') return 'dashboard.html';
+        if (r === 'admin') return 'dashboard.html';
+        if (r === 'cashier') return 'orders.html';
+        if (r === 'returnhandler') return 'returns.html';
+        if (r === 'inventorymanager') return 'inventory.html';
+        if (r === 'deliveryops') return 'delivery.html';
+        if (r === 'customer') return 'profile.html';
+        return 'dashboard.html';
+    }
+
     const USERS = {
         'superuser': { password: 'super123', role: 'Super User', name: 'Super Admin' },
         'admin': { password: 'admin123', role: 'Admin', name: 'Store Admin' },
-        'chirag': { password: 'chirag1234', role: 'Super User', name: 'Chirag' }
+        'cashier': { password: 'cashier123', role: 'Cashier', name: 'POS Cashier' },
+        'returnhandler': { password: 'return123', role: 'Return Handler', name: 'Returns Desk' },
+        'inventorymanager': { password: 'inventory123', role: 'Inventory Manager', name: 'Inventory Lead' },
+        'deliveryops': { password: 'delivery123', role: 'Delivery Ops', name: 'Delivery Manager' },
+        'customer': { password: 'customer123', role: 'Customer', name: 'Self Checkout User' },
+        'chirag': { password: 'chirag1234', role: 'Customer', name: 'Chirag' }
     };
 
     loginForm.addEventListener('submit', e => {
@@ -61,11 +82,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Store session state
         localStorage.setItem('userRole', USERS[u].role);
         localStorage.setItem('userName', USERS[u].name);
+        localStorage.setItem('currentUser', JSON.stringify({
+            username: u,
+            name: USERS[u].name,
+            role: normalizeRole(USERS[u].role)
+        }));
 
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
             btnLogin.classList.remove('loading'); btnLogin.classList.add('success');
-            setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+            setTimeout(() => { window.location.href = routeByRole(USERS[u].role); }, 800);
         }, 1800);
     });
 
