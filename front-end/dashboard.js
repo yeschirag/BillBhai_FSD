@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const ROLE_ALLOWED_PAGES = {
-        superuser: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
+        superuser: ['businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
         admin: ['dashboard', 'orders', 'inventory', 'profile', 'notifications'],
         cashier: ['dashboard', 'orders', 'profile', 'notifications'],
         returnhandler: ['dashboard', 'returns', 'orders', 'profile', 'notifications'],
@@ -24,13 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const ROLE_ACTIONS = {
-        superuser: { orders: true, inventory: true, users: true, returns: true, delivery: true },
-        admin: { orders: true, inventory: true, users: false, returns: false, delivery: false },
-        cashier: { orders: true, inventory: false, users: false, returns: false, delivery: false },
-        returnhandler: { orders: false, inventory: false, users: false, returns: true, delivery: false },
-        inventorymanager: { orders: false, inventory: true, users: false, returns: false, delivery: false },
-        deliveryops: { orders: false, inventory: false, users: false, returns: false, delivery: true },
-        customer: { orders: false, inventory: false, users: false, returns: false, delivery: false }
+        superuser: { orders: true, inventory: true, users: true, returns: true, delivery: true, businesses: true },
+        admin: { orders: true, inventory: true, users: false, returns: false, delivery: false, businesses: false },
+        cashier: { orders: true, inventory: false, users: false, returns: false, delivery: false, businesses: false },
+        returnhandler: { orders: false, inventory: false, users: false, returns: true, delivery: false, businesses: false },
+        inventorymanager: { orders: false, inventory: true, users: false, returns: false, delivery: false, businesses: false },
+        deliveryops: { orders: false, inventory: false, users: false, returns: false, delivery: true, businesses: false },
+        customer: { orders: false, inventory: false, users: false, returns: false, delivery: false, businesses: false }
     };
 
     let activeRoleKey = 'customer';
@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasActionAccess('delivery')) {
             hide("button[data-action='delivery']");
         }
+        if (!hasActionAccess('businesses')) {
+            hide("button[data-action='businesses']");
+        }
     }
 
     // Apply Role-Based UI
@@ -132,6 +135,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentPage = document.body.getAttribute('data-page') || 'dashboard';
         const allowedPages = ROLE_ALLOWED_PAGES[roleKey] || [];
 
+        function ensureBusinessesNavItem() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav || nav.querySelector('.nav-item[data-page="businesses"]')) return;
+
+            const usersLink = nav.querySelector('.nav-item[data-page="users"]');
+            const item = document.createElement('a');
+            item.href = 'businesses.html';
+            item.className = 'nav-item';
+            item.setAttribute('data-page', 'businesses');
+            item.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/><path d="M8 7h0M8 11h0M8 15h0M16 11h0M16 15h0"/></svg><span>Businesses</span>';
+
+            if (usersLink && usersLink.parentElement === nav) {
+                usersLink.insertAdjacentElement('afterend', item);
+            } else {
+                nav.appendChild(item);
+            }
+
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    const sidebarEl = document.getElementById('sidebar');
+                    if (sidebarEl) sidebarEl.classList.remove('mobile-open');
+                }
+            });
+        }
+
+        ensureBusinessesNavItem();
+
         // Route-level guard for direct URL access.
         if (!allowedPages.includes(currentPage)) {
             window.location.href = (allowedPages[0] || 'dashboard') + '.html';
@@ -142,13 +172,19 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.nav-item[data-page]').forEach(item => {
             const page = item.getAttribute('data-page');
             item.style.display = allowedPages.includes(page) ? '' : 'none';
+            item.classList.toggle('active', page === currentPage);
         });
+
+        if (bcPage) {
+            const activeItem = document.querySelector(`.nav-item[data-page="${currentPage}"] span`);
+            if (activeItem) bcPage.textContent = activeItem.textContent;
+        }
 
         // Keep section labels tidy if no visible entries under management.
         const labels = document.querySelectorAll('.nav-section-label');
         labels.forEach(label => {
             if (label.textContent.trim() !== 'Management') return;
-            const managementPages = ['returns', 'reports', 'users'];
+            const managementPages = ['returns', 'reports', 'users', 'businesses'];
             const hasAny = managementPages.some(p => allowedPages.includes(p));
             label.style.display = hasAny ? '' : 'none';
         });
@@ -287,11 +323,141 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: 'Sunita Verma', role: 'Cashier', status: 'Active' }
     ];
 
+    const defaultBusinesses = [
+        {
+            id: 'BIZ-101',
+            name: 'FreshKart Central',
+            owner: 'Ritu Malhotra',
+            adminName: 'Arjun Mehta',
+            type: 'Grocery Retail',
+            email: 'central@freshkart.in',
+            phone: '+91-9870011101',
+            status: 'Active',
+            productsPlan: 'Core POS + Inventory',
+            tenureMonths: 32,
+            storesCount: 6,
+            profit: 1245000,
+            paymentDue: 0,
+            users: [
+                { name: 'Arjun Mehta', role: 'Admin', status: 'Active' },
+                { name: 'Komal Shah', role: 'Cashier', status: 'Active' },
+                { name: 'Irfan Ali', role: 'Inventory Manager', status: 'Active' },
+                { name: 'Gopal Yadav', role: 'Delivery Ops', status: 'Active' }
+            ],
+            stores: [
+                { code: 'FK-CEN-01', city: 'Delhi', status: 'Active' },
+                { code: 'FK-CEN-02', city: 'Noida', status: 'Active' },
+                { code: 'FK-CEN-03', city: 'Gurugram', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 48000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 48000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 48000, status: 'Paid' }
+            ]
+        },
+        {
+            id: 'BIZ-102',
+            name: 'Metro Mart East',
+            owner: 'Aman Bedi',
+            adminName: 'Shreya Nair',
+            type: 'Supermarket',
+            email: 'ops@metromarteast.in',
+            phone: '+91-9870011102',
+            status: 'Active',
+            productsPlan: 'Billing + Returns',
+            tenureMonths: 18,
+            storesCount: 4,
+            profit: 842000,
+            paymentDue: 15000,
+            users: [
+                { name: 'Shreya Nair', role: 'Admin', status: 'Active' },
+                { name: 'Hemant Rawat', role: 'Return Handler', status: 'Active' },
+                { name: 'Rakesh Pal', role: 'Cashier', status: 'Active' }
+            ],
+            stores: [
+                { code: 'MM-E-11', city: 'Kolkata', status: 'Active' },
+                { code: 'MM-E-12', city: 'Howrah', status: 'Active' },
+                { code: 'MM-E-13', city: 'Durgapur', status: 'Active' },
+                { code: 'MM-E-14', city: 'Siliguri', status: 'Maintenance' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 39000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 39000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 39000, status: 'Partial' }
+            ]
+        },
+        {
+            id: 'BIZ-103',
+            name: 'DailyNeeds Hub',
+            owner: 'Neha Saini',
+            adminName: 'Bhavesh Gupta',
+            type: 'Convenience Store',
+            email: 'admin@dailyneedshub.in',
+            phone: '+91-9870011103',
+            status: 'Trial',
+            productsPlan: 'Billing Starter',
+            tenureMonths: 6,
+            storesCount: 2,
+            profit: 221000,
+            paymentDue: 9000,
+            users: [
+                { name: 'Bhavesh Gupta', role: 'Admin', status: 'Active' },
+                { name: 'Manju K', role: 'Cashier', status: 'Active' }
+            ],
+            stores: [
+                { code: 'DN-H-01', city: 'Jaipur', status: 'Active' },
+                { code: 'DN-H-02', city: 'Ajmer', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 15000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 15000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 15000, status: 'Due' }
+            ]
+        },
+        {
+            id: 'BIZ-104',
+            name: 'Value Basket North',
+            owner: 'Imran Khan',
+            adminName: 'Nitika Arora',
+            type: 'Wholesale + Retail',
+            email: 'north@valuebasket.in',
+            phone: '+91-9870011104',
+            status: 'Active',
+            productsPlan: 'Full Suite',
+            tenureMonths: 44,
+            storesCount: 9,
+            profit: 2354000,
+            paymentDue: 0,
+            users: [
+                { name: 'Nitika Arora', role: 'Admin', status: 'Active' },
+                { name: 'Rohit Dabas', role: 'Inventory Manager', status: 'Active' },
+                { name: 'Seema Arif', role: 'Return Handler', status: 'Active' },
+                { name: 'Pankaj Rana', role: 'Delivery Ops', status: 'Active' },
+                { name: 'Rupa S', role: 'Cashier', status: 'Active' }
+            ],
+            stores: [
+                { code: 'VB-N-01', city: 'Chandigarh', status: 'Active' },
+                { code: 'VB-N-02', city: 'Ludhiana', status: 'Active' },
+                { code: 'VB-N-03', city: 'Jalandhar', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Jan 2026', amount: 69000, status: 'Paid' },
+                { month: 'Feb 2026', amount: 69000, status: 'Paid' },
+                { month: 'Mar 2026', amount: 69000, status: 'Paid' }
+            ]
+        }
+    ];
+
     const orders = loadList('bb_orders', defaultOrders);
     const inventory = loadList('bb_inventory', defaultInventory);
     const deliveries = loadList('bb_deliveries', defaultDeliveries);
     const returns = loadList('bb_returns', defaultReturns);
     const users = loadList('bb_users', defaultUsers);
+    const businesses = loadList('bb_businesses', defaultBusinesses);
+
+    if (!localStorage.getItem('bb_businesses')) {
+        saveList('bb_businesses', businesses);
+    }
 
     const notificationsList = [
         {
@@ -341,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderers = {
             dashboard: renderDashboard, orders: renderOrders, inventory: renderInventory,
             delivery: renderDelivery, returns: renderReturns, reports: renderReports, users: renderUsers,
-            profile: renderProfile, settings: renderSettings, notifications: renderNotifications
+            businesses: renderBusinesses, profile: renderProfile, settings: renderSettings, notifications: renderNotifications
         };
         if (renderers[page]) renderers[page]();
         content.scrollTop = 0;
@@ -441,6 +607,92 @@ document.addEventListener('DOMContentLoaded', () => {
         <section class="card"><div class="card-bd">${table(['Name', 'Email', 'Role', 'Status', 'Actions'], users.map(u => `<tr><td class="cell-main">${u.name}</td><td>${u.email || ''}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${u.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${u.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${u.name}')">Delete</button></td></tr>`).join(''))}</div></section>`;
         const dynBtn = document.getElementById('addUserBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openAddUserModal);
+    }
+
+    function renderBusinesses() {
+        const paymentDueTotal = businesses.reduce((sum, b) => sum + Number(b.paymentDue || 0), 0);
+        const activeCount = businesses.filter(b => b.status === 'Active').length;
+        const trialCount = businesses.filter(b => b.status === 'Trial').length;
+
+        content.innerHTML = `
+        <div class="page-header"><h2>Businesses Using Your Products</h2><div class="page-header-actions"><button class="btn btn-primary" data-action="businesses" onclick="window.addBusiness()">+ Add Business</button><button class="btn btn-outline" onclick="window.location.href='reports.html'">View Revenue Reports</button></div></div>
+        <section class="stats-grid">
+            <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/></svg></div><div class="stat-info"><span class="stat-label">Total Businesses</span><span class="stat-value">${businesses.length}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="stat-info"><span class="stat-label">Active Stores</span><span class="stat-value">${activeCount}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="stat-info"><span class="stat-label">Trial Stores</span><span class="stat-value">${trialCount}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-info"><span class="stat-label">Pending Payments</span><span class="stat-value">₹${paymentDueTotal.toLocaleString()}</span></div></div>
+        </section>
+        <section class="card"><div class="card-hd"><h3>All Client Businesses</h3></div><div class="card-bd">${table(
+            ['Business ID', 'Business Name', 'Using BillBhai', 'Stores', 'Profit', 'Payment Due', 'Status', 'Actions'],
+            businesses.map(b => `<tr><td class="cell-main">${b.id}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.openBusinessDetails('${b.id}')">${b.name}</button></td><td>${b.tenureMonths} months</td><td>${b.storesCount}</td><td>₹${Number(b.profit || 0).toLocaleString()}</td><td>₹${Number(b.paymentDue || 0).toLocaleString()}</td><td>${statusBadge(b.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.openBusinessDetails('${b.id}')">View</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></td></tr>`).join('')
+        )}</div></section>`;
+    }
+
+    function renderBusinessDetails(businessId) {
+        const b = businesses.find(x => x.id === businessId);
+        if (!b) {
+            renderBusinesses();
+            return;
+        }
+
+        const usersRows = (b.users || []).map((u, idx) => `<tr><td class="cell-main">${u.name}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessUser('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessUser('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+        const storesRows = (b.stores || []).map((s, idx) => `<tr><td class="cell-main">${s.code}</td><td>${s.city}</td><td>${statusBadge(s.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessStore('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessStore('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+        const paymentRows = (b.payments || []).map((p, idx) => `<tr><td class="cell-main">${p.month}</td><td>₹${Number(p.amount || 0).toLocaleString()}</td><td>${statusBadge(p.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessPayment('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessPayment('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+
+        content.innerHTML = `
+        <div class="page-header"><h2>${b.name}</h2><div class="page-header-actions"><button class="btn btn-outline" data-action="businesses" onclick="window.renderBusinessesHome()">Back to Businesses</button><button class="btn btn-outline" data-action="businesses" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></div></div>
+        <section class="stats-grid">
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Using BillBhai</span><span class="stat-value">${b.tenureMonths} months</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Stores</span><span class="stat-value">${b.storesCount}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Profit</span><span class="stat-value">₹${Number(b.profit || 0).toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Payment Due</span><span class="stat-value">₹${Number(b.paymentDue || 0).toLocaleString()}</span></div></div>
+        </section>
+        <section class="grid-2" style="margin-top: 12px;">
+            <div class="card"><div class="card-hd"><h3>Business Profile</h3></div><div class="card-bd"><div class="text-muted" style="display:flex;flex-direction:column;gap:8px;"><div><strong>Owner:</strong> ${b.owner}</div><div><strong>Admin:</strong> ${b.adminName}</div><div><strong>Type:</strong> ${b.type}</div><div><strong>Email:</strong> ${b.email}</div><div><strong>Phone:</strong> ${b.phone}</div><div><strong>Plan:</strong> ${b.productsPlan}</div><div><strong>Status:</strong> ${statusBadge(b.status)}</div></div></div></div>
+            <div class="card"><div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;"><h3>Store Locations</h3><button class="btn btn-outline" data-action="businesses" style="padding: 4px 10px;" onclick="window.addBusinessStore('${b.id}')">+ Add Store</button></div><div class="card-bd">${table(['Store Code', 'City', 'Status', 'Actions'], storesRows || '<tr><td colspan="4" class="text-muted">No stores found.</td></tr>')}</div></div>
+        </section>
+        <section class="grid-2" style="margin-top: 12px;">
+            <div class="card"><div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;"><h3>Business Users</h3><button class="btn btn-outline" data-action="businesses" style="padding: 4px 10px;" onclick="window.addBusinessUser('${b.id}')">+ Add User</button></div><div class="card-bd">${table(['Name', 'Role', 'Status', 'Actions'], usersRows || '<tr><td colspan="4" class="text-muted">No users found.</td></tr>')}</div></div>
+            <div class="card"><div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;"><h3>Payment History</h3><button class="btn btn-outline" data-action="businesses" style="padding: 4px 10px;" onclick="window.addBusinessPayment('${b.id}')">+ Add Payment</button></div><div class="card-bd">${table(['Month', 'Amount', 'Status', 'Actions'], paymentRows || '<tr><td colspan="4" class="text-muted">No payments found.</td></tr>')}</div></div>
+        </section>`;
+        enforceActionPermissions();
+    }
+
+    function getNextBusinessId() {
+        const nums = businesses.map(b => parseInt(String(b.id || '').replace('BIZ-', ''), 10)).filter(n => !Number.isNaN(n));
+        const next = nums.length ? Math.max(...nums) + 1 : 101;
+        return `BIZ-${next}`;
+    }
+
+    function upsertBusiness(record, existingId) {
+        const existingIdx = businesses.findIndex(b => b.id === existingId || b.id === record.id);
+        if (existingIdx !== -1) {
+            businesses[existingIdx] = record;
+        } else {
+            businesses.unshift(record);
+        }
+        saveList('bb_businesses', businesses);
+    }
+
+    function findBusinessIndex(id) {
+        return businesses.findIndex(b => b.id === id);
+    }
+
+    function recalcBusinessDerivedFields(b) {
+        if (!b) return;
+        b.storesCount = Array.isArray(b.stores) ? b.stores.length : 0;
+        const paymentEntries = Array.isArray(b.payments) ? b.payments : [];
+        b.paymentDue = paymentEntries
+            .filter(p => String(p.status || '').toLowerCase() !== 'paid')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    }
+
+    function saveBusinessAndRefresh(id) {
+        const idx = findBusinessIndex(id);
+        if (idx === -1) return;
+        recalcBusinessDerivedFields(businesses[idx]);
+        saveList('bb_businesses', businesses);
+        renderBusinessDetails(id);
     }
 
     function renderUserProfile(username) {
@@ -1371,6 +1623,338 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`${id} marked delivered.`);
     };
 
+    window.renderBusinessesHome = function() {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Businesses view');
+            return;
+        }
+        renderPage('businesses');
+    };
+
+    window.openBusinessDetails = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Businesses detail view');
+            return;
+        }
+        renderBusinessDetails(id);
+    };
+
+    window.addBusiness = function() {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business create');
+            return;
+        }
+
+        const name = prompt('Business Name:');
+        if (!name || !name.trim()) return;
+        const owner = prompt('Business Owner Name:', 'Owner Name');
+        if (!owner || !owner.trim()) return;
+        const adminName = prompt('Admin Account Name:', 'Store Admin');
+        if (!adminName || !adminName.trim()) return;
+        const type = prompt('Business Type:', 'Grocery Retail');
+        if (!type || !type.trim()) return;
+        const email = prompt('Business Email:', 'store@example.com');
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            alert('Invalid email.');
+            return;
+        }
+        const phone = prompt('Business Phone:', '+91-');
+        if (!phone || !phone.trim()) return;
+        const tenureMonths = Number(prompt('Using BillBhai for how many months?', '1'));
+        const storesCount = Number(prompt('Number of stores:', '1'));
+        const profit = Number(prompt('Current profit amount:', '0'));
+        const paymentDue = Number(prompt('Current payment due amount:', '0'));
+        const status = prompt('Status (Active/Trial/Paused):', 'Active');
+        const productsPlan = prompt('Products Plan Summary:', 'Billing Starter');
+
+        if ([tenureMonths, storesCount, profit, paymentDue].some(n => Number.isNaN(n) || n < 0)) {
+            alert('Numeric fields must be valid non-negative numbers.');
+            return;
+        }
+
+        const id = getNextBusinessId();
+        const record = {
+            id,
+            name: name.trim(),
+            owner: owner.trim(),
+            adminName: adminName.trim(),
+            type: type.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+            status: (status || 'Active').trim(),
+            productsPlan: (productsPlan || 'Billing Starter').trim(),
+            tenureMonths,
+            storesCount,
+            profit,
+            paymentDue,
+            users: [
+                { name: adminName.trim(), role: 'Admin', status: 'Active' }
+            ],
+            stores: [
+                { code: `${id}-S1`, city: 'Primary City', status: 'Active' }
+            ],
+            payments: [
+                { month: 'Mar 2026', amount: 0, status: 'Due' }
+            ]
+        };
+
+        upsertBusiness(record);
+        renderPage('businesses');
+        showToast(`Business "${record.name}" created successfully.`);
+    };
+
+    window.editBusiness = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business update');
+            return;
+        }
+        const existing = businesses.find(b => b.id === id);
+        if (!existing) return;
+
+        const name = prompt('Business Name:', existing.name);
+        if (!name || !name.trim()) return;
+        const owner = prompt('Business Owner Name:', existing.owner);
+        if (!owner || !owner.trim()) return;
+        const adminName = prompt('Admin Account Name:', existing.adminName);
+        if (!adminName || !adminName.trim()) return;
+        const type = prompt('Business Type:', existing.type);
+        if (!type || !type.trim()) return;
+        const email = prompt('Business Email:', existing.email);
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            alert('Invalid email.');
+            return;
+        }
+        const phone = prompt('Business Phone:', existing.phone);
+        if (!phone || !phone.trim()) return;
+        const tenureMonths = Number(prompt('Using BillBhai for how many months?', String(existing.tenureMonths || 0)));
+        const storesCount = Number(prompt('Number of stores:', String(existing.storesCount || 0)));
+        const profit = Number(prompt('Current profit amount:', String(existing.profit || 0)));
+        const paymentDue = Number(prompt('Current payment due amount:', String(existing.paymentDue || 0)));
+        const status = prompt('Status (Active/Trial/Paused):', existing.status || 'Active');
+        const productsPlan = prompt('Products Plan Summary:', existing.productsPlan || 'Billing Starter');
+
+        if ([tenureMonths, storesCount, profit, paymentDue].some(n => Number.isNaN(n) || n < 0)) {
+            alert('Numeric fields must be valid non-negative numbers.');
+            return;
+        }
+
+        const updated = {
+            ...existing,
+            name: name.trim(),
+            owner: owner.trim(),
+            adminName: adminName.trim(),
+            type: type.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+            tenureMonths,
+            storesCount,
+            profit,
+            paymentDue,
+            status: (status || existing.status || 'Active').trim(),
+            productsPlan: (productsPlan || existing.productsPlan || '').trim()
+        };
+
+        upsertBusiness(updated, existing.id);
+        renderBusinessDetails(updated.id);
+        showToast(`Business "${updated.name}" updated successfully.`);
+    };
+
+    window.deleteBusiness = function(id) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business delete');
+            return;
+        }
+        const existing = businesses.find(b => b.id === id);
+        if (!existing) return;
+        if (!confirm(`Delete Business ${existing.name}?`)) return;
+
+        const index = businesses.findIndex(b => b.id === id);
+        if (index !== -1) businesses.splice(index, 1);
+        saveList('bb_businesses', businesses);
+        renderPage('businesses');
+        showToast(`Business "${existing.name}" deleted.`);
+    };
+
+    window.addBusinessUser = function(businessId) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business user create');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const name = prompt('User name:');
+        if (!name || !name.trim()) return;
+        const role = prompt('Role (Admin/Cashier/Inventory Manager/Return Handler/Delivery Ops):', 'Cashier');
+        if (!role || !role.trim()) return;
+        const status = prompt('Status (Active/Inactive):', 'Active');
+        if (!status || !status.trim()) return;
+        businesses[idx].users = Array.isArray(businesses[idx].users) ? businesses[idx].users : [];
+        businesses[idx].users.push({ name: name.trim(), role: role.trim(), status: status.trim() });
+        saveBusinessAndRefresh(businessId);
+        showToast('Business user added.');
+    };
+
+    window.editBusinessUser = function(businessId, userIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business user update');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].users) ? businesses[idx].users : [];
+        const user = arr[userIndex];
+        if (!user) return;
+        const name = prompt('User name:', user.name);
+        if (!name || !name.trim()) return;
+        const role = prompt('Role:', user.role);
+        if (!role || !role.trim()) return;
+        const status = prompt('Status:', user.status);
+        if (!status || !status.trim()) return;
+        arr[userIndex] = { name: name.trim(), role: role.trim(), status: status.trim() };
+        businesses[idx].users = arr;
+        saveBusinessAndRefresh(businessId);
+        showToast('Business user updated.');
+    };
+
+    window.deleteBusinessUser = function(businessId, userIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business user delete');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].users) ? businesses[idx].users : [];
+        const user = arr[userIndex];
+        if (!user) return;
+        if (!confirm(`Delete user ${user.name}?`)) return;
+        arr.splice(userIndex, 1);
+        businesses[idx].users = arr;
+        saveBusinessAndRefresh(businessId);
+        showToast('Business user deleted.');
+    };
+
+    window.addBusinessStore = function(businessId) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business store create');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const code = prompt('Store code:', `${businessId}-S${(businesses[idx].stores || []).length + 1}`);
+        if (!code || !code.trim()) return;
+        const city = prompt('City:', 'City Name');
+        if (!city || !city.trim()) return;
+        const status = prompt('Status (Active/Maintenance/Inactive):', 'Active');
+        if (!status || !status.trim()) return;
+        businesses[idx].stores = Array.isArray(businesses[idx].stores) ? businesses[idx].stores : [];
+        businesses[idx].stores.push({ code: code.trim(), city: city.trim(), status: status.trim() });
+        saveBusinessAndRefresh(businessId);
+        showToast('Store added.');
+    };
+
+    window.editBusinessStore = function(businessId, storeIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business store update');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].stores) ? businesses[idx].stores : [];
+        const store = arr[storeIndex];
+        if (!store) return;
+        const code = prompt('Store code:', store.code);
+        if (!code || !code.trim()) return;
+        const city = prompt('City:', store.city);
+        if (!city || !city.trim()) return;
+        const status = prompt('Status:', store.status);
+        if (!status || !status.trim()) return;
+        arr[storeIndex] = { code: code.trim(), city: city.trim(), status: status.trim() };
+        businesses[idx].stores = arr;
+        saveBusinessAndRefresh(businessId);
+        showToast('Store updated.');
+    };
+
+    window.deleteBusinessStore = function(businessId, storeIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business store delete');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].stores) ? businesses[idx].stores : [];
+        const store = arr[storeIndex];
+        if (!store) return;
+        if (!confirm(`Delete store ${store.code}?`)) return;
+        arr.splice(storeIndex, 1);
+        businesses[idx].stores = arr;
+        saveBusinessAndRefresh(businessId);
+        showToast('Store deleted.');
+    };
+
+    window.addBusinessPayment = function(businessId) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business payment create');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const month = prompt('Month (for example Apr 2026):', 'Apr 2026');
+        if (!month || !month.trim()) return;
+        const amount = Number(prompt('Amount:', '0'));
+        if (Number.isNaN(amount) || amount < 0) {
+            alert('Invalid amount.');
+            return;
+        }
+        const status = prompt('Status (Paid/Partial/Due):', 'Due');
+        if (!status || !status.trim()) return;
+        businesses[idx].payments = Array.isArray(businesses[idx].payments) ? businesses[idx].payments : [];
+        businesses[idx].payments.push({ month: month.trim(), amount, status: status.trim() });
+        saveBusinessAndRefresh(businessId);
+        showToast('Payment entry added.');
+    };
+
+    window.editBusinessPayment = function(businessId, paymentIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business payment update');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].payments) ? businesses[idx].payments : [];
+        const payment = arr[paymentIndex];
+        if (!payment) return;
+        const month = prompt('Month:', payment.month);
+        if (!month || !month.trim()) return;
+        const amount = Number(prompt('Amount:', String(payment.amount)));
+        if (Number.isNaN(amount) || amount < 0) {
+            alert('Invalid amount.');
+            return;
+        }
+        const status = prompt('Status:', payment.status);
+        if (!status || !status.trim()) return;
+        arr[paymentIndex] = { month: month.trim(), amount, status: status.trim() };
+        businesses[idx].payments = arr;
+        saveBusinessAndRefresh(businessId);
+        showToast('Payment entry updated.');
+    };
+
+    window.deleteBusinessPayment = function(businessId, paymentIndex) {
+        if (!hasActionAccess('businesses')) {
+            denyAction('Business payment delete');
+            return;
+        }
+        const idx = findBusinessIndex(businessId);
+        if (idx === -1) return;
+        const arr = Array.isArray(businesses[idx].payments) ? businesses[idx].payments : [];
+        const payment = arr[paymentIndex];
+        if (!payment) return;
+        if (!confirm(`Delete payment record ${payment.month}?`)) return;
+        arr.splice(paymentIndex, 1);
+        businesses[idx].payments = arr;
+        saveBusinessAndRefresh(businessId);
+        showToast('Payment entry deleted.');
+    };
+
     // Reset modals to "Add" state when opened manually
     const btnAddProd = document.getElementById('addProductBtn');
     if (btnAddProd) btnAddProd.addEventListener('click', () => { const h3 = document.querySelector('#addProductModal h3'); if (h3) h3.textContent = 'Add New Product'; });
@@ -1388,5 +1972,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initReturnCharts();
     } else if (currentPage === 'reports') {
         initReportCharts();
+    } else if (currentPage === 'businesses') {
+        renderBusinesses();
     }
 });

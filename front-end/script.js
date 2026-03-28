@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function routeByRole(role) {
         const r = normalizeRole(role);
-        if (r === 'superuser' || r === 'super') return 'dashboard.html';
+        if (r === 'superuser' || r === 'super') return 'businesses.html';
         if (r === 'admin') return 'dashboard.html';
         if (r === 'cashier') return 'orders.html';
         if (r === 'returnhandler') return 'returns.html';
@@ -52,14 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const USERS = {
-        'superuser': { password: 'super123', role: 'Super User', name: 'Super Admin' },
+        'superuser': { password: 'super123', role: 'Admin', name: 'Legacy Admin Account' },
         'admin': { password: 'admin123', role: 'Admin', name: 'Store Admin' },
         'cashier': { password: 'cashier123', role: 'Cashier', name: 'POS Cashier' },
         'returnhandler': { password: 'return123', role: 'Return Handler', name: 'Returns Desk' },
         'inventorymanager': { password: 'inventory123', role: 'Inventory Manager', name: 'Inventory Lead' },
         'deliveryops': { password: 'delivery123', role: 'Delivery Ops', name: 'Delivery Manager' },
         'customer': { password: 'customer123', role: 'Customer', name: 'Self Checkout User' },
-        'chirag': { password: 'chirag1234', role: 'Customer', name: 'Chirag' }
+        'chirag': { password: 'chirag1234', role: 'Super User', name: 'Chirag' }
     };
 
     loginForm.addEventListener('submit', e => {
