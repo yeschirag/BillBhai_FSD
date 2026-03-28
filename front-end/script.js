@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = normalizeRole(role);
         if (r === 'superuser' || r === 'super') return 'dashboard.html';
         if (r === 'admin') return 'dashboard.html';
-        if (r === 'cashier') return 'orders.html';
+        if (r === 'cashier') return 'end_user/index.html';
         if (r === 'returnhandler') return 'returns.html';
         if (r === 'inventorymanager') return 'inventory.html';
         if (r === 'deliveryops') return 'delivery.html';
