@@ -4,13 +4,13 @@ BillBhai is a web-based order and billing management prototype with role-based a
 
 ## Getting Started
 
-1. Open front-end/index.html in a browser.
+1. Open front-end/pages/index.html in a browser.
 2. Click Login, or directly open front-end/pages/login.html.
 3. Use any credential from the table below.
 
 ## Folder Structure
 
-- `front-end/index.html` (root landing page)
+- `front-end/pages/index.html` (landing page)
 - `front-end/pages/` (all app pages)
 - `front-end/styles/` (all css files)
 - `front-end/scripts/` (all js files)
@@ -79,4 +79,5 @@ Accepted login ID aliases (same password as mapped account):
 - These are development/demo credentials only.
 - Authentication is simulated on the client side.
 - Data and session state are stored in localStorage and are not production secure.
-- If you run via a local server, keep `front-end/index.html` as the entry page and routes under `front-end/pages/`.
+- If deployed on Vercel, set Root Directory to `front-end` (not `front-end/pages`) so `styles`, `scripts`, `public`, and `data` are included.
+- `front-end/index.html` now redirects to `front-end/pages/index.html`.
