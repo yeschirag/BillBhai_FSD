@@ -1,26 +1,38 @@
-# BillBhai – Order & Billing System
+# BillBhai - Order and Billing System
 
-A web-based order and billing management system featuring role-based access control and functional CRUD operations.
+BillBhai is a web-based order and billing management prototype with role-based access control and functional CRUD workflows.
 
 ## Getting Started
 
-Open `front-end/index.html` in your browser to launch the application's landing page, or go directly to `front-end/login.html`.
+1. Open front-end/index.html in a browser.
+2. Click Login, or directly open front-end/login.html.
+3. Use any credential from the table below.
 
 ## Features
-- **Role-Based UI:** The dashboard dynamically changes based on `Super User` and `Admin` permissions.
-- **Super User Access:** Full CRUD access to all modules including Users, Reports, Returns, and Delivery.
-- **Admin Access:** Restricted exclusively to store-level operations (Inventory and Orders). 
-- **Simulated CRUD:** Add, Edit, and Delete functionalities working dynamically without page reloads utilizing structured JS data arrays.
-- **Client-Side Validations:** All forms handle inputs dynamically protecting against empty insertions.
 
-## Login Credentials
+- Role-based page access and action-level permissions.
+- Functional modules for Orders, Inventory, Returns, Delivery, Users, Reports, and Profile.
+- Dynamic CRUD behavior without full page reload.
+- Client-side input validation for forms.
+- Session-based login state using localStorage.
 
-Use the following simulated accounts to experience the custom roles:
+## Login Credentials (All Actors)
 
-| Role       | Username   | Password   |
-|------------|------------|------------|
-| Super User | superuser  | super123   |
-| Admin      | admin      | admin123   |
-| Super User | chirag     | chirag1234 |
+Use these demo accounts to log in as each actor:
 
-> ⚠️ **Note:** These are simulated development credentials managed strictly via `localStorage` states. Do not run this format securely in any production ecosystem.
+| Actor | Role Label in App | Username | Password | Default Landing Page |
+|---|---|---|---|---|
+| Super User | Super User | superuser | super123 | dashboard.html |
+| Admin | Admin | admin | admin123 | dashboard.html |
+| Cashier | Cashier | cashier | cashier123 | orders.html |
+| Return Handler | Return Handler | returnhandler | return123 | returns.html |
+| Inventory Manager | Inventory Manager | inventorymanager | inventory123 | inventory.html |
+| Delivery Operations | Delivery Ops | deliveryops | delivery123 | delivery.html |
+| Customer | Customer | customer | customer123 | profile.html |
+| Customer (Demo User) | Customer | chirag | chirag1234 | profile.html |
+
+## Notes
+
+- These are development/demo credentials only.
+- Authentication is simulated on the client side.
+- Data and session state are stored in localStorage and are not production secure.

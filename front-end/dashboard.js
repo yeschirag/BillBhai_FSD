@@ -23,6 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
         customer: ['profile', 'notifications']
     };
 
+    const ROLE_ACTIONS = {
+        superuser: { orders: true, inventory: true, users: true, returns: true, delivery: true },
+        admin: { orders: true, inventory: true, users: false, returns: false, delivery: false },
+        cashier: { orders: true, inventory: false, users: false, returns: false, delivery: false },
+        returnhandler: { orders: false, inventory: false, users: false, returns: true, delivery: false },
+        inventorymanager: { orders: false, inventory: true, users: false, returns: false, delivery: false },
+        deliveryops: { orders: false, inventory: false, users: false, returns: false, delivery: true },
+        customer: { orders: false, inventory: false, users: false, returns: false, delivery: false }
+    };
+
+    let activeRoleKey = 'customer';
+
     function normalizeRole(role) {
         return String(role || '').toLowerCase().replace(/\s+/g, '');
     }
@@ -49,6 +61,43 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'login.html';
     }
 
+    function hasActionAccess(moduleKey) {
+        const actions = ROLE_ACTIONS[activeRoleKey] || ROLE_ACTIONS.customer;
+        return !!actions[moduleKey];
+    }
+
+    function denyAction(actionLabel) {
+        alert(`Access denied: ${actionLabel} is not allowed for your role.`);
+    }
+
+    function enforceActionPermissions() {
+        const hide = (selector) => {
+            document.querySelectorAll(selector).forEach(el => {
+                el.style.display = 'none';
+            });
+        };
+
+        if (!hasActionAccess('inventory')) {
+            hide('#addProductBtn, #addProductBtnDyn');
+            hide("button[onclick*='editProduct'], button[onclick*='deleteProduct']");
+        }
+        if (!hasActionAccess('orders')) {
+            hide('#newOrderBtn, #newOrderBtnDyn');
+            hide("button[onclick*='editOrder'], button[onclick*='deleteOrder']");
+        }
+        if (!hasActionAccess('users')) {
+            hide('#addUserBtn, #addUserBtnDyn');
+            hide("button[onclick*='editUser'], button[onclick*='deleteUser']");
+        }
+        if (!hasActionAccess('returns')) {
+            hide('#raiseReturnBtnDyn');
+            hide("button[data-action='returns']");
+        }
+        if (!hasActionAccess('delivery')) {
+            hide("button[data-action='delivery']");
+        }
+    }
+
     // Apply Role-Based UI
     function applyRoleBasedUI() {
         const storedName = localStorage.getItem('userName');
@@ -66,6 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
             goToLogin();
             return;
         }
+
+        activeRoleKey = roleKey;
 
         const uName = storedName;
         const uRole = ROLE_LABELS[roleKey] || storedRole;
@@ -104,6 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Optional superuser marker in header role text.
         if (roleEl && roleKey === 'superuser') roleEl.textContent = 'Super User (Full Access)';
+
+        enforceActionPermissions();
 
         // Wire logout links to clear session first.
         document.querySelectorAll('.nav-logout, .dropdown-item.text-danger').forEach(el => {
@@ -191,33 +244,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Data
-    const orders = [
+    function loadList(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return fallback;
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : fallback;
+        } catch (err) {
+            return fallback;
+        }
+    }
+
+    function saveList(key, list) {
+        localStorage.setItem(key, JSON.stringify(list));
+    }
+
+    const defaultOrders = [
         { id: 'ORD-4821', customer: 'Rahul Sharma', items: 3, total: 1250, payment: 'UPI', status: 'Delivered', date: '17 Feb 14:32' },
         { id: 'ORD-4820', customer: 'Priya Patel', items: 1, total: 450, payment: 'Cash', status: 'Processing', date: '17 Feb 13:45' },
         { id: 'ORD-4819', customer: 'Amit Kumar', items: 5, total: 3200, payment: 'Card', status: 'Delivered', date: '17 Feb 12:10' }
     ];
 
-    const inventory = [
+    const defaultInventory = [
         { sku: 'SKU-01', name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 145, price: 380, status: 'In Stock' },
         { sku: 'SKU-02', name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 230, price: 120, status: 'In Stock' },
         { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 18, price: 155, status: 'Low Stock' }
     ];
 
-    const deliveries = [
+    const defaultDeliveries = [
         { id: 'DEL-901', oid: 'ORD-4821', partner: 'Rajesh K.', status: 'Delivered', time: '14:10' },
         { id: 'DEL-900', oid: 'ORD-4820', partner: 'Sunil M.', status: 'Out for Delivery', time: '-' }
     ];
 
-    const returns = [
-        { id: 'RET-201', oid: 'ORD-4810', reason: 'Damaged', amount: 420, status: 'Approved' },
-        { id: 'RET-200', oid: 'ORD-4805', reason: 'Wrong Item', amount: 155, status: 'Refunded' }
+    const defaultReturns = [
+        { id: 'RET-201', oid: 'ORD-4810', reason: 'Damaged', amount: 420, status: 'Approved', requestedBy: 'Walk-in', updatedAt: '17 Feb 11:10' },
+        { id: 'RET-200', oid: 'ORD-4805', reason: 'Wrong Item', amount: 155, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '16 Feb 15:30' }
     ];
 
-    const users = [
+    const defaultUsers = [
         { name: 'Admin', role: 'Ops Head', status: 'Active' },
         { name: 'Ramesh Gupta', role: 'Cashier', status: 'Active' },
         { name: 'Sunita Verma', role: 'Cashier', status: 'Active' }
     ];
+
+    const orders = loadList('bb_orders', defaultOrders);
+    const inventory = loadList('bb_inventory', defaultInventory);
+    const deliveries = loadList('bb_deliveries', defaultDeliveries);
+    const returns = loadList('bb_returns', defaultReturns);
+    const users = loadList('bb_users', defaultUsers);
 
     const notificationsList = [
         {
@@ -271,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         if (renderers[page]) renderers[page]();
         content.scrollTop = 0;
+        enforceActionPermissions();
     }
 
     window.renderUserProfile = renderUserProfile;
@@ -328,18 +403,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDelivery() {
         content.innerHTML = `
         <div class="page-header"><h2>Delivery</h2></div>
-        <section class="card"><div class="card-bd">${table(['ID', 'Order', 'Partner', 'Status', 'Time'], deliveries.map(d => `<tr><td class="cell-main">${d.id}</td><td>${d.oid}</td><td>${d.partner}</td><td>${statusBadge(d.status)}</td><td>${d.time}</td></tr>`).join(''))}</div></section>`;
+        <section class="card"><div class="card-bd">${table(
+            ['ID', 'Order', 'Partner', 'Status', 'Time', 'Actions'],
+            deliveries.map(d => {
+                const canMarkDelivered = d.status !== 'Delivered';
+                return `<tr><td class="cell-main">${d.id}</td><td>${d.oid}</td><td>${d.partner}</td><td>${statusBadge(d.status)}</td><td>${d.time}</td><td><button class="btn btn-outline" data-action="delivery" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.assignDeliveryPartner('${d.id}')">Assign</button>${canMarkDelivered ? `<button class="btn btn-outline" data-action="delivery" style="padding: 4px 8px; font-size: 0.75rem;" onclick="window.markDeliveryDelivered('${d.id}')">Mark Delivered</button>` : '<span class="text-muted text-sm">Closed</span>'}</td></tr>`;
+            }).join('')
+        )}</div></section>`;
     }
 
     function renderReturns() {
         content.innerHTML = `
-        <div class="page-header"><h2>Returns</h2></div>
+        <div class="page-header"><h2>Returns</h2><div class="page-header-actions"><button class="btn btn-primary" id="raiseReturnBtnDyn">+ Raise Return</button></div></div>
         <section class="grid-2">
             <div class="card"><div class="card-hd"><h3>Return Reasons</h3></div><div class="card-bd" style="position:relative;height:200px"><canvas id="retReasonChart"></canvas></div></div>
             <div class="card"><div class="card-hd"><h3>Status Breakdown</h3></div><div class="card-bd" style="position:relative;height:200px"><canvas id="retStatusChart"></canvas></div></div>
         </section>
-        <section class="card"><div class="card-bd">${table(['ID', 'Order', 'Reason', 'Amount', 'Status'], returns.map(r => `<tr><td class="cell-main">${r.id}</td><td>${r.oid}</td><td>${r.reason}</td><td>₹${r.amount}</td><td>${statusBadge(r.status)}</td></tr>`).join(''))}</div></section>`;
+        <section class="card"><div class="card-bd">${table(
+            ['ID', 'Order', 'Reason', 'Amount', 'Status', 'Requested By', 'Updated', 'Actions'],
+            returns.map(r => `<tr><td class="cell-main">${r.id}</td><td>${r.oid}</td><td>${r.reason}</td><td>₹${r.amount}</td><td>${statusBadge(r.status)}</td><td>${r.requestedBy || '-'}</td><td>${r.updatedAt || '-'}</td><td><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.approveReturn('${r.id}')">Approve</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.refundReturn('${r.id}')">Refund</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.rejectReturn('${r.id}')">Reject</button></td></tr>`).join('')
+        )}</div></section>`;
         setTimeout(initReturnCharts, 0);
+        const raiseBtn = document.getElementById('raiseReturnBtnDyn');
+        if (raiseBtn) raiseBtn.addEventListener('click', window.raiseReturnRequest);
     }
 
     function renderReports() {
@@ -668,6 +754,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function openAddProductModal() {
+        if (!hasActionAccess('inventory')) {
+            denyAction('Inventory create');
+            return;
+        }
         const overlay = document.getElementById('addProductModal');
         if (!overlay) return;
         // Set auto-generated SKU
@@ -713,6 +803,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleAddProduct(e) {
         e.preventDefault();
+        if (!hasActionAccess('inventory')) {
+            denyAction('Inventory create/update');
+            return;
+        }
         let valid = true;
         const fields = [
             { id: 'prodName', check: v => v.trim() !== '' },
@@ -757,6 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             inventory.push(pData);
         }
+        saveList('bb_inventory', inventory);
 
         // Update DOM row if editing, else append
         const statusClass = pData.status === 'In Stock' ? 'b-active' : pData.status === 'Low Stock' ? 'b-pending' : pData.status === 'Critical' ? 'b-cancelled' : 'b-inactive';
@@ -840,7 +935,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${d} ${m} ${h}:${min}`;
     }
 
+    function getNextReturnId() {
+        const nums = returns
+            .map(r => parseInt(String(r.id || '').replace('RET-', ''), 10))
+            .filter(n => !Number.isNaN(n));
+        const next = nums.length ? Math.max(...nums) + 1 : 200;
+        return `RET-${next}`;
+    }
+
     function openNewOrderModal() {
+        if (!hasActionAccess('orders')) {
+            denyAction('Order create');
+            return;
+        }
         const overlay = document.getElementById('newOrderModal');
         if (!overlay) return;
         const idInput = document.getElementById('orderId');
@@ -865,6 +972,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNewOrder(e) {
         e.preventDefault();
+        if (!hasActionAccess('orders')) {
+            denyAction('Order create/update');
+            return;
+        }
         let valid = true;
         const fields = [
             { id: 'orderCustomer', check: v => v.trim() !== '' },
@@ -904,6 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             orders.unshift(oData);
         }
+        saveList('bb_orders', orders);
 
         const payClass = 'b-' + oData.payment.toLowerCase();
         const statusClass = oData.status === 'Delivered' ? 'b-delivered' : oData.status === 'Processing' ? 'b-processing' : oData.status === 'Pending' ? 'b-pending' : 'b-cancelled';
@@ -954,6 +1066,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // User Modal Logic
     function openAddUserModal() {
+        if (!hasActionAccess('users')) {
+            denyAction('User create');
+            return;
+        }
         const overlay = document.getElementById('addUserModal');
         if (!overlay) return;
         const form = document.getElementById('addUserForm');
@@ -977,6 +1093,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleAddUser(e) {
         e.preventDefault();
+        if (!hasActionAccess('users')) {
+            denyAction('User create/update');
+            return;
+        }
         let valid = true;
         const fields = [
             { id: 'userName', check: v => v.trim() !== '' },
@@ -1012,6 +1132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             users.push(uData);
         }
+        saveList('bb_users', users);
 
         const statusClass = uData.status === 'Active' ? 'b-active' : uData.status === 'Offline' ? 'b-offline' : 'b-cancelled';
         const trHtml = `<td class="cell-main">${uData.name}</td><td>${uData.email}</td><td>${uData.role}</td><td>Just now</td><td><span class="badge ${statusClass}">${uData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${uData.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${uData.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${uData.name}')">Delete</button></td>`;
@@ -1061,6 +1182,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global CRUD handlers for Product, Order, User
     window.editProduct = function(sku) {
+        if (!hasActionAccess('inventory')) {
+            denyAction('Inventory update');
+            return;
+        }
         const p = inventory.find(i => i.sku === sku);
         if (!p) return;
         openAddProductModal();
@@ -1074,14 +1199,23 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('prodStatus').value = p.status;
     };
     window.deleteProduct = function(sku) {
+        if (!hasActionAccess('inventory')) {
+            denyAction('Inventory delete');
+            return;
+        }
         if(!confirm('Delete Product ' + sku + '?')) return;
         const index = inventory.findIndex(i => i.sku === sku);
         if (index !== -1) inventory.splice(index, 1);
+        saveList('bb_inventory', inventory);
         document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) r.remove(); });
         showToast(`Product "${sku}" deleted!`);
     };
 
     window.editOrder = function(id) {
+        if (!hasActionAccess('orders')) {
+            denyAction('Order update');
+            return;
+        }
         const o = orders.find(i => i.id === id);
         if (!o) return;
         openNewOrderModal();
@@ -1094,14 +1228,23 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('orderStatus').value = o.status;
     };
     window.deleteOrder = function(id) {
+        if (!hasActionAccess('orders')) {
+            denyAction('Order delete');
+            return;
+        }
         if(!confirm('Delete Order ' + id + '?')) return;
         const index = orders.findIndex(i => i.id === id);
         if (index !== -1) orders.splice(index, 1);
+        saveList('bb_orders', orders);
         document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === id) r.remove(); });
         showToast(`Order "${id}" deleted!`);
     };
 
     window.editUser = function(name) {
+        if (!hasActionAccess('users')) {
+            denyAction('User update');
+            return;
+        }
         const u = users.find(i => i.name === name);
         if (!u) return;
         openAddUserModal();
@@ -1113,11 +1256,119 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('userStatus').value = u.status;
     };
     window.deleteUser = function(name) {
+        if (!hasActionAccess('users')) {
+            denyAction('User delete');
+            return;
+        }
         if(!confirm('Delete User ' + name + '?')) return;
         const index = users.findIndex(i => i.name === name);
         if (index !== -1) users.splice(index, 1);
+        saveList('bb_users', users);
         document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === name) r.remove(); });
         showToast(`User "${name}" deleted!`);
+    };
+
+    window.raiseReturnRequest = function() {
+        if (!hasActionAccess('returns')) {
+            denyAction('Return request create');
+            return;
+        }
+        const oid = prompt('Order ID for return (for example ORD-4821):');
+        if (!oid) return;
+        const reason = prompt('Reason (Damaged/Wrong Item/Expired):', 'Damaged');
+        if (!reason) return;
+        const amountInput = prompt('Refund amount:', '0');
+        const amount = Number(amountInput);
+        if (Number.isNaN(amount) || amount < 0) {
+            alert('Invalid amount.');
+            return;
+        }
+
+        returns.unshift({
+            id: getNextReturnId(),
+            oid: oid.trim().toUpperCase(),
+            reason: reason.trim(),
+            amount,
+            status: 'Pending',
+            requestedBy: localStorage.getItem('userName') || 'Operator',
+            updatedAt: formatDate()
+        });
+        saveList('bb_returns', returns);
+        renderPage('returns');
+        showToast('Return request raised successfully.');
+    };
+
+    window.approveReturn = function(id) {
+        if (!hasActionAccess('returns')) {
+            denyAction('Return approve');
+            return;
+        }
+        const item = returns.find(r => r.id === id);
+        if (!item) return;
+        item.status = 'Approved';
+        item.updatedAt = formatDate();
+        saveList('bb_returns', returns);
+        renderPage('returns');
+        showToast(`Return ${id} approved.`);
+    };
+
+    window.refundReturn = function(id) {
+        if (!hasActionAccess('returns')) {
+            denyAction('Return refund');
+            return;
+        }
+        const item = returns.find(r => r.id === id);
+        if (!item) return;
+        item.status = 'Refunded';
+        item.updatedAt = formatDate();
+        saveList('bb_returns', returns);
+        renderPage('returns');
+        showToast(`Return ${id} refunded.`);
+    };
+
+    window.rejectReturn = function(id) {
+        if (!hasActionAccess('returns')) {
+            denyAction('Return reject');
+            return;
+        }
+        const item = returns.find(r => r.id === id);
+        if (!item) return;
+        item.status = 'Rejected';
+        item.updatedAt = formatDate();
+        saveList('bb_returns', returns);
+        renderPage('returns');
+        showToast(`Return ${id} rejected.`);
+    };
+
+    window.assignDeliveryPartner = function(id) {
+        if (!hasActionAccess('delivery')) {
+            denyAction('Delivery assignment');
+            return;
+        }
+        const item = deliveries.find(d => d.id === id);
+        if (!item) return;
+        const partner = prompt('Assign delivery partner:', item.partner || '');
+        if (!partner) return;
+        item.partner = partner.trim();
+        if (item.status === 'Pending') item.status = 'Out for Delivery';
+        item.time = formatDate().split(' ').slice(-1)[0];
+        saveList('bb_deliveries', deliveries);
+        renderPage('delivery');
+        showToast(`Partner assigned for ${id}.`);
+    };
+
+    window.markDeliveryDelivered = function(id) {
+        if (!hasActionAccess('delivery')) {
+            denyAction('Delivery close');
+            return;
+        }
+        const item = deliveries.find(d => d.id === id);
+        if (!item) return;
+        item.status = 'Delivered';
+        item.time = formatDate().split(' ').slice(-1)[0];
+        saveList('bb_deliveries', deliveries);
+        renderPage('delivery');
+        showToast(`${id} marked delivered.`);
     };
 
     // Reset modals to "Add" state when opened manually
