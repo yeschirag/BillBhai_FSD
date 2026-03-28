@@ -11,11 +11,11 @@ BillBhai is a web-based order and billing management prototype with role-based a
 ## Folder Structure
 
 - `front-end/pages/index.html` (landing page)
-- `front-end/pages/` (all app pages)
-- `front-end/styles/` (all css files)
-- `front-end/scripts/` (all js files)
-- `front-end/public/` (logo and static media)
-- `front-end/data/` (editable json seed files)
+- `front-end/pages/` (deployment root with pages + local assets)
+- `front-end/pages/styles/` (all css files)
+- `front-end/pages/scripts/` (all js files)
+- `front-end/pages/public/` (logo and static media)
+- `front-end/pages/data/` (editable json seed files)
 
 ## Features
 
@@ -79,5 +79,5 @@ Accepted login ID aliases (same password as mapped account):
 - These are development/demo credentials only.
 - Authentication is simulated on the client side.
 - Data and session state are stored in localStorage and are not production secure.
-- If deployed on Vercel, set Root Directory to `front-end` (not `front-end/pages`) so `styles`, `scripts`, `public`, and `data` are included.
-- `front-end/index.html` now redirects to `front-end/pages/index.html`.
+- If deployed on Vercel, set Root Directory to `front-end/pages`.
+- This project is configured so all required assets (`styles`, `scripts`, `public`, `data`) are inside `front-end/pages`.
