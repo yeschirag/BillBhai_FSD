@@ -52,7 +52,7 @@ Use these demo accounts to log in as each actor:
 | Super User (Platform Owner) | Super User | chirag | chirag1234 | pages/superuser.html |
 | Admin | Admin | admin | admin123 | pages/dashboard.html |
 | Admin (Legacy Login) | Admin | superuser | super123 | pages/dashboard.html |
-| Cashier | Cashier | cashier | cashier123 | pages/orders.html |
+| Cashier | Cashier | cashier | cashier123 | pages/end_user/index.html |
 | Return Handler | Return Handler | returnhandler | return123 | pages/returns.html |
 | Inventory Manager | Inventory Manager | inventorymanager | inventory123 | pages/inventory.html |
 | Delivery Operations | Delivery Ops | deliveryops | delivery123 | pages/delivery.html |
