@@ -43,6 +43,13 @@ const UI = (() => {
             inpPromo: document.getElementById('promoCode'),
             btnPromo: document.getElementById('applyPromoBtn'),
             errPromo: document.getElementById('promoError'),
+            promoInputBlock:  document.getElementById('promoInputBlock'),
+            promoAppliedTag:  document.getElementById('promoAppliedTag'),
+            promoAppliedCode: document.getElementById('promoAppliedCode'),
+            btnRemovePromo:   document.getElementById('removePromoBtn'),
+
+            // Context Menu
+            menu: document.getElementById('contextMenu'),
 
             // Step 3 Actions
             btnReset: document.getElementById('btnResetFlow')
@@ -72,8 +79,12 @@ const UI = (() => {
         searchQuery = '';
         
         if(el.searchInp) el.searchInp.value = '';
-        if(el.inpPromo) el.inpPromo.value = '';
-        if(el.errPromo) el.errPromo.textContent = '';
+        if(el.inpPromo)  el.inpPromo.value = '';
+        if(el.errPromo)  el.errPromo.textContent = '';
+        // Reset promo UI visibility
+        if(el.promoInputBlock)  el.promoInputBlock.style.display = 'flex';
+        if(el.promoAppliedTag)  el.promoAppliedTag.style.display = 'none';
+        if(el.promoAppliedCode) el.promoAppliedCode.textContent = '';
         
         showStep(1);
         renderCart();
@@ -134,16 +145,76 @@ const UI = (() => {
         products.forEach(p => {
             const card = document.createElement('div');
             card.className = 'prod-card';
+            const defaultOpt = p.options[0];
             card.innerHTML = `
                 <div class="prod-img">${p.image}</div>
                 <div class="prod-info">
-                    <div class="prod-name">${p.name}</div>
-                    <div class="prod-price">₹${p.price.toFixed(2)}</div>
+                    <div class="prod-name">${p.name} (${defaultOpt.label})</div>
+                    <div class="prod-price">₹${defaultOpt.price.toFixed(2)}</div>
                 </div>
             `;
-            card.addEventListener('click', () => addToCart(p));
+            
+            // Interaction: Left Click -> Add Default
+            card.addEventListener('click', (e) => {
+                if (e.button === 0) addToCart(p);
+            });
+
+            // Interaction: Right Click -> Show Options
+            card.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showContextMenu(e.pageX, e.pageY, p);
+            });
+
+            // Interaction: Long Press (Mobile)
+            let pressTimer;
+            card.addEventListener('touchstart', (e) => {
+                pressTimer = window.setTimeout(() => {
+                    const touch = e.touches[0];
+                    showContextMenu(touch.pageX, touch.pageY, p);
+                }, 600); // 600ms for long press
+            });
+            card.addEventListener('touchend', () => clearTimeout(pressTimer));
+            card.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
             el.prodGrid.appendChild(card);
         });
+    }
+
+    // ── Context Menu ──────────────────────────────────────────────────────
+    function showContextMenu(x, y, product) {
+        el.menu.innerHTML = '';
+        product.options.forEach(opt => {
+            const item = document.createElement('div');
+            item.className = 'context-menu-item';
+            item.innerHTML = `
+                <span class="cmi-label">${opt.label}</span>
+                <span class="cmi-price">₹${opt.price.toFixed(2)}</span>
+            `;
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addToCart(product, opt);
+                hideContextMenu();
+            });
+            el.menu.appendChild(item);
+        });
+
+        el.menu.style.display = 'block';
+        el.menu.style.left = `${x}px`;
+        el.menu.style.top = `${y}px`;
+
+        // Adjust if out of bounds
+        const bounds = el.menu.getBoundingClientRect();
+        if (x + bounds.width > window.innerWidth) el.menu.style.left = `${x - bounds.width}px`;
+        if (y + bounds.height > window.innerHeight) el.menu.style.top = `${y - bounds.height}px`;
+    }
+
+    function hideContextMenu() {
+        el.menu.style.display = 'none';
+    }
+
+    function bindContextMenuGlobal() {
+        document.addEventListener('click', () => hideContextMenu());
+        window.addEventListener('scroll', () => hideContextMenu(), true);
     }
 
     function bindSearch() {
@@ -154,22 +225,31 @@ const UI = (() => {
     }
 
     // ── Cart Sidebar ──────────────────────────────────────────────────────
-    function addToCart(product) {
-        const existing = cart.find(c => c.id === product.id);
+    function addToCart(product, option) {
+        const opt = option || product.options[0];
+        const cartId = `${product.id}-${opt.label}`;
+        const existing = cart.find(c => c.cartId === cartId);
+        
         if (existing) {
             existing.qty += 1;
         } else {
-            cart.push({ ...product, qty: 1 });
+            cart.push({ 
+                cartId,
+                id: product.id, 
+                name: `${product.name} (${opt.label})`,
+                price: opt.price,
+                qty: 1 
+            });
         }
         renderCart();
     }
 
-    function updateCartQty(id, delta) {
-        const item = cart.find(c => c.id === id);
+    function updateCartQty(cartId, delta) {
+        const item = cart.find(c => c.cartId === cartId);
         if(!item) return;
         item.qty += delta;
         if (item.qty <= 0) {
-            cart = cart.filter(c => c.id !== id);
+            cart = cart.filter(c => c.cartId !== cartId);
         }
         renderCart();
     }
@@ -193,9 +273,9 @@ const UI = (() => {
                     <div class="c-price">₹${(c.price * c.qty).toFixed(2)}</div>
                 </div>
                 <div class="c-actions">
-                    <button class="qty-btn dec" data-id="${c.id}">-</button>
+                    <button class="qty-btn dec" data-id="${c.cartId}">-</button>
                     <span>${c.qty}</span>
-                    <button class="qty-btn inc" data-id="${c.id}">+</button>
+                    <button class="qty-btn inc" data-id="${c.cartId}">+</button>
                 </div>
             `;
             el.cartList.appendChild(row);
@@ -215,15 +295,24 @@ const UI = (() => {
 
     function bindPromo() {
         el.btnPromo.addEventListener('click', () => {
-            const code = el.inpPromo.value;
+            const code = el.inpPromo.value.trim();
             if(!code) return;
             el.errPromo.textContent = '';
+
+            if (cart.length === 0) {
+                el.errPromo.textContent = 'Add items to the cart before applying a promo code.';
+                return;
+            }
             
             const subtotal = cart.reduce((s, c) => s + (c.price * c.qty), 0);
             const res = DataStore.applyPromo(code, subtotal);
             
             if (res.active) {
                 currentDiscount = res;
+                // Show applied badge, hide input
+                el.promoInputBlock.style.display  = 'none';
+                el.promoAppliedTag.style.display   = 'flex';
+                el.promoAppliedCode.textContent = code.toUpperCase();
                 updateCartTotal();
             } else {
                 el.errPromo.textContent = res.error || 'Invalid Code';
@@ -233,6 +322,17 @@ const UI = (() => {
         });
         
         el.inpPromo.addEventListener('input', () => el.errPromo.textContent = '');
+
+        // Remove promo handler
+        el.btnRemovePromo.addEventListener('click', () => {
+            currentDiscount = { active: false, discount: 0 };
+            el.inpPromo.value = '';
+            el.errPromo.textContent = '';
+            el.promoAppliedTag.style.display  = 'none';
+            el.promoInputBlock.style.display  = 'flex';
+            el.promoAppliedCode.textContent = '';
+            updateCartTotal();
+        });
     }
 
     function updateCartTotal() {
@@ -277,6 +377,7 @@ const UI = (() => {
         bindSearch();
         bindPromo();
         bindCheckout();
+        bindContextMenuGlobal();
         
         resetPOS();
     }

@@ -10,15 +10,46 @@ const DataStore = (() => {
 
     // ── Catalog Data ─────────────────────────────────────────────────────
     const catalog = [
-        { id: 'P001', name: 'Basmati Rice (5kg)', category: 'Groceries', price: 380, image: '🛒' },
-        { id: 'P002', name: 'Toor Dal (1kg)', category: 'Groceries', price: 120, image: '🌾' },
-        { id: 'P003', name: 'Refined Oil (1L)', category: 'Groceries', price: 155, image: '🛢️' },
-        { id: 'P004', name: 'Amul Butter (500g)', category: 'Dairy', price: 275, image: '🧈' },
-        { id: 'P005', name: 'Milk (1L)', category: 'Dairy', price: 60, image: '🥛' },
-        { id: 'P006', name: 'Bread Loaf', category: 'Snacks', price: 45, image: '🍞' },
-        { id: 'P007', name: 'Maggi Noodles (Pack)', category: 'Snacks', price: 168, image: '🍜' },
-        { id: 'P008', name: 'Tea Powder (500g)', category: 'Beverages', price: 310, image: '🫖' },
-        { id: 'P009', name: 'Coffee Jar (100g)', category: 'Beverages', price: 180, image: '☕' }
+        { id: 'P001', name: 'Basmati Rice', category: 'Groceries', image: '🛒', options: [
+            { label: '1kg', price: 85 },
+            { label: '2kg', price: 160 },
+            { label: '5kg', price: 380 }
+        ]},
+        { id: 'P002', name: 'Toor Dal', category: 'Groceries', image: '🌾', options: [
+            { label: '500g', price: 65 },
+            { label: '1kg', price: 120 },
+            { label: '2kg', price: 230 }
+        ]},
+        { id: 'P003', name: 'Refined Oil', category: 'Groceries', image: '🛢️', options: [
+            { label: '500ml', price: 80 },
+            { label: '1L', price: 155 },
+            { label: '5L', price: 750 }
+        ]},
+        { id: 'P004', name: 'Amul Butter', category: 'Dairy', image: '🧈', options: [
+            { label: '100g', price: 60 },
+            { label: '500g', price: 275 }
+        ]},
+        { id: 'P005', name: 'Milk', category: 'Dairy', image: '🥛', options: [
+            { label: '500ml', price: 32 },
+            { label: '1L', price: 60 }
+        ]},
+        { id: 'P006', name: 'Bread Loaf', category: 'Snacks', image: '🍞', options: [
+            { label: 'Regular', price: 45 },
+            { label: 'Family Pack', price: 80 }
+        ]},
+        { id: 'P007', name: 'Maggi Noodles', category: 'Snacks', image: '🍜', options: [
+            { label: 'Single', price: 14 },
+            { label: 'Pack of 4', price: 54 },
+            { label: 'Pack of 12', price: 168 }
+        ]},
+        { id: 'P008', name: 'Tea Powder', category: 'Beverages', image: '🫖', options: [
+            { label: '250g', price: 160 },
+            { label: '500g', price: 310 }
+        ]},
+        { id: 'P009', name: 'Coffee Jar', category: 'Beverages', image: '☕', options: [
+            { label: '50g', price: 95 },
+            { label: '100g', price: 180 }
+        ]}
     ];
 
     // ── Discount Codes ───────────────────────────────────────────────────

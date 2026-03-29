@@ -623,8 +623,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Some roles should always be scoped to a business (defaults to first business or BIZ-101).
     // - admin: full owner access within one business
-    // - deliveryops: delivery operations for one business
-    if (activeRoleKey === 'admin' || activeRoleKey === 'deliveryops' || activeRoleKey === 'returnhandler') {
+    // - deliveryops / returnhandler / inventorymanager: operational access within one business
+    if (activeRoleKey === 'admin' || activeRoleKey === 'deliveryops' || activeRoleKey === 'returnhandler' || activeRoleKey === 'inventorymanager') {
         const fallbackBusinessId = String((businesses[0] && businesses[0].id) || 'BIZ-101').trim();
         const hasValidBusiness = activeBusinessId && businesses.some(b => b.id === activeBusinessId);
         if (!hasValidBusiness) {
@@ -908,6 +908,132 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Pending';
     }
 
+    function normalizeOrderStatus(status) {
+        const raw = String(status || '').trim().toLowerCase();
+        if (!raw) return 'Pending';
+        if (raw.includes('deliver')) return 'Delivered';
+        if (raw.includes('process') || raw.includes('transit') || raw.includes('dispatch')) return 'Processing';
+        if (raw.includes('cancel') || raw.includes('fail')) return 'Cancelled';
+        if (raw.includes('pending')) return 'Pending';
+        return 'Pending';
+    }
+
+    function normalizeInventoryStatus(status, stockValue) {
+        const stock = Number.isFinite(Number(stockValue)) ? Number(stockValue) : 0;
+        const raw = String(status || '').trim().toLowerCase();
+        if (raw.includes('out')) return 'Out of Stock';
+        if (raw.includes('critical')) return 'Critical';
+        if (raw.includes('low')) return 'Low Stock';
+        if (raw.includes('in stock') || raw.includes('available') || raw.includes('active')) {
+            if (stock <= 0) return 'Out of Stock';
+            if (stock <= 10) return 'Critical';
+            if (stock <= 30) return 'Low Stock';
+            return 'In Stock';
+        }
+        if (stock <= 0) return 'Out of Stock';
+        if (stock <= 10) return 'Critical';
+        if (stock <= 30) return 'Low Stock';
+        return 'In Stock';
+    }
+
+    function getInventoryMetrics() {
+        const metrics = {
+            totalSkus: inventory.length,
+            totalUnits: 0,
+            inStock: 0,
+            lowStock: 0,
+            critical: 0,
+            outOfStock: 0,
+            alerts: 0
+        };
+
+        inventory.forEach(item => {
+            const stock = Math.max(0, Number(item && item.stock) || 0);
+            const status = normalizeInventoryStatus(item && item.status, stock);
+            metrics.totalUnits += stock;
+            if (status === 'Out of Stock') metrics.outOfStock += 1;
+            else if (status === 'Critical') metrics.critical += 1;
+            else if (status === 'Low Stock') metrics.lowStock += 1;
+            else metrics.inStock += 1;
+        });
+
+        metrics.alerts = metrics.lowStock + metrics.critical + metrics.outOfStock;
+        return metrics;
+    }
+
+    function parseOrderDate(dateText) {
+        const raw = String(dateText || '').trim();
+        if (!raw) return null;
+
+        const nativeParsed = new Date(raw);
+        if (!Number.isNaN(nativeParsed.getTime())) return nativeParsed;
+
+        const match = raw.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{1,2}):(\d{2})$/);
+        if (!match) return null;
+
+        const day = Number(match[1]);
+        const monthLabel = match[2].slice(0, 3).toLowerCase();
+        const monthMap = {
+            jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+            jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+        };
+        const month = monthMap[monthLabel];
+        if (month === undefined) return null;
+
+        const hours = Number(match[3]);
+        const minutes = Number(match[4]);
+        const now = new Date();
+        const inferred = new Date(now.getFullYear(), month, day, hours, minutes, 0, 0);
+
+        if (inferred.getTime() > now.getTime() + 1000 * 60 * 60 * 24) {
+            inferred.setFullYear(inferred.getFullYear() - 1);
+        }
+        return inferred;
+    }
+
+    function buildRevenueTrendDays(dayCount) {
+        const count = Math.max(1, Number(dayCount) || 7);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const labels = [];
+        const values = [];
+        const totalsByDay = new Map();
+
+        orders.forEach(order => {
+            const parsed = parseOrderDate(order && order.date);
+            if (!parsed) return;
+            const dayStart = new Date(parsed);
+            dayStart.setHours(0, 0, 0, 0);
+            const key = dayStart.toISOString().slice(0, 10);
+            totalsByDay.set(key, (totalsByDay.get(key) || 0) + (Number(order && order.total) || 0));
+        });
+
+        for (let offset = count - 1; offset >= 0; offset -= 1) {
+            const day = new Date(now);
+            day.setDate(now.getDate() - offset);
+            const key = day.toISOString().slice(0, 10);
+            labels.push(day.toLocaleDateString('en-US', { weekday: 'short' }));
+            values.push(Math.round(totalsByDay.get(key) || 0));
+        }
+
+        return { labels, values };
+    }
+
+    function getDashboardStatusMetrics() {
+        const deliveredOrders = orders.filter(o => normalizeOrderStatus(o && o.status) === 'Delivered').length;
+        const openOrders = orders.length - deliveredOrders;
+        const totalReturns = returns.length;
+        const alertCount = getInventoryMetrics().alerts;
+
+        return {
+            deliveredOrders,
+            openOrders: Math.max(0, openOrders),
+            totalReturns,
+            alertCount
+        };
+    }
+
     function deliveryBadge(status) {
         const normalized = normalizeDeliveryStatus(status);
         if (normalized === 'Delivered') return badge('Delivered', 'delivered');
@@ -992,6 +1118,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReturnHandlerDashboard();
             return;
         }
+        if (activeRoleKey === 'inventorymanager') {
+            renderInventoryManagerDashboard();
+            return;
+        }
+        const inventoryMetrics = getInventoryMetrics();
         const totalSales = orders.reduce((a, o) => a + o.total, 0);
         const scopedName = selectedBusiness ? selectedBusiness.name : activeBusinessName;
         content.innerHTML = `
@@ -1000,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Revenue</span><span class="stat-value">₹${totalSales.toLocaleString()}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div class="stat-info"><span class="stat-label">Orders</span><span class="stat-value">${orders.length}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div><div class="stat-info"><span class="stat-label">Returns</span><span class="stat-value">${returns.length}</span></div></div>
-            <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-info"><span class="stat-label">Alerts</span><span class="stat-value">${inventory.filter(i => i.status !== 'In Stock').length}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-info"><span class="stat-label">Alerts</span><span class="stat-value">${inventoryMetrics.alerts}</span></div></div>
         </section>
         <section class="grid-2">
             <div class="card"><div class="card-hd"><h3>Sales Trend</h3></div><div class="card-bd" style="position:relative;height:240px"><canvas id="dashSalesChart"></canvas></div></div>
@@ -1011,6 +1142,56 @@ document.addEventListener('DOMContentLoaded', () => {
             orders.slice(0, 5).map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initDashboardCharts, 0);
+    }
+
+    function renderInventoryManagerDashboard() {
+        const scopedName = selectedBusiness ? selectedBusiness.name : activeBusinessName;
+        const metrics = getInventoryMetrics();
+        const lowCritical = metrics.lowStock + metrics.critical;
+
+        const lowestStockRows = inventory
+            .map(item => ({
+                sku: String(item && item.sku || '-'),
+                name: String(item && item.name || '-'),
+                cat: String(item && item.cat || '-'),
+                stock: Math.max(0, Number(item && item.stock) || 0),
+                status: normalizeInventoryStatus(item && item.status, Number(item && item.stock))
+            }))
+            .sort((a, b) => a.stock - b.stock)
+            .slice(0, 10)
+            .map(item => `<tr>
+                <td class="cell-main">${item.sku}</td>
+                <td>${item.name}</td>
+                <td>${item.cat}</td>
+                <td>${item.stock}</td>
+                <td>${statusBadge(item.status)}</td>
+            </tr>`)
+            .join('');
+
+        content.innerHTML = `
+        <div class="page-header">
+            <h2>Inventory Dashboard${scopedName ? ` - ${scopedName}` : ''}</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-primary" onclick="window.location.href='inventory.html'">Open Inventory</button>
+                <button class="btn btn-outline" onclick="window.print()">Print</button>
+            </div>
+        </div>
+        <section class="stats-grid">
+            <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-info"><span class="stat-label">Total SKUs</span><span class="stat-value">${metrics.totalSkus}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Stock Units</span><span class="stat-value">${metrics.totalUnits.toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-info"><span class="stat-label">Low + Critical</span><span class="stat-value">${lowCritical}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="stat-info"><span class="stat-label">Out of Stock</span><span class="stat-value">${metrics.outOfStock}</span></div></div>
+        </section>
+        <section class="grid-2">
+            <div class="card"><div class="card-hd"><h3>Category Distribution</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invMgrCategoryChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Stock Health</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invMgrHealthChart"></canvas></div></div>
+        </section>
+        <section class="card"><div class="card-hd"><h3>Lowest Stock Items</h3></div><div class="card-bd">${table(
+            ['SKU', 'Product', 'Category', 'Stock', 'Status'],
+            lowestStockRows || '<tr><td colspan="5" class="text-muted">No inventory data available.</td></tr>'
+        )}</div></section>`;
+
+        setTimeout(initInventoryManagerCharts, 0);
     }
 
     function renderDeliveryOpsDashboard() {
@@ -2038,27 +2219,105 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initDashboardCharts() {
         const c = getColors();
+        const trend = buildRevenueTrendDays(7);
+        const statusMetrics = getDashboardStatusMetrics();
+
         createChart('dashSalesChart', 'line', {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{ label: 'Revenue', data: [12500, 15000, 11000, 18000, 22000, 24580, 21000], borderColor: c.red, backgroundColor: 'rgba(220,53,69,0.1)', tension: 0.4, fill: true }]
+            labels: trend.labels,
+            datasets: [{
+                label: 'Revenue',
+                data: trend.values,
+                borderColor: c.red,
+                backgroundColor: 'rgba(220,53,69,0.1)',
+                tension: 0.4,
+                fill: true
+            }]
         });
+
         createChart('dashStatusChart', 'doughnut', {
-            labels: ['Delivered', 'Processing', 'Returns'],
-            datasets: [{ data: [65, 25, 10], backgroundColor: [c.green, c.blue, c.red], borderWidth: 0 }]
+            labels: ['Delivered Orders', 'Open Orders', 'Returns', 'Inventory Alerts'],
+            datasets: [{
+                data: [statusMetrics.deliveredOrders, statusMetrics.openOrders, statusMetrics.totalReturns, statusMetrics.alertCount],
+                backgroundColor: [c.green, c.blue, c.red, c.amber],
+                borderWidth: 0
+            }]
         }, { plugins: { legend: { position: 'right', labels: { color: c.text } } } });
+    }
+
+    function getInventoryCategoryCounts() {
+        const categoryMap = new Map();
+        inventory.forEach(item => {
+            const category = String(item && item.cat || '').trim() || 'Uncategorized';
+            categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+        });
+
+        const entries = Array.from(categoryMap.entries()).sort((a, b) => b[1] - a[1]);
+        if (!entries.length) return { labels: ['No data'], values: [0] };
+        return {
+            labels: entries.map(([label]) => label),
+            values: entries.map(([, value]) => value)
+        };
     }
 
     function initInventoryCharts() {
         const c = getColors();
+        const categoryCounts = getInventoryCategoryCounts();
+        const stockRows = inventory
+            .map(item => ({
+                label: String(item && item.name || item && item.sku || 'Item'),
+                stock: Math.max(0, Number(item && item.stock) || 0),
+                status: normalizeInventoryStatus(item && item.status, item && item.stock)
+            }))
+            .sort((a, b) => b.stock - a.stock)
+            .slice(0, 8);
+
+        const stockLabels = stockRows.length ? stockRows.map(row => row.label) : ['No data'];
+        const stockData = stockRows.length ? stockRows.map(row => row.stock) : [0];
+        const stockColors = stockRows.length
+            ? stockRows.map(row => {
+                if (row.status === 'Out of Stock' || row.status === 'Critical') return c.red;
+                if (row.status === 'Low Stock') return c.amber;
+                return c.green;
+            })
+            : [c.blue];
+
         createChart('invCatChart', 'pie', {
-            labels: ['Grocery', 'Dairy', 'Beverages'],
-            datasets: [{ data: [5, 3, 2], backgroundColor: [c.amber, c.blue, c.green], borderWidth: 0 }]
+            labels: categoryCounts.labels,
+            datasets: [{
+                data: categoryCounts.values,
+                backgroundColor: [c.amber, c.blue, c.green, c.purple, c.red, c.text],
+                borderWidth: 0
+            }]
         }, { plugins: { legend: { position: 'right', labels: { color: c.text } } } });
 
         createChart('invStockChart', 'bar', {
-            labels: ['Rice', 'Dal', 'Oil', 'Flour', 'Sugar'],
-            datasets: [{ label: 'Stock Level', data: [145, 230, 18, 95, 5], backgroundColor: [c.green, c.green, c.red, c.green, c.red] }]
+            labels: stockLabels,
+            datasets: [{ label: 'Stock Level', data: stockData, backgroundColor: stockColors }]
         });
+    }
+
+    function initInventoryManagerCharts() {
+        const c = getColors();
+        const categoryCounts = getInventoryCategoryCounts();
+        const metrics = getInventoryMetrics();
+
+        createChart('invMgrCategoryChart', 'pie', {
+            labels: categoryCounts.labels,
+            datasets: [{
+                data: categoryCounts.values,
+                backgroundColor: [c.amber, c.blue, c.green, c.purple, c.red, c.text],
+                borderWidth: 0
+            }]
+        }, { plugins: { legend: { position: 'right', labels: { color: c.text } } } });
+
+        createChart('invMgrHealthChart', 'doughnut', {
+            labels: ['In Stock', 'Low Stock', 'Critical', 'Out of Stock'],
+            datasets: [{
+                data: [metrics.inStock, metrics.lowStock, metrics.critical, metrics.outOfStock],
+                backgroundColor: [c.green, c.amber, c.red, c.purple],
+                borderWidth: 0
+            }]
+        }, { plugins: { legend: { position: 'right', labels: { color: c.text } } } });
     }
 
     function initReturnCharts() {

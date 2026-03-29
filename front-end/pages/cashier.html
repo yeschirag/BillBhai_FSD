@@ -7,7 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/end_user/css/cashier.css">
+    <!-- Load base dashboard styles first, then POS-specific overrides -->
+    <link rel="stylesheet" href="/styles/dashboard.css">
+    <link rel="stylesheet" href="/styles/cashier.css">
 </head>
 <body data-page="cashier" data-app-ready="true">
 
@@ -33,13 +35,14 @@
             </a>
         </div>
     </aside>
+<body data-page="cashier" class="no-sidebar">
 
     <main class="main-content" id="mainContent">
         <header class="top-header">
             <div class="header-left">
-                <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
+                <a href="index.html" class="header-logo-link">
+                    <img src="/public/logo.png" alt="BillBhai" class="header-logo-img">
+                </a>
                 <div class="breadcrumb">
                     <span class="bc-app">Terminal 1</span>
                     <span class="bc-sep">/</span>
@@ -47,13 +50,26 @@
                 </div>
             </div>
             <div class="header-right">
-                <div class="dropdown-container">
-                    <div class="header-user">
+                <!-- Profile dropdown -->
+                <div class="dropdown-container" id="userContainer">
+                    <div class="header-user" id="userMenuBtn">
                         <div class="user-avatar">C</div>
                         <div class="user-info">
                             <span class="user-name">Cashier</span>
                             <span class="user-role">Online</span>
                         </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px; color: var(--text-muted);"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="dropdown-menu" id="userDropdown">
+                        <div class="dropdown-header">
+                            <strong>Cashier</strong>
+                            <div class="text-sm text-muted">Counter Terminal 1</div>
+                        </div>
+
+                        <a href="login.html" class="dropdown-item text-danger">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            Logout
+                        </a>
                     </div>
                 </div>
             </div>
@@ -114,9 +130,16 @@
                         </div>
 
                         <div class="cart-footer">
-                            <div class="promo-block">
+                            <div class="promo-block" id="promoInputBlock">
                                 <input type="text" id="promoCode" class="promo-input" placeholder="Promo Code (e.g. WELCOME10)">
                                 <button class="btn btn-outline" id="applyPromoBtn" style="padding: 4px 10px; font-size: 0.8rem;">Apply</button>
+                            </div>
+                            <div class="promo-applied" id="promoAppliedTag" style="display:none;">
+                                <span class="promo-badge">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span id="promoAppliedCode"></span>
+                                </span>
+                                <button class="promo-remove" id="removePromoBtn" title="Remove discount code">&times; Remove</button>
                             </div>
                             <div id="promoError" style="color:var(--red); font-size:0.8rem; margin-bottom:10px;"></div>
 
@@ -161,18 +184,24 @@
         </div>
     </main>
 
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <script src="/end_user/js/data.js"></script>
-    <script src="/end_user/js/validation.js"></script>
-    <script src="/end_user/js/ui.js"></script>
-    <script src="/end_user/js/app.js"></script>
+    <script src="/scripts/data.js"></script>
+    <script src="/scripts/validation.js"></script>
+    <script src="/scripts/ui.js"></script>
+    <script src="/scripts/app.js"></script>
     <script>
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const menuToggle = document.getElementById('menuToggle');
-        if(menuToggle) menuToggle.addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
-        if(overlay) overlay.addEventListener('click', () => sidebar.classList.remove('mobile-open'));
+        // Profile dropdown toggle
+        const userMenuBtn = document.getElementById('userMenuBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        if (userMenuBtn) {
+            userMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+        }
+        document.addEventListener('click', () => {
+            if (userDropdown) userDropdown.classList.remove('show');
+        });
     </script>
+    <div class="context-menu" id="contextMenu" style="display:none;"></div>
 </body>
 </html>
