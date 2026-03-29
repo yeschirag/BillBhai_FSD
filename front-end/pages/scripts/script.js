@@ -85,6 +85,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return USER_ALIASES[normalized] || '';
     }
 
+    function resolveScopedBusinessId() {
+        const fallbackId = 'BIZ-101';
+        const currentScopedId = String(localStorage.getItem('activeBusinessId') || '').trim();
+
+        try {
+            const raw = localStorage.getItem('bb_businesses');
+            if (!raw) return currentScopedId || fallbackId;
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed) || !parsed.length) return currentScopedId || fallbackId;
+
+            const normalizedBusinesses = parsed
+                .map(item => String(item && item.id || '').trim())
+                .filter(Boolean);
+            if (!normalizedBusinesses.length) return currentScopedId || fallbackId;
+
+            if (currentScopedId && normalizedBusinesses.includes(currentScopedId)) {
+                return currentScopedId;
+            }
+            return normalizedBusinesses[0];
+        } catch (err) {
+            return currentScopedId || fallbackId;
+        }
+    }
+
     loginForm.addEventListener('submit', e => {
         e.preventDefault();
         document.querySelectorAll('.input-group').forEach(g => g.classList.remove('error', 'shake'));
@@ -108,23 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalizedRole = normalizeRole(USERS[u].role);
 
         // Tenant context:
-        // - Admin should always be scoped to exactly one business.
+        // - Operational roles are scoped to exactly one business.
         // - Super User chooses a business from the portal when needed.
-        if (normalizedRole === 'admin') {
-            let resolvedBusinessId = 'BIZ-101';
-            try {
-                const raw = localStorage.getItem('bb_businesses');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length && parsed[0] && parsed[0].id) {
-                        const candidate = String(parsed[0].id).trim();
-                        if (candidate) resolvedBusinessId = candidate;
-                    }
-                }
-            } catch (err) {
-                // Ignore invalid JSON and use fallback.
-            }
-            localStorage.setItem('activeBusinessId', resolvedBusinessId);
+        const businessScopedRoles = ['admin', 'inventorymanager', 'deliveryops', 'returnhandler'];
+        if (businessScopedRoles.includes(normalizedRole)) {
+            localStorage.setItem('activeBusinessId', resolveScopedBusinessId());
             localStorage.removeItem('activeBusinessName');
         } else {
             localStorage.removeItem('activeBusinessId');

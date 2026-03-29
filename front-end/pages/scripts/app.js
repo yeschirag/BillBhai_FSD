@@ -2,11 +2,11 @@
  * app.js — Main POS Application Coordinator
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     'use strict';
 
     // Initialize mock database
-    DataStore.init();
+    await DataStore.init();
 
     // Hook UI to Data actions
     UI.setCallbacks({

@@ -753,13 +753,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     saveObject('bb_business_data', businessDataStore);
 
-    const selectedBusiness = activeBusinessId ? businesses.find(b => b.id === activeBusinessId) : null;
-    const isBusinessScoped = !!selectedBusiness;
-    const businessScopedData = isBusinessScoped ? businessDataStore[selectedBusiness.id] : null;
+    let selectedBusiness = activeBusinessId ? businesses.find(b => b.id === activeBusinessId) : null;
+    let isBusinessScoped = !!selectedBusiness;
+    let businessScopedData = isBusinessScoped ? businessDataStore[selectedBusiness.id] : null;
 
     if (activeBusinessId && !selectedBusiness) {
         localStorage.removeItem('activeBusinessId');
         localStorage.removeItem('activeBusinessName');
+        activeBusinessId = '';
+        isBusinessScoped = false;
+        businessScopedData = null;
     }
 
     if (selectedBusiness) {
@@ -792,7 +795,100 @@ document.addEventListener('DOMContentLoaded', () => {
         saveList('bb_returns', returns);
     }
 
-    function persistOperationalData() {
+    function publishDataSync(domains) {
+        const payload = {
+            sourceId: syncSourceId,
+            at: Date.now(),
+            businessId: isBusinessScoped && selectedBusiness ? selectedBusiness.id : '',
+            domains: Array.isArray(domains) && domains.length ? domains : ['orders', 'inventory', 'deliveries', 'returns', 'users']
+        };
+
+        localStorage.setItem(LIVE_SYNC_KEY, JSON.stringify(payload));
+        if (syncChannel) {
+            try {
+                syncChannel.postMessage(payload);
+            } catch (err) {
+                // Ignore channel failures and keep localStorage sync active.
+            }
+        }
+    }
+
+    function loadOperationalSnapshotFromStorage() {
+        if (isBusinessScoped && selectedBusiness) {
+            const store = loadObject('bb_business_data', {});
+            const scoped = store[selectedBusiness.id];
+            if (!scoped || typeof scoped !== 'object') return;
+
+            businessDataStore[selectedBusiness.id] = scoped;
+            if (Array.isArray(scoped.orders)) orders = cloneRows(scoped.orders);
+            if (Array.isArray(scoped.inventory)) inventory = cloneRows(scoped.inventory);
+            if (Array.isArray(scoped.deliveries)) deliveries = cloneRows(scoped.deliveries);
+            if (Array.isArray(scoped.returns)) returns = cloneRows(scoped.returns);
+            if (Array.isArray(scoped.users)) users = cloneRows(scoped.users);
+            return;
+        }
+
+        orders = loadList('bb_orders', orders);
+        inventory = loadList('bb_inventory', inventory);
+        deliveries = loadList('bb_deliveries', deliveries);
+        returns = loadList('bb_returns', returns);
+        users = loadList('bb_users', users);
+    }
+
+    function shouldApplyIncomingSync(payload) {
+        if (!payload || typeof payload !== 'object') return false;
+        if (String(payload.sourceId || '') === syncSourceId) return false;
+
+        const incomingBusinessId = String(payload.businessId || '').trim();
+        if (isBusinessScoped && selectedBusiness) {
+            return incomingBusinessId === selectedBusiness.id;
+        }
+        return true;
+    }
+
+    function handleIncomingSync(payload) {
+        if (!shouldApplyIncomingSync(payload)) return;
+
+        if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = setTimeout(() => {
+            loadOperationalSnapshotFromStorage();
+            renderPage(currentPage);
+        }, 120);
+    }
+
+    function initRealtimeSync() {
+        window.addEventListener('storage', (event) => {
+            if (event.key !== LIVE_SYNC_KEY || !event.newValue) return;
+            try {
+                const payload = JSON.parse(event.newValue);
+                handleIncomingSync(payload);
+            } catch (err) {
+                // Ignore malformed payloads.
+            }
+        });
+
+        if (!('BroadcastChannel' in window)) return;
+        try {
+            syncChannel = new BroadcastChannel(LIVE_SYNC_CHANNEL);
+            syncChannel.addEventListener('message', (event) => {
+                handleIncomingSync(event && event.data);
+            });
+            window.addEventListener('beforeunload', () => {
+                if (!syncChannel) return;
+                try {
+                    syncChannel.close();
+                } catch (err) {
+                    // no-op
+                }
+            });
+        } catch (err) {
+            syncChannel = null;
+        }
+    }
+
+    function persistOperationalData(options) {
+        const opts = options && typeof options === 'object' ? options : {};
+
         if (isBusinessScoped && selectedBusiness) {
             businessDataStore[selectedBusiness.id] = {
                 orders,
@@ -802,14 +898,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 users
             };
             saveObject('bb_business_data', businessDataStore);
-            return;
+        } else {
+            saveList('bb_orders', orders);
+            saveList('bb_inventory', inventory);
+            saveList('bb_deliveries', deliveries);
+            saveList('bb_returns', returns);
+            saveList('bb_users', users);
         }
 
-        saveList('bb_orders', orders);
-        saveList('bb_inventory', inventory);
-        saveList('bb_deliveries', deliveries);
-        saveList('bb_returns', returns);
-        saveList('bb_users', users);
+        if (!opts.silentSync) publishDataSync(opts.domains);
     }
 
     async function hydrateDataFromJsonFiles() {
@@ -822,46 +919,67 @@ document.addEventListener('DOMContentLoaded', () => {
         const jsonBusinessData = await loadJsonObject('data/business_data.json', {});
         const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(b, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name));
 
-        const hasOrders = localStorage.getItem('bb_orders') !== null;
-        const hasInventory = localStorage.getItem('bb_inventory') !== null;
-        const hasDeliveries = localStorage.getItem('bb_deliveries') !== null;
-        const hasReturns = localStorage.getItem('bb_returns') !== null;
-        const hasUsers = localStorage.getItem('bb_users') !== null;
-        const hasBusinesses = localStorage.getItem('bb_businesses') !== null;
-        const hasBusinessData = localStorage.getItem('bb_business_data') !== null;
+        businesses.splice(0, businesses.length, ...jsonBusinesses);
+        saveList('bb_businesses', businesses);
 
-        if (!isBusinessScoped) {
-            if (!hasOrders) orders = jsonOrders;
-            if (!hasInventory) inventory = jsonInventory;
-            if (!hasDeliveries) deliveries = jsonDeliveries;
-            if (!hasReturns) returns = jsonReturns;
-            if (!hasUsers) users = jsonUsers;
-            persistOperationalData();
-        }
-
-        if (!hasBusinesses) {
-            businesses.splice(0, businesses.length, ...jsonBusinesses);
-            saveList('bb_businesses', businesses);
-        }
-
-        Object.keys(jsonBusinessData).forEach((bizId) => {
-            if (!jsonBusinessData[bizId] || typeof jsonBusinessData[bizId] !== 'object') return;
-            if (!hasBusinessData || !businessDataStore[bizId]) {
-                businessDataStore[bizId] = jsonBusinessData[bizId];
+        const rebuiltBusinessData = {};
+        businesses.forEach((business, idx) => {
+            const seed = buildBusinessSeedData(business, idx);
+            const jsonEntry = jsonBusinessData[business.id];
+            if (!jsonEntry || typeof jsonEntry !== 'object') {
+                rebuiltBusinessData[business.id] = seed;
+                return;
             }
+
+            rebuiltBusinessData[business.id] = {
+                orders: Array.isArray(jsonEntry.orders) ? cloneRows(jsonEntry.orders) : seed.orders,
+                inventory: Array.isArray(jsonEntry.inventory) ? cloneRows(jsonEntry.inventory) : seed.inventory,
+                deliveries: Array.isArray(jsonEntry.deliveries) ? cloneRows(jsonEntry.deliveries) : seed.deliveries,
+                returns: Array.isArray(jsonEntry.returns) ? cloneRows(jsonEntry.returns) : seed.returns,
+                users: Array.isArray(jsonEntry.users) ? cloneRows(jsonEntry.users) : seed.users
+            };
         });
-        if (!hasBusinessData) {
-            saveObject('bb_business_data', businessDataStore);
+
+        Object.keys(businessDataStore).forEach((bizId) => {
+            delete businessDataStore[bizId];
+        });
+        Object.assign(businessDataStore, rebuiltBusinessData);
+        saveObject('bb_business_data', businessDataStore);
+
+        if (isBusinessScoped) {
+            let targetBusinessId = selectedBusiness ? String(selectedBusiness.id || '').trim() : '';
+            if (!targetBusinessId || !Object.prototype.hasOwnProperty.call(businessDataStore, targetBusinessId)) {
+                targetBusinessId = String((businesses[0] && businesses[0].id) || '').trim();
+            }
+
+            selectedBusiness = targetBusinessId ? businesses.find(b => b.id === targetBusinessId) || null : null;
+            isBusinessScoped = !!selectedBusiness;
+            businessScopedData = isBusinessScoped ? businessDataStore[targetBusinessId] : null;
+
+            if (selectedBusiness) {
+                activeBusinessId = selectedBusiness.id;
+                localStorage.setItem('activeBusinessId', selectedBusiness.id);
+                localStorage.setItem('activeBusinessName', selectedBusiness.name);
+                const bcAppEl = document.querySelector('.bc-app');
+                if (bcAppEl) bcAppEl.textContent = `BillBhai / ${selectedBusiness.name}`;
+            }
+
+            const scoped = businessScopedData || {};
+            orders = Array.isArray(scoped.orders) ? cloneRows(scoped.orders) : cloneRows(defaultOrders);
+            inventory = Array.isArray(scoped.inventory) ? cloneRows(scoped.inventory) : cloneRows(defaultInventory);
+            deliveries = Array.isArray(scoped.deliveries) ? cloneRows(scoped.deliveries) : cloneRows(defaultDeliveries);
+            returns = Array.isArray(scoped.returns) ? cloneRows(scoped.returns) : cloneRows(defaultReturns);
+            users = Array.isArray(scoped.users) ? cloneRows(scoped.users) : cloneRows(defaultUsers);
+            persistOperationalData({ silentSync: true });
+            return;
         }
 
-        if (isBusinessScoped && selectedBusiness && businessDataStore[selectedBusiness.id]) {
-            const scoped = businessDataStore[selectedBusiness.id];
-            orders = Array.isArray(scoped.orders) ? scoped.orders : orders;
-            inventory = Array.isArray(scoped.inventory) ? scoped.inventory : inventory;
-            deliveries = Array.isArray(scoped.deliveries) ? scoped.deliveries : deliveries;
-            returns = Array.isArray(scoped.returns) ? scoped.returns : returns;
-            users = Array.isArray(scoped.users) ? scoped.users : users;
-        }
+        orders = cloneRows(jsonOrders);
+        inventory = cloneRows(jsonInventory);
+        deliveries = cloneRows(jsonDeliveries);
+        returns = cloneRows(jsonReturns);
+        users = cloneRows(jsonUsers);
+        persistOperationalData({ silentSync: true });
     }
 
     const notificationsList = [
@@ -3695,6 +3813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     (async function startApp() {
         try {
             await hydrateDataFromJsonFiles();
+            initRealtimeSync();
             renderPage(currentPage);
         } finally {
             // Reveal UI only after initial data + page render to avoid a brief "wrong dashboard" flash.
