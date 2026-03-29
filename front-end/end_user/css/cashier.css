@@ -1,5 +1,5 @@
 /* POS Grid Style Overrides extending standard dashboard CSS */
-@import url("../../dashboard.css");
+@import url("../../styles/dashboard.css");
 
 /* ── Layout & Wizard Views ──────────── */
 .step-container { display: none; }
