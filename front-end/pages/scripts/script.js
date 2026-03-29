@@ -105,13 +105,35 @@ document.addEventListener('DOMContentLoaded', () => {
         // Store session state
         localStorage.setItem('userRole', USERS[u].role);
         localStorage.setItem('userName', USERS[u].name);
-        // Reset tenant context on every fresh login. Super User sets this when opening a business.
-        localStorage.removeItem('activeBusinessId');
-        localStorage.removeItem('activeBusinessName');
+        const normalizedRole = normalizeRole(USERS[u].role);
+
+        // Tenant context:
+        // - Admin should always be scoped to exactly one business.
+        // - Super User chooses a business from the portal when needed.
+        if (normalizedRole === 'admin') {
+            let resolvedBusinessId = 'BIZ-101';
+            try {
+                const raw = localStorage.getItem('bb_businesses');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length && parsed[0] && parsed[0].id) {
+                        const candidate = String(parsed[0].id).trim();
+                        if (candidate) resolvedBusinessId = candidate;
+                    }
+                }
+            } catch (err) {
+                // Ignore invalid JSON and use fallback.
+            }
+            localStorage.setItem('activeBusinessId', resolvedBusinessId);
+            localStorage.removeItem('activeBusinessName');
+        } else {
+            localStorage.removeItem('activeBusinessId');
+            localStorage.removeItem('activeBusinessName');
+        }
         localStorage.setItem('currentUser', JSON.stringify({
             username: u,
             name: USERS[u].name,
-            role: normalizeRole(USERS[u].role)
+            role: normalizedRole
         }));
 
         btnLogin.classList.add('loading'); btnLogin.disabled = true;

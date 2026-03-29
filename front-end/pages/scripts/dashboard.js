@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    function setAppReady(isReady) {
+        document.body.setAttribute('data-app-ready', isReady ? 'true' : 'false');
+    }
+
+    // Keep UI hidden until role-based permissions are applied (prevents brief admin flash).
+    setAppReady(false);
+
     // Logo is always dark mode
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
     if (sidebarLogo) sidebarLogo.src = 'public/logo.png';
@@ -15,17 +22,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ROLE_ALLOWED_PAGES = {
         superuser: ['superuser', 'businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
-        admin: ['dashboard', 'orders', 'inventory', 'profile', 'notifications'],
+        admin: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
         cashier: ['dashboard', 'orders', 'profile', 'notifications'],
         returnhandler: ['dashboard', 'returns', 'orders', 'profile', 'notifications'],
         inventorymanager: ['dashboard', 'inventory', 'reports', 'profile', 'notifications'],
-        deliveryops: ['dashboard', 'delivery', 'orders', 'profile', 'notifications'],
+        deliveryops: ['dashboard', 'delivery', 'profile', 'notifications'],
         customer: ['profile', 'notifications']
     };
 
     const ROLE_ACTIONS = {
         superuser: { orders: true, inventory: true, users: true, returns: true, delivery: true, businesses: true },
-        admin: { orders: true, inventory: true, users: false, returns: false, delivery: false, businesses: false },
+        admin: { orders: true, inventory: true, users: true, returns: true, delivery: true, businesses: false },
         cashier: { orders: true, inventory: false, users: false, returns: false, delivery: false, businesses: false },
         returnhandler: { orders: false, inventory: false, users: false, returns: true, delivery: false, businesses: false },
         inventorymanager: { orders: false, inventory: true, users: false, returns: false, delivery: false, businesses: false },
@@ -122,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         activeRoleKey = roleKey;
+        document.body.setAttribute('data-role', roleKey);
 
         const uName = storedName;
         const uRole = ROLE_LABELS[roleKey] || storedRole;
@@ -185,14 +193,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide all nav pages not allowed for this role.
         document.querySelectorAll('.nav-item[data-page]').forEach(item => {
             const page = item.getAttribute('data-page');
-            item.style.display = allowedPages.includes(page) ? '' : 'none';
-            item.classList.toggle('active', page === currentPage);
+            const isAllowed = allowedPages.includes(page);
+            item.hidden = !isAllowed;
+            item.classList.toggle('active', isAllowed && page === currentPage);
         });
 
         const bcPageEl = document.getElementById('bcPage');
         if (bcPageEl) {
             const activeItem = document.querySelector(`.nav-item[data-page="${currentPage}"] span`);
-            if (activeItem) bcPageEl.textContent = activeItem.textContent;
+            if (activeItem) {
+                bcPageEl.textContent = activeItem.textContent;
+                document.title = `BillBhai - ${activeItem.textContent}`;
+            }
         }
 
         // Keep section labels tidy if no visible entries under management.
@@ -217,8 +229,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 goToLogin();
             });
         });
+
     }
-    applyRoleBasedUI();
+
+    try {
+        applyRoleBasedUI();
+    } catch (err) {
+        console.error('Failed to initialize role-based UI', err);
+        // Better to show something than keep the screen blocked forever.
+        setAppReady(true);
+    }
 
     // Header & Search
     const notifBtn = document.getElementById('notifBtn');
@@ -282,6 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let currentPage = document.body.getAttribute('data-page') || 'dashboard';
+    const LIVE_SYNC_KEY = 'bb_live_sync_event';
+    const LIVE_SYNC_CHANNEL = 'bb_live_sync';
+    const syncSourceId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    let syncDebounceTimer = null;
+    let syncChannel = null;
 
     navItems.forEach(item => {
         // Highlight active item based on current page
@@ -421,13 +446,35 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const defaultDeliveries = [
-        { id: 'DEL-901', oid: 'ORD-4821', partner: 'Rajesh K.', status: 'Delivered', time: '14:10' },
-        { id: 'DEL-900', oid: 'ORD-4820', partner: 'Sunil M.', status: 'Out for Delivery', time: '-' }
+        { id: 'DEL-901', oid: 'ORD-4821', customer: 'Rahul Sharma', address: '12, MG Road, Sector 14', partner: 'Rajesh K.', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 14:10' },
+        { id: 'DEL-900', oid: 'ORD-4820', customer: 'Priya Patel', address: 'A-204, Green Park', partner: 'Sunil M.', status: 'In Transit', etaMin: 18, updatedAt: '17 Feb 13:50' },
+        { id: 'DEL-899', oid: 'ORD-4819', customer: 'Amit Kumar', address: 'Plot 7, Industrial Area', partner: 'Rajesh K.', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 12:58' },
+        { id: 'DEL-898', oid: 'ORD-4818', customer: 'Sneha Gupta', address: '302, Lotus Tower', partner: 'Unassigned', status: 'Pending', etaMin: 30, updatedAt: '17 Feb 12:40' },
+        { id: 'DEL-897', oid: 'ORD-4817', customer: 'Vikram Joshi', address: 'H.No 15, Civil Lines', partner: 'Deepak R.', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 11:35' },
+        { id: 'DEL-896', oid: 'ORD-4816', customer: 'Neha Reddy', address: 'F-3, Paradise Colony', partner: 'Sunil M.', status: 'Failed', etaMin: 0, updatedAt: '17 Feb 11:10' },
+        { id: 'DEL-895', oid: 'ORD-4815', customer: 'Karan Mehta', address: '5th Cross, Jayanagar', partner: 'Sunil M.', status: 'In Transit', etaMin: 25, updatedAt: '17 Feb 10:55' },
+        { id: 'DEL-894', oid: 'ORD-4814', customer: 'Anjali Desai', address: 'B-12, Shanti Nagar', partner: 'Rajesh K.', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 10:22' },
+        { id: 'DEL-893', oid: 'ORD-4813', customer: 'Rohan Verma', address: 'Flat 6A, Sunrise Apts', partner: 'Deepak R.', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 09:58' },
+        { id: 'DEL-892', oid: 'ORD-4812', customer: 'Suresh Iyer', address: '42, Lake View Road', partner: 'Rajesh K.', status: 'In Transit', etaMin: 10, updatedAt: '17 Feb 09:40' },
+        { id: 'DEL-891', oid: 'ORD-4811', customer: 'Meera Krishnan', address: '101, Sapphire Towers', partner: 'Deepak R.', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 09:05' },
+        { id: 'DEL-890', oid: 'ORD-4810', customer: 'Arjun Singh', address: 'House 23, Ram Nagar', partner: 'Unassigned', status: 'Pending', etaMin: 45, updatedAt: '17 Feb 08:50' }
     ];
 
     const defaultReturns = [
-        { id: 'RET-201', oid: 'ORD-4810', reason: 'Damaged', amount: 420, status: 'Approved', requestedBy: 'Walk-in', updatedAt: '17 Feb 11:10' },
-        { id: 'RET-200', oid: 'ORD-4805', reason: 'Wrong Item', amount: 155, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '16 Feb 15:30' }
+        { id: 'RET-221', oid: 'ORD-4820', product: 'Refined Oil', reason: 'Damaged', amount: 170, qty: 1, status: 'Pending', requestedBy: 'Walk-in', updatedAt: '17 Feb 13:55' },
+        { id: 'RET-220', oid: 'ORD-4818', product: 'Milk Pack', reason: 'Expired', amount: 58, qty: 1, status: 'Approved', requestedBy: 'POS Counter', updatedAt: '17 Feb 12:50' },
+        { id: 'RET-219', oid: 'ORD-4817', product: 'Refined Oil', reason: 'Wrong Item', amount: 170, qty: 1, status: 'Refunded', requestedBy: 'POS Counter', updatedAt: '17 Feb 12:15' },
+        { id: 'RET-218', oid: 'ORD-4816', product: 'Basmati Rice', reason: 'Damaged', amount: 380, qty: 1, status: 'Rejected', requestedBy: 'Walk-in', updatedAt: '17 Feb 11:45' },
+        { id: 'RET-217', oid: 'ORD-4815', product: 'Soft Drink', reason: 'Stale', amount: 42, qty: 2, status: 'Approved', requestedBy: 'Komal Shah', updatedAt: '17 Feb 11:20' },
+        { id: 'RET-216', oid: 'ORD-4814', product: 'Refined Oil', reason: 'Damaged', amount: 170, qty: 1, status: 'Pending', requestedBy: 'Walk-in', updatedAt: '17 Feb 10:50' },
+        { id: 'RET-215', oid: 'ORD-4813', product: 'Toor Dal', reason: 'Wrong Item', amount: 120, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 10:25' },
+        { id: 'RET-214', oid: 'ORD-4812', product: 'Milk Pack', reason: 'Expired', amount: 58, qty: 1, status: 'Pending', requestedBy: 'POS Counter', updatedAt: '17 Feb 10:05' },
+        { id: 'RET-213', oid: 'ORD-4811', product: 'Refined Oil', reason: 'Damaged', amount: 170, qty: 1, status: 'Approved', requestedBy: 'Komal Shah', updatedAt: '17 Feb 09:40' },
+        { id: 'RET-212', oid: 'ORD-4810', product: 'Milk Pack', reason: 'Stale', amount: 58, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 09:10' },
+        { id: 'RET-211', oid: 'ORD-4809', product: 'Refined Oil', reason: 'Damaged', amount: 170, qty: 1, status: 'Rejected', requestedBy: 'Walk-in', updatedAt: '17 Feb 08:55' },
+        { id: 'RET-210', oid: 'ORD-4808', product: 'Basmati Rice', reason: 'Wrong Item', amount: 380, qty: 1, status: 'Approved', requestedBy: 'POS Counter', updatedAt: '16 Feb 18:20' },
+        { id: 'RET-209', oid: 'ORD-4807', product: 'Toor Dal', reason: 'Damaged', amount: 120, qty: 1, status: 'Pending', requestedBy: 'Walk-in', updatedAt: '16 Feb 17:35' },
+        { id: 'RET-208', oid: 'ORD-4806', product: 'Soft Drink', reason: 'Expired', amount: 42, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '16 Feb 16:10' }
     ];
 
     const defaultUsers = [
@@ -571,11 +618,49 @@ document.addEventListener('DOMContentLoaded', () => {
         saveList('bb_businesses', businesses);
     }
 
-    const activeBusinessId = String(localStorage.getItem('activeBusinessId') || '').trim();
+    let activeBusinessId = String(localStorage.getItem('activeBusinessId') || '').trim();
     const activeBusinessName = String(localStorage.getItem('activeBusinessName') || '').trim();
+
+    // Some roles should always be scoped to a business (defaults to first business or BIZ-101).
+    // - admin: full owner access within one business
+    // - deliveryops: delivery operations for one business
+    if (activeRoleKey === 'admin' || activeRoleKey === 'deliveryops' || activeRoleKey === 'returnhandler') {
+        const fallbackBusinessId = String((businesses[0] && businesses[0].id) || 'BIZ-101').trim();
+        const hasValidBusiness = activeBusinessId && businesses.some(b => b.id === activeBusinessId);
+        if (!hasValidBusiness) {
+            activeBusinessId = fallbackBusinessId;
+            localStorage.setItem('activeBusinessId', activeBusinessId);
+            localStorage.removeItem('activeBusinessName');
+        }
+    }
 
     function cloneRows(rows) {
         return JSON.parse(JSON.stringify(rows));
+    }
+
+    function mergeSeedRecords(existingRows, seedRows, key) {
+        const existing = Array.isArray(existingRows) ? existingRows : [];
+        const seed = Array.isArray(seedRows) ? seedRows : [];
+        if (!existing.length) return cloneRows(seed);
+        if (!seed.length) return cloneRows(existing);
+
+        const getKey = (row) => String(row && row[key] ? row[key] : '').trim();
+        const seedByKey = new Map(seed.map(r => [getKey(r), r]).filter(([k]) => k));
+        const existingKeys = new Set(existing.map(getKey).filter(Boolean));
+
+        const merged = existing.map(row => {
+            const k = getKey(row);
+            const seedRow = k ? seedByKey.get(k) : null;
+            return seedRow ? { ...seedRow, ...row } : row;
+        });
+
+        seed.forEach(row => {
+            const k = getKey(row);
+            if (!k || existingKeys.has(k)) return;
+            merged.push(row);
+        });
+
+        return cloneRows(merged);
     }
 
     function buildBusinessSeedData(business, idx) {
@@ -585,30 +670,61 @@ document.addEventListener('DOMContentLoaded', () => {
         const city = Array.isArray(business.stores) && business.stores[0] ? business.stores[0].city : 'Primary City';
         const seedNum = 500 + idx * 50;
 
+        const seedOrders = [
+            { id: `ORD-${seedNum + 1}`, customer: `${city} Walk-in`, items: 3, total: 1540 + idx * 120, payment: 'UPI', status: 'Delivered', date: '17 Feb 11:10' },
+            { id: `ORD-${seedNum + 2}`, customer: 'Anita Verma', items: 2, total: 980 + idx * 90, payment: 'Card', status: 'Processing', date: '17 Feb 12:35' },
+            { id: `ORD-${seedNum + 3}`, customer: 'Vikram Singh', items: 1, total: 350 + idx * 70, payment: 'Cash', status: 'Pending', date: '17 Feb 13:20' },
+            { id: `ORD-${seedNum + 4}`, customer: 'Suman Rao', items: 4, total: 2250 + idx * 100, payment: 'UPI', status: 'Delivered', date: '16 Feb 18:04' },
+            { id: `ORD-${seedNum + 5}`, customer: 'Karan Joshi', items: 2, total: 1160 + idx * 85, payment: 'Card', status: 'Delivered', date: '16 Feb 16:40' }
+        ];
+
+        const addressBook = [
+            `12, MG Road, ${city}`,
+            `A-204, Green Park, ${city}`,
+            `Plot 7, Industrial Area, ${city}`,
+            `302, Lotus Tower, ${city}`,
+            `H.No 15, Civil Lines, ${city}`,
+            `42, Lake View Road, ${city}`,
+            `101, Sapphire Towers, ${city}`,
+            `5th Cross, Jayanagar, ${city}`,
+            `B-12, Shanti Nagar, ${city}`
+        ];
+
+        const seedDeliveries = [
+            { id: `DEL-${seedNum + 1}`, oid: seedOrders[0].id, customer: seedOrders[0].customer, address: addressBook[0], partner: 'Rider Team A', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 11:55' },
+            { id: `DEL-${seedNum + 2}`, oid: seedOrders[1].id, customer: seedOrders[1].customer, address: addressBook[1], partner: 'Rider Team B', status: 'In Transit', etaMin: 18, updatedAt: '17 Feb 12:55' },
+            { id: `DEL-${seedNum + 3}`, oid: seedOrders[2].id, customer: seedOrders[2].customer, address: addressBook[2], partner: 'Unassigned', status: 'Pending', etaMin: 32, updatedAt: '17 Feb 13:05' },
+            { id: `DEL-${seedNum + 4}`, oid: seedOrders[3].id, customer: seedOrders[3].customer, address: addressBook[3], partner: 'Rider Team C', status: 'Delivered', etaMin: 0, updatedAt: '16 Feb 18:45' },
+            { id: `DEL-${seedNum + 5}`, oid: seedOrders[4].id, customer: seedOrders[4].customer, address: addressBook[4], partner: 'Rider Team B', status: 'Failed', etaMin: 0, updatedAt: '16 Feb 17:05' },
+            { id: `DEL-${seedNum + 6}`, oid: `ORD-${seedNum + 6}`, customer: 'Rohan Verma', address: addressBook[5], partner: 'Rider Team A', status: 'In Transit', etaMin: 10, updatedAt: '17 Feb 10:20' },
+            { id: `DEL-${seedNum + 7}`, oid: `ORD-${seedNum + 7}`, customer: 'Neha Reddy', address: addressBook[6], partner: 'Rider Team C', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 09:40' },
+            { id: `DEL-${seedNum + 8}`, oid: `ORD-${seedNum + 8}`, customer: 'Arjun Singh', address: addressBook[7], partner: 'Unassigned', status: 'Pending', etaMin: 40, updatedAt: '17 Feb 09:15' },
+            { id: `DEL-${seedNum + 9}`, oid: `ORD-${seedNum + 9}`, customer: 'Meera Krishnan', address: addressBook[8], partner: 'Rider Team B', status: 'In Transit', etaMin: 22, updatedAt: '17 Feb 08:55' }
+        ];
+
+        const seedInventory = [
+            { sku: `SKU-${seedNum + 1}`, name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 160 - idx * 3, price: 390 + idx * 5, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 2}`, name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 92 - idx * 4, price: 130 + idx * 4, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 3}`, name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 24 - idx * 2, price: 170 + idx * 3, status: 'Low Stock' },
+            { sku: `SKU-${seedNum + 4}`, name: 'Milk Pack', cat: 'Dairy', supplier: 'City Dairy', stock: 12 + idx, price: 58, status: 'Low Stock' },
+            { sku: `SKU-${seedNum + 5}`, name: 'Soft Drink', cat: 'Beverages', supplier: 'Cool Bev', stock: 84 + idx * 3, price: 42, status: 'In Stock' }
+        ];
+
+        const seedReturns = [
+            { id: `RET-${seedNum + 1}`, oid: seedOrders[1].id, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Damaged', amount: seedInventory[2].price, qty: 1, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 13:50' },
+            { id: `RET-${seedNum + 2}`, oid: seedOrders[2].id, product: seedInventory[3].name, sku: seedInventory[3].sku, cat: seedInventory[3].cat, reason: 'Expired', amount: seedInventory[3].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 13:15' },
+            { id: `RET-${seedNum + 3}`, oid: seedOrders[4].id, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Wrong Item', amount: seedInventory[2].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 12:40' },
+            { id: `RET-${seedNum + 4}`, oid: seedOrders[0].id, product: seedInventory[4].name, sku: seedInventory[4].sku, cat: seedInventory[4].cat, reason: 'Stale', amount: seedInventory[4].price * 2, qty: 2, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 12:05' },
+            { id: `RET-${seedNum + 5}`, oid: `ORD-${seedNum + 9}`, product: seedInventory[1].name, sku: seedInventory[1].sku, cat: seedInventory[1].cat, reason: 'Wrong Item', amount: seedInventory[1].price, qty: 1, status: 'Rejected', requestedBy: 'Walk-in', updatedAt: '17 Feb 11:35' },
+            { id: `RET-${seedNum + 6}`, oid: `ORD-${seedNum + 10}`, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Damaged', amount: seedInventory[2].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 10:55' },
+            { id: `RET-${seedNum + 7}`, oid: `ORD-${seedNum + 11}`, product: seedInventory[3].name, sku: seedInventory[3].sku, cat: seedInventory[3].cat, reason: 'Stale', amount: seedInventory[3].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 10:25' }
+        ];
+
         return {
-            orders: [
-                { id: `ORD-${seedNum + 1}`, customer: `${city} Walk-in`, items: 3, total: 1540 + idx * 120, payment: 'UPI', status: 'Delivered', date: '17 Feb 11:10' },
-                { id: `ORD-${seedNum + 2}`, customer: 'Anita Verma', items: 2, total: 980 + idx * 90, payment: 'Card', status: 'Processing', date: '17 Feb 12:35' },
-                { id: `ORD-${seedNum + 3}`, customer: 'Vikram Singh', items: 1, total: 350 + idx * 70, payment: 'Cash', status: 'Pending', date: '17 Feb 13:20' },
-                { id: `ORD-${seedNum + 4}`, customer: 'Suman Rao', items: 4, total: 2250 + idx * 100, payment: 'UPI', status: 'Delivered', date: '16 Feb 18:04' },
-                { id: `ORD-${seedNum + 5}`, customer: 'Karan Joshi', items: 2, total: 1160 + idx * 85, payment: 'Card', status: 'Delivered', date: '16 Feb 16:40' }
-            ],
-            inventory: [
-                { sku: `SKU-${seedNum + 1}`, name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 160 - idx * 3, price: 390 + idx * 5, status: 'In Stock' },
-                { sku: `SKU-${seedNum + 2}`, name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 92 - idx * 4, price: 130 + idx * 4, status: 'In Stock' },
-                { sku: `SKU-${seedNum + 3}`, name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 24 - idx * 2, price: 170 + idx * 3, status: 'Low Stock' },
-                { sku: `SKU-${seedNum + 4}`, name: 'Milk Pack', cat: 'Dairy', supplier: 'City Dairy', stock: 12 + idx, price: 58, status: 'Low Stock' },
-                { sku: `SKU-${seedNum + 5}`, name: 'Soft Drink', cat: 'Beverages', supplier: 'Cool Bev', stock: 84 + idx * 3, price: 42, status: 'In Stock' }
-            ],
-            deliveries: [
-                { id: `DEL-${seedNum + 1}`, oid: `ORD-${seedNum + 1}`, partner: 'Rider Team A', status: 'Delivered', time: '11:55' },
-                { id: `DEL-${seedNum + 2}`, oid: `ORD-${seedNum + 2}`, partner: 'Rider Team B', status: 'Out for Delivery', time: '-' },
-                { id: `DEL-${seedNum + 3}`, oid: `ORD-${seedNum + 4}`, partner: 'Rider Team C', status: 'Delivered', time: '18:45' }
-            ],
-            returns: [
-                { id: `RET-${seedNum + 1}`, oid: `ORD-${seedNum + 5}`, reason: 'Damaged', amount: 220 + idx * 10, status: 'Approved', requestedBy: cashierName, updatedAt: '16 Feb 17:40' },
-                { id: `RET-${seedNum + 2}`, oid: `ORD-${seedNum + 3}`, reason: 'Wrong Item', amount: 180 + idx * 8, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 13:50' }
-            ],
+            orders: seedOrders,
+            inventory: seedInventory,
+            deliveries: seedDeliveries,
+            returns: seedReturns,
             users: userList.length
                 ? cloneRows(userList)
                 : [
@@ -630,8 +746,8 @@ document.addEventListener('DOMContentLoaded', () => {
         businessDataStore[business.id] = {
             orders: Array.isArray(existing.orders) ? existing.orders : seed.orders,
             inventory: Array.isArray(existing.inventory) ? existing.inventory : seed.inventory,
-            deliveries: Array.isArray(existing.deliveries) ? existing.deliveries : seed.deliveries,
-            returns: Array.isArray(existing.returns) ? existing.returns : seed.returns,
+            deliveries: Array.isArray(existing.deliveries) ? mergeSeedRecords(existing.deliveries, seed.deliveries, 'id') : seed.deliveries,
+            returns: Array.isArray(existing.returns) ? mergeSeedRecords(existing.returns, seed.returns, 'id') : seed.returns,
             users: Array.isArray(existing.users) ? existing.users : seed.users
         };
     });
@@ -644,6 +760,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeBusinessId && !selectedBusiness) {
         localStorage.removeItem('activeBusinessId');
         localStorage.removeItem('activeBusinessName');
+    }
+
+    if (selectedBusiness) {
+        localStorage.setItem('activeBusinessName', selectedBusiness.name);
+        const bcAppEl = document.querySelector('.bc-app');
+        if (bcAppEl) bcAppEl.textContent = `BillBhai / ${selectedBusiness.name}`;
     }
 
     let orders = isBusinessScoped
@@ -661,6 +783,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let users = isBusinessScoped
         ? (Array.isArray(businessScopedData.users) ? businessScopedData.users : cloneRows(defaultUsers))
         : loadList('bb_users', defaultUsers);
+
+    // Enrich small/global datasets with the latest seed records so charts/tables have enough data.
+    if (!isBusinessScoped) {
+        deliveries = mergeSeedRecords(deliveries, defaultDeliveries, 'id');
+        returns = mergeSeedRecords(returns, defaultReturns, 'id');
+        saveList('bb_deliveries', deliveries);
+        saveList('bb_returns', returns);
+    }
 
     function persistOperationalData() {
         if (isBusinessScoped && selectedBusiness) {
@@ -768,6 +898,67 @@ document.addEventListener('DOMContentLoaded', () => {
     function statusBadge(s) { return badge(s, s.toLowerCase().replace(/ /g, '')); }
     function table(hdrs, rows) { return `<div class="tbl-wrap"><table class="dt"><thead><tr>${hdrs.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`; }
 
+    function normalizeDeliveryStatus(status) {
+        const raw = String(status || '').trim().toLowerCase();
+        if (!raw) return 'Pending';
+        if (raw.includes('deliver')) return 'Delivered';
+        if (raw.includes('out for') || raw.includes('transit') || raw.includes('dispatch') || raw.includes('processing')) return 'In Transit';
+        if (raw.includes('fail') || raw.includes('cancel')) return 'Failed';
+        if (raw.includes('pending')) return 'Pending';
+        return 'Pending';
+    }
+
+    function deliveryBadge(status) {
+        const normalized = normalizeDeliveryStatus(status);
+        if (normalized === 'Delivered') return badge('Delivered', 'delivered');
+        if (normalized === 'In Transit') return badge('In Transit', 'processing');
+        if (normalized === 'Failed') return badge('Failed', 'cancelled');
+        return badge('Pending', 'pending');
+    }
+
+    function getDeliveryView() {
+        return deliveries.map(d => {
+            const order = orders.find(o => o.id === d.oid);
+            const customer = String(d.customer || (order ? order.customer : '') || '').trim() || '-';
+            return {
+                id: d.id,
+                oid: d.oid,
+                customer,
+                address: String(d.address || '').trim() || '-',
+                partner: String(d.partner || '').trim() || 'Unassigned',
+                status: normalizeDeliveryStatus(d.status),
+                etaMin: Number.isFinite(Number(d.etaMin)) ? Number(d.etaMin) : null,
+                updatedAt: String(d.updatedAt || d.time || '-').trim() || '-'
+            };
+        });
+    }
+
+    function getReturnView() {
+        return returns.map(r => {
+            const order = orders.find(o => o.id === r.oid);
+            const customer = String((order && order.customer) || '').trim() || '-';
+            const product = String(r.product || '').trim() || '-';
+            const qty = Number.isFinite(Number(r.qty)) ? Math.max(1, Number(r.qty)) : null;
+            const amount = Number.isFinite(Number(r.amount)) ? Math.max(0, Number(r.amount)) : 0;
+            const status = String(r.status || 'Pending').trim() || 'Pending';
+            const reason = String(r.reason || 'Unknown').trim() || 'Unknown';
+            const requestedBy = String(r.requestedBy || '').trim() || '-';
+            const updatedAt = String(r.updatedAt || '-').trim() || '-';
+            return {
+                id: String(r.id || '').trim() || 'RET-NA',
+                oid: String(r.oid || '').trim() || '-',
+                customer,
+                product,
+                qty,
+                reason,
+                amount,
+                status,
+                requestedBy,
+                updatedAt
+            };
+        });
+    }
+
     // Page Renderers
     let activeCharts = []; // Track active charts for cleanup
 
@@ -793,6 +984,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.renderNotificationDetail = renderNotificationDetail;
 
     function renderDashboard() {
+        if (activeRoleKey === 'deliveryops') {
+            renderDeliveryOpsDashboard();
+            return;
+        }
+        if (activeRoleKey === 'returnhandler') {
+            renderReturnHandlerDashboard();
+            return;
+        }
         const totalSales = orders.reduce((a, o) => a + o.total, 0);
         const scopedName = selectedBusiness ? selectedBusiness.name : activeBusinessName;
         content.innerHTML = `
@@ -812,6 +1011,267 @@ document.addEventListener('DOMContentLoaded', () => {
             orders.slice(0, 5).map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initDashboardCharts, 0);
+    }
+
+    function renderDeliveryOpsDashboard() {
+        const scopedName = selectedBusiness ? selectedBusiness.name : activeBusinessName;
+        const view = getDeliveryView();
+        const counts = view.reduce((acc, d) => {
+            acc.total += 1;
+            if (d.status === 'Delivered') acc.delivered += 1;
+            else if (d.status === 'In Transit') acc.inTransit += 1;
+            else if (d.status === 'Failed') acc.failed += 1;
+            else acc.pending += 1;
+            if (d.partner === 'Unassigned') acc.unassigned += 1;
+            return acc;
+        }, { total: 0, delivered: 0, inTransit: 0, pending: 0, failed: 0, unassigned: 0 });
+
+        const activeRows = view
+            .filter(d => d.status === 'Pending' || d.status === 'In Transit')
+            .sort((a, b) => {
+                const aEta = a.etaMin === null ? Number.POSITIVE_INFINITY : a.etaMin;
+                const bEta = b.etaMin === null ? Number.POSITIVE_INFINITY : b.etaMin;
+                return aEta - bEta;
+            });
+
+        const avgEtaRows = activeRows.filter(d => d.etaMin !== null);
+        const avgEta = avgEtaRows.length
+            ? Math.round(avgEtaRows.reduce((sum, d) => sum + Number(d.etaMin || 0), 0) / avgEtaRows.length)
+            : null;
+
+        const etaLabel = avgEta === null ? '&mdash;' : `${avgEta} min`;
+        const activeCount = counts.pending + counts.inTransit;
+
+        const actionBtn = (label, onClick, extraStyles) => `<button class="btn btn-outline" data-action="delivery" style="padding: 4px 8px; font-size: 0.75rem; ${extraStyles || ''}" onclick="${onClick}">${label}</button>`;
+        const actionsFor = (item) => {
+            if (item.status === 'Delivered') return '<span class="text-muted text-sm">Closed</span>';
+            if (item.status === 'Failed') {
+                return [
+                    actionBtn('Retry', `window.retryDelivery('${item.id}')`, 'margin-right:4px;'),
+                    actionBtn('Assign', `window.assignDeliveryPartner('${item.id}')`, '')
+                ].join('');
+            }
+            return [
+                actionBtn('Assign', `window.assignDeliveryPartner('${item.id}')`, 'margin-right:4px;'),
+                actionBtn('Mark Delivered', `window.markDeliveryDelivered('${item.id}')`, 'margin-right:4px;'),
+                actionBtn('Mark Failed', `window.markDeliveryFailed('${item.id}')`, 'color: var(--red); border-color: var(--red);')
+            ].join('');
+        };
+
+        const rows = activeRows
+            .map(d => {
+                const updated = d.updatedAt === '-' ? '&mdash;' : d.updatedAt;
+                const eta = d.etaMin === null ? '&mdash;' : `${Math.max(0, Math.round(d.etaMin))} min`;
+                return `<tr>
+                    <td class="cell-main">${d.id}</td>
+                    <td>${d.oid}</td>
+                    <td>${d.customer}</td>
+                    <td>${d.address}</td>
+                    <td>${d.partner}</td>
+                    <td>${eta}</td>
+                    <td>${deliveryBadge(d.status)}</td>
+                    <td>${updated}</td>
+                    <td>${actionsFor(d)}</td>
+                </tr>`;
+            })
+            .join('');
+
+        content.innerHTML = `
+        <div class="page-header">
+            <h2>Delivery Dashboard${scopedName ? ` - ${scopedName}` : ''}</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-primary" onclick="window.location.href='delivery.html'">Open Delivery</button>
+                <button class="btn btn-outline" onclick="window.print()">Print</button>
+            </div>
+        </div>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon si-blue">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Active Deliveries</span>
+                    <span class="stat-value">${activeCount}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Pending ${counts.pending} &bull; In Transit ${counts.inTransit}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-green">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Delivered</span>
+                    <span class="stat-value">${counts.delivered}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Failed</span>
+                    <span class="stat-value">${counts.failed}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-amber">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Avg ETA (Active)</span>
+                    <span class="stat-value">${etaLabel}</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <div class="card">
+                <div class="card-hd"><h3>Status Breakdown</h3></div>
+                <div class="card-bd" style="position:relative;height:220px"><canvas id="delStatusChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-hd"><h3>Partner Load (Active)</h3></div>
+                <div class="card-bd" style="position:relative;height:220px"><canvas id="delPartnerChart"></canvas></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <h3>Active Queue</h3>
+                <div class="text-sm text-muted">Unassigned ${counts.unassigned}</div>
+            </div>
+            <div class="card-bd">
+                <div class="tbl-wrap">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Delivery</th>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Address</th>
+                                <th>Partner</th>
+                                <th>ETA</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows || `<tr><td colspan="9" class="text-muted">No active deliveries.</td></tr>`}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>`;
+
+        setTimeout(initDeliveryCharts, 0);
+    }
+
+    function renderReturnHandlerDashboard() {
+        const scopedName = selectedBusiness ? selectedBusiness.name : activeBusinessName;
+        const view = getReturnView();
+
+        const counts = view.reduce((acc, r) => {
+            const s = String(r.status || '').toLowerCase();
+            acc.total += 1;
+            if (s.includes('refund')) acc.refunded += 1;
+            else if (s.includes('approve')) acc.approved += 1;
+            else if (s.includes('reject')) acc.rejected += 1;
+            else acc.pending += 1;
+            acc.valueRefunded += s.includes('refund') ? Number(r.amount || 0) : 0;
+            return acc;
+        }, { total: 0, pending: 0, approved: 0, refunded: 0, rejected: 0, valueRefunded: 0 });
+
+        const productCounts = new Map();
+        view.forEach(r => {
+            const p = String(r.product || '').trim();
+            if (!p || p === '-') return;
+            productCounts.set(p, (productCounts.get(p) || 0) + 1);
+        });
+        const topProduct = Array.from(productCounts.entries()).sort((a, b) => b[1] - a[1])[0] || null;
+        const topProductName = topProduct ? topProduct[0] : '—';
+        const topProductCount = topProduct ? topProduct[1] : 0;
+        const topShare = counts.total && topProductCount ? Math.round((topProductCount / counts.total) * 100) : 0;
+
+        const tableRows = view
+            .slice(0, 10)
+            .map(r => `<tr>
+                <td class="cell-main">${r.oid}</td>
+                <td>${r.product}</td>
+                <td>${r.reason}</td>
+                <td>₹${Number(r.amount || 0).toLocaleString()}</td>
+                <td>${statusBadge(r.status)}</td>
+                <td>${r.updatedAt}</td>
+            </tr>`)
+            .join('');
+
+        content.innerHTML = `
+        <div class="page-header">
+            <h2>Returns Dashboard${scopedName ? ` - ${scopedName}` : ''}</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-primary" onclick="window.location.href='returns.html'">Open Returns</button>
+                <button class="btn btn-outline" onclick="window.print()">Print</button>
+            </div>
+        </div>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon si-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Returns</span>
+                    <span class="stat-value">${counts.total}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-amber">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Pending</span>
+                    <span class="stat-value">${counts.pending}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Approved ${counts.approved} &bull; Rejected ${counts.rejected}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-green">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Refunded</span>
+                    <span class="stat-value">${counts.refunded}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Value ₹${Math.round(counts.valueRefunded).toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-purple">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Most Returned</span>
+                    <span class="stat-value" style="font-size: 1rem; font-weight: 700;">${topProductName}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">${topProductCount} returns &bull; ${topShare}% share</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-3">
+            <div class="card"><div class="card-hd"><h3>Top Returned Products</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="retProductChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Return Reasons</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="retReasonChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Status Breakdown</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="retStatusChart"></canvas></div></div>
+        </section>
+
+        <section class="card">
+            <div class="card-hd"><h3>Returned Orders</h3></div>
+            <div class="card-bd">${table(
+                ['Order', 'Product', 'Reason', 'Amount', 'Status', 'Updated'],
+                tableRows || '<tr><td colspan=\"6\" class=\"text-muted\">No returns found.</td></tr>'
+            )}</div>
+        </section>`;
+
+        setTimeout(initReturnCharts, 0);
     }
 
     function renderOrders() {
@@ -843,18 +1303,187 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderDelivery() {
+        const view = getDeliveryView();
+
+        const counts = view.reduce((acc, d) => {
+            acc.total += 1;
+            if (d.status === 'Delivered') acc.delivered += 1;
+            else if (d.status === 'In Transit') acc.inTransit += 1;
+            else if (d.status === 'Failed') acc.failed += 1;
+            else acc.pending += 1;
+            if (d.partner === 'Unassigned') acc.unassigned += 1;
+            return acc;
+        }, { total: 0, delivered: 0, inTransit: 0, pending: 0, failed: 0, unassigned: 0 });
+
+        const activeCount = counts.pending + counts.inTransit;
+
         content.innerHTML = `
-        <div class="page-header"><h2>Delivery</h2></div>
-        <section class="card"><div class="card-bd">${table(
-            ['ID', 'Order', 'Partner', 'Status', 'Time', 'Actions'],
-            deliveries.map(d => {
-                const canMarkDelivered = d.status !== 'Delivered';
-                return `<tr><td class="cell-main">${d.id}</td><td>${d.oid}</td><td>${d.partner}</td><td>${statusBadge(d.status)}</td><td>${d.time}</td><td><button class="btn btn-outline" data-action="delivery" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.assignDeliveryPartner('${d.id}')">Assign</button>${canMarkDelivered ? `<button class="btn btn-outline" data-action="delivery" style="padding: 4px 8px; font-size: 0.75rem;" onclick="window.markDeliveryDelivered('${d.id}')">Mark Delivered</button>` : '<span class="text-muted text-sm">Closed</span>'}</td></tr>`;
-            }).join('')
-        )}</div></section>`;
+        <div class="page-header">
+            <h2>Delivery</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-outline" onclick="window.print()">Print</button>
+            </div>
+        </div>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon si-blue">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Active Deliveries</span>
+                    <span class="stat-value">${activeCount}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Pending ${counts.pending} • In Transit ${counts.inTransit}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-green">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Delivered</span>
+                    <span class="stat-value">${counts.delivered}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-amber">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Unassigned</span>
+                    <span class="stat-value">${counts.unassigned}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Failed</span>
+                    <span class="stat-value">${counts.failed}</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <div class="card">
+                <div class="card-hd"><h3>Status Breakdown</h3></div>
+                <div class="card-bd" style="position:relative;height:220px"><canvas id="delStatusChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-hd"><h3>Partner Load</h3></div>
+                <div class="card-bd" style="position:relative;height:220px"><canvas id="delPartnerChart"></canvas></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <h3>Delivery Queue</h3>
+                <div class="chart-tabs" id="deliveryFilters">
+                    <button class="chart-tab active" type="button" data-filter="active">Active</button>
+                    <button class="chart-tab" type="button" data-filter="pending">Pending</button>
+                    <button class="chart-tab" type="button" data-filter="intransit">In Transit</button>
+                    <button class="chart-tab" type="button" data-filter="delivered">Delivered</button>
+                    <button class="chart-tab" type="button" data-filter="failed">Failed</button>
+                    <button class="chart-tab" type="button" data-filter="all">All</button>
+                </div>
+            </div>
+            <div class="card-bd">
+                <div class="tbl-wrap">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Delivery</th>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Address</th>
+                                <th>Partner</th>
+                                <th>ETA</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deliveryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>`;
+
+        setTimeout(initDeliveryCharts, 0);
+
+        const tbody = document.getElementById('deliveryTableBody');
+        const filterWrap = document.getElementById('deliveryFilters');
+
+        function matchesFilter(item, filter) {
+            if (filter === 'all') return true;
+            if (filter === 'active') return item.status === 'Pending' || item.status === 'In Transit';
+            if (filter === 'pending') return item.status === 'Pending';
+            if (filter === 'intransit') return item.status === 'In Transit';
+            if (filter === 'delivered') return item.status === 'Delivered';
+            if (filter === 'failed') return item.status === 'Failed';
+            return true;
+        }
+
+        function actionsFor(item) {
+            const btn = (label, onClick, extraStyles) => `<button class="btn btn-outline" data-action="delivery" style="padding: 4px 8px; font-size: 0.75rem; ${extraStyles || ''}" onclick="${onClick}">${label}</button>`;
+
+            if (item.status === 'Delivered') return '<span class="text-muted text-sm">Closed</span>';
+            if (item.status === 'Failed') {
+                return [
+                    btn('Retry', `window.retryDelivery('${item.id}')`, 'margin-right:4px;'),
+                    btn('Assign', `window.assignDeliveryPartner('${item.id}')`, '')
+                ].join('');
+            }
+
+            return [
+                btn('Assign', `window.assignDeliveryPartner('${item.id}')`, 'margin-right:4px;'),
+                btn('Mark Delivered', `window.markDeliveryDelivered('${item.id}')`, 'margin-right:4px;'),
+                btn('Mark Failed', `window.markDeliveryFailed('${item.id}')`, 'color: var(--red); border-color: var(--red);')
+            ].join('');
+        }
+
+        function renderTable(filter) {
+            if (!tbody) return;
+            const rows = view
+                .filter(d => matchesFilter(d, filter))
+                .map(d => {
+                    const updated = d.updatedAt === '-' ? '&mdash;' : d.updatedAt;
+                    const eta = d.etaMin === null ? '&mdash;' : `${Math.max(0, Math.round(d.etaMin))} min`;
+                    return `<tr>
+                        <td class="cell-main">${d.id}</td>
+                        <td>${d.oid}</td>
+                        <td>${d.customer}</td>
+                        <td>${d.address}</td>
+                        <td>${d.partner}</td>
+                        <td>${eta}</td>
+                        <td>${deliveryBadge(d.status)}</td>
+                        <td>${updated}</td>
+                        <td>${actionsFor(d)}</td>
+                    </tr>`;
+                })
+                .join('');
+
+            tbody.innerHTML = rows || `<tr><td colspan="9" class="text-muted">No deliveries found.</td></tr>`;
+        }
+
+        renderTable('active');
+
+        if (filterWrap) {
+            filterWrap.querySelectorAll('.chart-tab[data-filter]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const filter = btn.getAttribute('data-filter') || 'all';
+                    filterWrap.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderTable(filter);
+                });
+            });
+        }
     }
 
     function renderReturns() {
+        renderReturnsRefined();
+        return;
         content.innerHTML = `
         <div class="page-header"><h2>Returns</h2><div class="page-header-actions"><button class="btn btn-primary" id="raiseReturnBtnDyn">+ Raise Return</button></div></div>
         <section class="grid-2">
@@ -866,6 +1495,198 @@ document.addEventListener('DOMContentLoaded', () => {
             returns.map(r => `<tr><td class="cell-main">${r.id}</td><td>${r.oid}</td><td>${r.reason}</td><td>₹${r.amount}</td><td>${statusBadge(r.status)}</td><td>${r.requestedBy || '-'}</td><td>${r.updatedAt || '-'}</td><td><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.approveReturn('${r.id}')">Approve</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.refundReturn('${r.id}')">Refund</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.rejectReturn('${r.id}')">Reject</button></td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initReturnCharts, 0);
+        const raiseBtn = document.getElementById('raiseReturnBtnDyn');
+        if (raiseBtn) raiseBtn.addEventListener('click', window.raiseReturnRequest);
+    }
+
+    function renderReturnsRefined() {
+        const view = getReturnView();
+
+        const counts = view.reduce((acc, r) => {
+            const s = String(r.status || '').toLowerCase();
+            acc.total += 1;
+            if (s.includes('refund')) acc.refunded += 1;
+            else if (s.includes('approve')) acc.approved += 1;
+            else if (s.includes('reject')) acc.rejected += 1;
+            else acc.pending += 1;
+            acc.valueTotal += Number(r.amount || 0);
+            if (s.includes('refund')) acc.valueRefunded += Number(r.amount || 0);
+            if (!s.includes('refund') && !s.includes('reject')) acc.valueAtRisk += Number(r.amount || 0);
+            return acc;
+        }, { total: 0, pending: 0, approved: 0, refunded: 0, rejected: 0, valueTotal: 0, valueRefunded: 0, valueAtRisk: 0 });
+
+        const productCounts = new Map();
+        view.forEach(r => {
+            const p = String(r.product || '').trim();
+            if (!p || p === '-') return;
+            productCounts.set(p, (productCounts.get(p) || 0) + 1);
+        });
+        const topProduct = Array.from(productCounts.entries()).sort((a, b) => b[1] - a[1])[0] || null;
+        const topProductLabel = topProduct ? `${topProduct[0]} (${topProduct[1]})` : '&mdash;';
+
+        content.innerHTML = `
+        <div class="page-header">
+            <h2>Returns</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-primary" id="raiseReturnBtnDyn">+ Raise Return</button>
+                <button class="btn btn-outline" onclick="window.print()">Print</button>
+            </div>
+        </div>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon si-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Requests</span>
+                    <span class="stat-value">${counts.total}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-amber">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Pending / Open</span>
+                    <span class="stat-value">${counts.pending + counts.approved}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Pending ${counts.pending} &bull; Approved ${counts.approved}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-green">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Refunded Value</span>
+                    <span class="stat-value">₹${Math.round(counts.valueRefunded).toLocaleString()}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">At risk ₹${Math.round(counts.valueAtRisk).toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-purple">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Top Product</span>
+                    <span class="stat-value" style="font-size: 1rem; font-weight: 700;">${topProductLabel}</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-3">
+            <div class="card"><div class="card-hd"><h3>Top Returned Products</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="retProductChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Return Reasons</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="retReasonChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Status Breakdown</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="retStatusChart"></canvas></div></div>
+        </section>
+
+        <section class="card">
+            <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <h3>Return Requests</h3>
+                <div class="chart-tabs" id="returnsFilters">
+                    <button class="chart-tab active" type="button" data-filter="all">All</button>
+                    <button class="chart-tab" type="button" data-filter="pending">Pending</button>
+                    <button class="chart-tab" type="button" data-filter="approved">Approved</button>
+                    <button class="chart-tab" type="button" data-filter="refunded">Refunded</button>
+                    <button class="chart-tab" type="button" data-filter="rejected">Rejected</button>
+                </div>
+            </div>
+            <div class="card-bd">
+                <div class="tbl-wrap">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Return</th>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Reason</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Requested By</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="returnsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>`;
+
+        setTimeout(initReturnCharts, 0);
+
+        const tbody = document.getElementById('returnsTableBody');
+        const filterWrap = document.getElementById('returnsFilters');
+
+        function matchesFilter(item, filter) {
+            const s = String(item.status || '').toLowerCase();
+            if (filter === 'all') return true;
+            if (filter === 'pending') return !s.includes('approve') && !s.includes('refund') && !s.includes('reject');
+            if (filter === 'approved') return s.includes('approve');
+            if (filter === 'refunded') return s.includes('refund');
+            if (filter === 'rejected') return s.includes('reject');
+            return true;
+        }
+
+        function actionsFor(item) {
+            const btn = (label, onClick, extraStyles) => `<button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; ${extraStyles || ''}" onclick="${onClick}">${label}</button>`;
+            const s = String(item.status || '').toLowerCase();
+
+            if (s.includes('refund') || s.includes('reject')) return '<span class="text-muted text-sm">Closed</span>';
+            if (s.includes('approve')) {
+                return [
+                    btn('Refund', `window.refundReturn('${item.id}')`, 'margin-right:4px;'),
+                    btn('Reject', `window.rejectReturn('${item.id}')`, 'color: var(--red); border-color: var(--red);')
+                ].join('');
+            }
+
+            return [
+                btn('Approve', `window.approveReturn('${item.id}')`, 'margin-right:4px;'),
+                btn('Refund', `window.refundReturn('${item.id}')`, 'margin-right:4px;'),
+                btn('Reject', `window.rejectReturn('${item.id}')`, 'color: var(--red); border-color: var(--red);')
+            ].join('');
+        }
+
+        function renderTable(filter) {
+            if (!tbody) return;
+            const rows = view
+                .filter(r => matchesFilter(r, filter))
+                .map(r => {
+                    const qty = r.qty === null ? '&mdash;' : r.qty;
+                    return `<tr>
+                        <td class="cell-main">${r.id}</td>
+                        <td>${r.oid}</td>
+                        <td>${r.customer}</td>
+                        <td>${r.product}</td>
+                        <td>${qty}</td>
+                        <td>${r.reason}</td>
+                        <td>₹${Number(r.amount || 0).toLocaleString()}</td>
+                        <td>${statusBadge(r.status)}</td>
+                        <td>${r.requestedBy}</td>
+                        <td>${r.updatedAt}</td>
+                        <td>${actionsFor(r)}</td>
+                    </tr>`;
+                })
+                .join('');
+
+            tbody.innerHTML = rows || `<tr><td colspan="11" class="text-muted">No return requests found.</td></tr>`;
+        }
+
+        renderTable('all');
+
+        if (filterWrap) {
+            filterWrap.querySelectorAll('.chart-tab[data-filter]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const filter = btn.getAttribute('data-filter') || 'all';
+                    filterWrap.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderTable(filter);
+                });
+            });
+        }
+
         const raiseBtn = document.getElementById('raiseReturnBtnDyn');
         if (raiseBtn) raiseBtn.addEventListener('click', window.raiseReturnRequest);
     }
@@ -1242,15 +2063,114 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initReturnCharts() {
         const c = getColors();
+
+        const view = getReturnView();
+        const reasonCounts = new Map();
+        const productCounts = new Map();
+        const statusCounts = { pending: 0, approved: 0, refunded: 0, rejected: 0 };
+
+        view.forEach(r => {
+            const reason = String(r.reason || '').trim() || 'Unknown';
+            reasonCounts.set(reason, (reasonCounts.get(reason) || 0) + 1);
+
+            const product = String(r.product || '').trim();
+            if (product && product !== '-') productCounts.set(product, (productCounts.get(product) || 0) + 1);
+
+            const s = String(r.status || '').toLowerCase();
+            if (s.includes('refund')) statusCounts.refunded += 1;
+            else if (s.includes('approve')) statusCounts.approved += 1;
+            else if (s.includes('reject')) statusCounts.rejected += 1;
+            else statusCounts.pending += 1;
+        });
+
+        const productsTop = Array.from(productCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6);
+        const productLabels = productsTop.length ? productsTop.map(([p]) => p) : ['No data'];
+        const productData = productsTop.length ? productsTop.map(([, n]) => n) : [0];
+
+        createChart('retProductChart', 'bar', {
+            labels: productLabels,
+            datasets: [{ label: 'Returns', data: productData, backgroundColor: c.purple }]
+        }, {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: c.grid }, ticks: { color: c.text, precision: 0 }, beginAtZero: true },
+                y: { grid: { color: c.grid, display: false }, ticks: { color: c.text } }
+            }
+        });
+
+        const reasonsSorted = Array.from(reasonCounts.entries()).sort((a, b) => b[1] - a[1]);
+        const reasonLabels = reasonsSorted.length ? reasonsSorted.map(([r]) => r) : ['No data'];
+        const reasonData = reasonsSorted.length ? reasonsSorted.map(([, n]) => n) : [0];
+
         createChart('retReasonChart', 'bar', {
-            labels: ['Damaged', 'Wrong Item', 'Expired', 'Stale'],
-            datasets: [{ label: 'Count', data: [5, 3, 2, 1], backgroundColor: c.red }]
-        }, { indexAxis: 'y' });
+            labels: reasonLabels,
+            datasets: [{ label: 'Returns', data: reasonData, backgroundColor: c.red }]
+        }, {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: c.grid }, ticks: { color: c.text, precision: 0 }, beginAtZero: true },
+                y: { grid: { color: c.grid, display: false }, ticks: { color: c.text } }
+            }
+        });
 
         createChart('retStatusChart', 'doughnut', {
-            labels: ['Approved', 'Refunded', 'Rejected'],
-            datasets: [{ data: [4, 2, 1], backgroundColor: [c.green, c.blue, c.red], borderWidth: 0 }]
+            labels: ['Pending', 'Approved', 'Refunded', 'Rejected'],
+            datasets: [{
+                data: [statusCounts.pending, statusCounts.approved, statusCounts.refunded, statusCounts.rejected],
+                backgroundColor: [c.amber, c.purple, c.green, c.red],
+                borderWidth: 0
+            }]
         }, { plugins: { legend: { position: 'right', labels: { color: c.text } } } });
+    }
+
+    function initDeliveryCharts() {
+        const c = getColors();
+        const statusCounts = { delivered: 0, inTransit: 0, pending: 0, failed: 0 };
+        const partnerCounts = new Map();
+
+        deliveries.forEach(d => {
+            const status = normalizeDeliveryStatus(d.status);
+            if (status === 'Delivered') statusCounts.delivered += 1;
+            else if (status === 'In Transit') statusCounts.inTransit += 1;
+            else if (status === 'Failed') statusCounts.failed += 1;
+            else statusCounts.pending += 1;
+
+            const partner = String(d.partner || '').trim();
+            const isActive = status === 'Pending' || status === 'In Transit';
+            if (partner && isActive) partnerCounts.set(partner, (partnerCounts.get(partner) || 0) + 1);
+        });
+
+        createChart('delStatusChart', 'doughnut', {
+            labels: ['Delivered', 'In Transit', 'Pending', 'Failed'],
+            datasets: [{
+                data: [statusCounts.delivered, statusCounts.inTransit, statusCounts.pending, statusCounts.failed],
+                backgroundColor: [c.green, c.blue, c.amber, c.red],
+                borderWidth: 0
+            }]
+        }, { plugins: { legend: { position: 'right', labels: { color: c.text } } } });
+
+        const partnerList = Array.from(partnerCounts.entries())
+            .filter(([name]) => name.toLowerCase() !== 'unassigned')
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6);
+
+        const partnerLabels = partnerList.length ? partnerList.map(([name]) => name) : ['No partners'];
+        const partnerData = partnerList.length ? partnerList.map(([, count]) => count) : [0];
+
+        createChart('delPartnerChart', 'bar', {
+            labels: partnerLabels,
+            datasets: [{ label: 'Deliveries', data: partnerData, backgroundColor: c.blue }]
+        }, {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: c.grid, display: false }, ticks: { color: c.text } },
+                y: { grid: { color: c.grid }, ticks: { color: c.text, precision: 0 }, beginAtZero: true }
+            }
+        });
     }
 
     function initReportCharts() {
@@ -1937,19 +2857,35 @@ document.addEventListener('DOMContentLoaded', () => {
             denyAction('Return request create');
             return;
         }
+        const productOptions = Array.from(new Set(
+            inventory
+                .map(i => String((i && i.name) || '').trim())
+                .filter(Boolean)
+        ));
+        const productField = productOptions.length
+            ? { name: 'product', label: 'Product', type: 'select', required: true, options: productOptions }
+            : { name: 'product', label: 'Product', type: 'text', required: true, placeholder: 'Product name' };
         openQuickFormModal({
             title: 'Raise Return Request',
             submitLabel: 'Create',
             fields: [
                 { name: 'oid', label: 'Order ID', type: 'text', required: true, placeholder: 'ORD-4821' },
+                productField,
+                { name: 'qty', label: 'Quantity', type: 'number', required: true, min: 1, step: 1 },
                 { name: 'reason', label: 'Reason', type: 'select', required: true, options: ['Damaged', 'Wrong Item', 'Expired', 'Stale'] },
                 { name: 'amount', label: 'Refund Amount', type: 'number', required: true, min: 0, step: 0.01 }
             ],
-            initialValues: { reason: 'Damaged', amount: 0 },
+            initialValues: { product: productOptions[0] || '', qty: 1, reason: 'Damaged', amount: 0 },
             onSubmit: (values, closeModal) => {
+                const productName = String(values.product || '').trim();
+                const invItem = inventory.find(i => String((i && i.name) || '').trim() === productName);
                 returns.unshift({
                     id: getNextReturnId(),
                     oid: String(values.oid).trim().toUpperCase(),
+                    product: productName,
+                    sku: invItem ? invItem.sku : undefined,
+                    cat: invItem ? invItem.cat : undefined,
+                    qty: Math.max(1, Number(values.qty) || 1),
                     reason: String(values.reason).trim(),
                     amount: Number(values.amount),
                     status: 'Pending',
@@ -2022,10 +2958,11 @@ document.addEventListener('DOMContentLoaded', () => {
             initialValues: { partner: item.partner || '' },
             onSubmit: (values, closeModal) => {
                 item.partner = String(values.partner).trim();
-                if (item.status === 'Pending') item.status = 'Out for Delivery';
-                item.time = formatDate().split(' ').slice(-1)[0];
+                if (normalizeDeliveryStatus(item.status) !== 'Delivered') item.status = 'In Transit';
+                item.updatedAt = formatDate();
+                item.time = item.updatedAt.split(' ').slice(-1)[0];
                 persistOperationalData();
-                renderPage('delivery');
+                renderPage(currentPage);
                 closeModal();
                 showToast(`Partner assigned for ${id}.`);
             }
@@ -2040,10 +2977,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = deliveries.find(d => d.id === id);
         if (!item) return;
         item.status = 'Delivered';
-        item.time = formatDate().split(' ').slice(-1)[0];
+        item.updatedAt = formatDate();
+        item.time = item.updatedAt.split(' ').slice(-1)[0];
+        item.etaMin = 0;
         persistOperationalData();
-        renderPage('delivery');
+        renderPage(currentPage);
         showToast(`${id} marked delivered.`);
+    };
+
+    window.markDeliveryFailed = function(id) {
+        if (!hasActionAccess('delivery')) {
+            denyAction('Delivery failure');
+            return;
+        }
+        const item = deliveries.find(d => d.id === id);
+        if (!item) return;
+        if (normalizeDeliveryStatus(item.status) === 'Delivered') return;
+        item.status = 'Failed';
+        item.updatedAt = formatDate();
+        item.time = item.updatedAt.split(' ').slice(-1)[0];
+        item.etaMin = 0;
+        persistOperationalData();
+        renderPage(currentPage);
+        showToast(`${id} marked failed.`);
+    };
+
+    window.retryDelivery = function(id) {
+        if (!hasActionAccess('delivery')) {
+            denyAction('Delivery retry');
+            return;
+        }
+        const item = deliveries.find(d => d.id === id);
+        if (!item) return;
+        item.status = 'Pending';
+        item.partner = '';
+        item.updatedAt = formatDate();
+        item.time = '-';
+        persistOperationalData();
+        renderPage(currentPage);
+        showToast(`${id} moved back to pending.`);
     };
 
     window.renderBusinessesHome = function() {
@@ -2462,7 +3434,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAddUsr) btnAddUsr.addEventListener('click', () => { const h3 = document.querySelector('#addUserModal h3'); if (h3) h3.textContent = 'Add New User'; const inName = document.getElementById('userName'); if (inName) inName.readOnly = false; });
 
     (async function startApp() {
-        await hydrateDataFromJsonFiles();
-        renderPage(currentPage);
+        try {
+            await hydrateDataFromJsonFiles();
+            renderPage(currentPage);
+        } finally {
+            // Reveal UI only after initial data + page render to avoid a brief "wrong dashboard" flash.
+            setAppReady(true);
+        }
     })();
 });
