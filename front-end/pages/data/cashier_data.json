@@ -4,7 +4,7 @@
       "id": "P001",
       "name": "Basmati Rice",
       "category": "Groceries",
-      "image": "R",
+      "image": "🍚",
       "options": [
         { "label": "1kg", "price": 85 },
         { "label": "2kg", "price": 160 },
@@ -15,7 +15,7 @@
       "id": "P002",
       "name": "Toor Dal",
       "category": "Groceries",
-      "image": "D",
+      "image": "🫘",
       "options": [
         { "label": "500g", "price": 65 },
         { "label": "1kg", "price": 120 },
@@ -26,7 +26,7 @@
       "id": "P003",
       "name": "Refined Oil",
       "category": "Groceries",
-      "image": "O",
+      "image": "🛢️",
       "options": [
         { "label": "500ml", "price": 80 },
         { "label": "1L", "price": 155 },
@@ -37,7 +37,7 @@
       "id": "P004",
       "name": "Amul Butter",
       "category": "Dairy",
-      "image": "B",
+      "image": "🧈",
       "options": [
         { "label": "100g", "price": 60 },
         { "label": "500g", "price": 275 }
@@ -47,7 +47,7 @@
       "id": "P005",
       "name": "Milk",
       "category": "Dairy",
-      "image": "M",
+      "image": "🥛",
       "options": [
         { "label": "500ml", "price": 32 },
         { "label": "1L", "price": 60 }
@@ -57,7 +57,7 @@
       "id": "P006",
       "name": "Bread Loaf",
       "category": "Snacks",
-      "image": "L",
+      "image": "🍞",
       "options": [
         { "label": "Regular", "price": 45 },
         { "label": "Family Pack", "price": 80 }
@@ -67,7 +67,7 @@
       "id": "P007",
       "name": "Maggi Noodles",
       "category": "Snacks",
-      "image": "N",
+      "image": "🍜",
       "options": [
         { "label": "Single", "price": 14 },
         { "label": "Pack of 4", "price": 54 },
@@ -78,7 +78,7 @@
       "id": "P008",
       "name": "Tea Powder",
       "category": "Beverages",
-      "image": "T",
+      "image": "🍵",
       "options": [
         { "label": "250g", "price": 160 },
         { "label": "500g", "price": 310 }
@@ -88,7 +88,7 @@
       "id": "P009",
       "name": "Coffee Jar",
       "category": "Beverages",
-      "image": "C",
+      "image": "☕",
       "options": [
         { "label": "50g", "price": 95 },
         { "label": "100g", "price": 180 }

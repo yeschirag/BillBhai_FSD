@@ -150,7 +150,7 @@ const UI = (() => {
                 <div class="prod-img">${p.image}</div>
                 <div class="prod-info">
                     <div class="prod-name">${p.name} (${defaultOpt.label})</div>
-                    <div class="prod-price">₹${defaultOpt.price.toFixed(2)}</div>
+                    <div class="prod-price">\u20B9${defaultOpt.price.toFixed(2)}</div>
                 </div>
             `;
             
@@ -188,7 +188,7 @@ const UI = (() => {
             item.className = 'context-menu-item';
             item.innerHTML = `
                 <span class="cmi-label">${opt.label}</span>
-                <span class="cmi-price">₹${opt.price.toFixed(2)}</span>
+                <span class="cmi-price">\u20B9${opt.price.toFixed(2)}</span>
             `;
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -270,7 +270,7 @@ const UI = (() => {
             row.innerHTML = `
                 <div class="c-info">
                     <div class="c-name">${c.name}</div>
-                    <div class="c-price">₹${(c.price * c.qty).toFixed(2)}</div>
+                    <div class="c-price">\u20B9${(c.price * c.qty).toFixed(2)}</div>
                 </div>
                 <div class="c-actions">
                     <button class="qty-btn dec" data-id="${c.cartId}">-</button>
@@ -346,9 +346,9 @@ const UI = (() => {
 
         const total = subtotal - currentDiscount.discount;
 
-        el.subSpan.textContent = `₹${subtotal.toFixed(2)}`;
-        el.discSpan.textContent = `- ₹${currentDiscount.discount.toFixed(2)}`;
-        el.totSpan.textContent = `₹${total.toFixed(2)}`;
+        el.subSpan.textContent = `\u20B9${subtotal.toFixed(2)}`;
+        el.discSpan.textContent = `- \u20B9${currentDiscount.discount.toFixed(2)}`;
+        el.totSpan.textContent = `\u20B9${total.toFixed(2)}`;
     }
 
     // ── Checkout & Step 3 ────────────────────────────────────────────────
@@ -387,3 +387,4 @@ const UI = (() => {
         setCallbacks: cbs => callbacks = { ...callbacks, ...cbs }
     };
 })();
+

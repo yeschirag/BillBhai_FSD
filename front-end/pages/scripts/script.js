@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
 
     const subtitleEl = document.getElementById('brandSubtitle');
@@ -51,38 +51,73 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'dashboard.html';
     }
 
-    const USERS = {
-        'superuser': { password: 'super123', role: 'Admin', name: 'Legacy Admin Account' },
-        'admin': { password: 'admin123', role: 'Admin', name: 'Store Admin' },
-        'cashier': { password: 'cashier123', role: 'Cashier', name: 'POS Cashier' },
-        'returnhandler': { password: 'return123', role: 'Return Handler', name: 'Returns Desk' },
-        'inventorymanager': { password: 'inventory123', role: 'Inventory Manager', name: 'Inventory Lead' },
-        'deliveryops': { password: 'delivery123', role: 'Delivery Ops', name: 'Delivery Manager' },
-        'customer': { password: 'customer123', role: 'Customer', name: 'Self Checkout User' },
-        'chirag': { password: 'chirag1234', role: 'Super User', name: 'Chirag' }
+    const DEFAULT_AUTH_CONFIG = {
+        users: {
+            superuser: { password: 'super123', role: 'Admin', name: 'Legacy Admin Account' },
+            admin: { password: 'admin123', role: 'Admin', name: 'Store Admin' },
+            cashier: { password: 'cashier123', role: 'Cashier', name: 'POS Cashier' },
+            returnhandler: { password: 'return123', role: 'Return Handler', name: 'Returns Desk' },
+            inventorymanager: { password: 'inventory123', role: 'Inventory Manager', name: 'Inventory Lead' },
+            deliveryops: { password: 'delivery123', role: 'Delivery Ops', name: 'Delivery Manager' },
+            customer: { password: 'customer123', role: 'Customer', name: 'Self Checkout User' },
+            chirag: { password: 'chirag1234', role: 'Super User', name: 'Chirag' }
+        },
+        aliases: {
+            super: 'superuser',
+            'superuser@billbhai.com': 'superuser',
+            'admin@billbhai.com': 'admin',
+            'cashier@billbhai.com': 'cashier',
+            returns: 'returnhandler',
+            'returnhandler@billbhai.com': 'returnhandler',
+            inventory: 'inventorymanager',
+            'inventorymanager@billbhai.com': 'inventorymanager',
+            delivery: 'deliveryops',
+            'deliveryops@billbhai.com': 'deliveryops',
+            user: 'customer',
+            'customer@billbhai.com': 'customer',
+            'chirag@billbhai.com': 'chirag'
+        }
     };
 
-    const USER_ALIASES = {
-        super: 'superuser',
-        'superuser@billbhai.com': 'superuser',
-        'admin@billbhai.com': 'admin',
-        'cashier@billbhai.com': 'cashier',
-        returns: 'returnhandler',
-        'returnhandler@billbhai.com': 'returnhandler',
-        inventory: 'inventorymanager',
-        'inventorymanager@billbhai.com': 'inventorymanager',
-        delivery: 'deliveryops',
-        'deliveryops@billbhai.com': 'deliveryops',
-        user: 'customer',
-        'customer@billbhai.com': 'customer',
-        'chirag@billbhai.com': 'chirag'
+    let authConfig = {
+        users: { ...DEFAULT_AUTH_CONFIG.users },
+        aliases: { ...DEFAULT_AUTH_CONFIG.aliases }
     };
+
+    async function loadAuthConfig() {
+        try {
+            const response = await fetch('data/auth_users.json', { cache: 'no-store' });
+            if (!response.ok) return;
+
+            const parsed = await response.json();
+            if (!parsed || typeof parsed !== 'object') return;
+
+            const users = parsed.users && typeof parsed.users === 'object' && !Array.isArray(parsed.users)
+                ? parsed.users
+                : DEFAULT_AUTH_CONFIG.users;
+            const aliases = parsed.aliases && typeof parsed.aliases === 'object' && !Array.isArray(parsed.aliases)
+                ? parsed.aliases
+                : DEFAULT_AUTH_CONFIG.aliases;
+
+            authConfig = {
+                users: { ...users },
+                aliases: { ...aliases }
+            };
+        } catch (err) {
+            authConfig = {
+                users: { ...DEFAULT_AUTH_CONFIG.users },
+                aliases: { ...DEFAULT_AUTH_CONFIG.aliases }
+            };
+        }
+    }
+
+    await loadAuthConfig();
 
     function resolveUserKey(input) {
         const normalized = String(input || '').trim().toLowerCase();
         if (!normalized) return '';
-        if (Object.prototype.hasOwnProperty.call(USERS, normalized)) return normalized;
-        return USER_ALIASES[normalized] || '';
+        if (Object.prototype.hasOwnProperty.call(authConfig.users, normalized)) return normalized;
+        return authConfig.aliases[normalized] || '';
     }
 
     function resolveScopedBusinessId() {
@@ -119,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!u) { const g = document.getElementById('usernameGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (!p) { const g = document.getElementById('passwordGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (err) return;
-        if (!Object.prototype.hasOwnProperty.call(USERS, u) || USERS[u].password !== p) {
+        if (!Object.prototype.hasOwnProperty.call(authConfig.users, u) || authConfig.users[u].password !== p) {
             const pg = document.getElementById('passwordGroup');
             pg.classList.add('error', 'shake');
             pg.addEventListener('animationend', () => pg.classList.remove('shake'), { once: true });
@@ -128,14 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Store session state
-        localStorage.setItem('userRole', USERS[u].role);
-        localStorage.setItem('userName', USERS[u].name);
-        const normalizedRole = normalizeRole(USERS[u].role);
+        localStorage.setItem('userRole', authConfig.users[u].role);
+        localStorage.setItem('userName', authConfig.users[u].name);
+        const normalizedRole = normalizeRole(authConfig.users[u].role);
 
         // Tenant context:
         // - Operational roles are scoped to exactly one business.
         // - Super User chooses a business from the portal when needed.
-        const businessScopedRoles = ['admin', 'inventorymanager', 'deliveryops', 'returnhandler'];
+        const businessScopedRoles = ['admin', 'cashier', 'inventorymanager', 'deliveryops', 'returnhandler'];
         if (businessScopedRoles.includes(normalizedRole)) {
             localStorage.setItem('activeBusinessId', resolveScopedBusinessId());
             localStorage.removeItem('activeBusinessName');
@@ -145,14 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         localStorage.setItem('currentUser', JSON.stringify({
             username: u,
-            name: USERS[u].name,
+            name: authConfig.users[u].name,
             role: normalizedRole
         }));
 
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
             btnLogin.classList.remove('loading'); btnLogin.classList.add('success');
-            setTimeout(() => { window.location.href = routeByRole(USERS[u].role); }, 800);
+            setTimeout(() => { window.location.href = routeByRole(authConfig.users[u].role); }, 800);
         }, 1800);
     });
 

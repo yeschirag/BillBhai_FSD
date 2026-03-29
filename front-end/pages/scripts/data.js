@@ -1,6 +1,7 @@
 /**
- * data.js - Core POS Data Store
- * Loads editable cashier catalog/promos from JSON and persists created orders.
+ * data.js - Core POS data store
+ * Loads editable cashier catalog/promos from JSON and syncs POS orders into
+ * the same local business datasets used by the admin dashboards.
  */
 
 const DataStore = (() => {
@@ -8,17 +9,20 @@ const DataStore = (() => {
 
     const STORAGE_KEY = 'bb_pos_orders';
     const CASHIER_DATA_PATH = 'data/cashier_data.json';
+    const LIVE_SYNC_KEY = 'bb_live_sync_event';
+    const LIVE_SYNC_CHANNEL = 'bb_live_sync';
+    const syncSourceId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const DEFAULT_CATALOG = [
-        { id: 'P001', name: 'Basmati Rice', category: 'Groceries', image: 'R', options: [{ label: '1kg', price: 85 }, { label: '2kg', price: 160 }, { label: '5kg', price: 380 }] },
-        { id: 'P002', name: 'Toor Dal', category: 'Groceries', image: 'D', options: [{ label: '500g', price: 65 }, { label: '1kg', price: 120 }, { label: '2kg', price: 230 }] },
-        { id: 'P003', name: 'Refined Oil', category: 'Groceries', image: 'O', options: [{ label: '500ml', price: 80 }, { label: '1L', price: 155 }, { label: '5L', price: 750 }] },
-        { id: 'P004', name: 'Amul Butter', category: 'Dairy', image: 'B', options: [{ label: '100g', price: 60 }, { label: '500g', price: 275 }] },
-        { id: 'P005', name: 'Milk', category: 'Dairy', image: 'M', options: [{ label: '500ml', price: 32 }, { label: '1L', price: 60 }] },
-        { id: 'P006', name: 'Bread Loaf', category: 'Snacks', image: 'L', options: [{ label: 'Regular', price: 45 }, { label: 'Family Pack', price: 80 }] },
-        { id: 'P007', name: 'Maggi Noodles', category: 'Snacks', image: 'N', options: [{ label: 'Single', price: 14 }, { label: 'Pack of 4', price: 54 }, { label: 'Pack of 12', price: 168 }] },
-        { id: 'P008', name: 'Tea Powder', category: 'Beverages', image: 'T', options: [{ label: '250g', price: 160 }, { label: '500g', price: 310 }] },
-        { id: 'P009', name: 'Coffee Jar', category: 'Beverages', image: 'C', options: [{ label: '50g', price: 95 }, { label: '100g', price: 180 }] }
+        { id: 'P001', name: 'Basmati Rice', category: 'Groceries', image: '🍚', options: [{ label: '1kg', price: 85 }, { label: '2kg', price: 160 }, { label: '5kg', price: 380 }] },
+        { id: 'P002', name: 'Toor Dal', category: 'Groceries', image: '🫘', options: [{ label: '500g', price: 65 }, { label: '1kg', price: 120 }, { label: '2kg', price: 230 }] },
+        { id: 'P003', name: 'Refined Oil', category: 'Groceries', image: '🛢️', options: [{ label: '500ml', price: 80 }, { label: '1L', price: 155 }, { label: '5L', price: 750 }] },
+        { id: 'P004', name: 'Amul Butter', category: 'Dairy', image: '🧈', options: [{ label: '100g', price: 60 }, { label: '500g', price: 275 }] },
+        { id: 'P005', name: 'Milk', category: 'Dairy', image: '🥛', options: [{ label: '500ml', price: 32 }, { label: '1L', price: 60 }] },
+        { id: 'P006', name: 'Bread Loaf', category: 'Snacks', image: '🍞', options: [{ label: 'Regular', price: 45 }, { label: 'Family Pack', price: 80 }] },
+        { id: 'P007', name: 'Maggi Noodles', category: 'Snacks', image: '🍜', options: [{ label: 'Single', price: 14 }, { label: 'Pack of 4', price: 54 }, { label: 'Pack of 12', price: 168 }] },
+        { id: 'P008', name: 'Tea Powder', category: 'Beverages', image: '🍵', options: [{ label: '250g', price: 160 }, { label: '500g', price: 310 }] },
+        { id: 'P009', name: 'Coffee Jar', category: 'Beverages', image: '☕', options: [{ label: '50g', price: 95 }, { label: '100g', price: 180 }] }
     ];
 
     const DEFAULT_PROMOS = {
@@ -32,6 +36,22 @@ const DataStore = (() => {
 
     function clone(value) {
         return JSON.parse(JSON.stringify(value));
+    }
+
+    function loadStoredValue(key, fallback, expectArray) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return expectArray ? clone(fallback) : { ...fallback };
+            const parsed = JSON.parse(raw);
+            if (expectArray) return Array.isArray(parsed) ? parsed : clone(fallback);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : { ...fallback };
+        } catch (err) {
+            return expectArray ? clone(fallback) : { ...fallback };
+        }
+    }
+
+    function saveOrders() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
     }
 
     async function loadCashierDataFromJson() {
@@ -54,6 +74,127 @@ const DataStore = (() => {
         }
     }
 
+    function resolveBusinessContext() {
+        const fallbackId = 'BIZ-101';
+        const currentScopedId = String(localStorage.getItem('activeBusinessId') || '').trim();
+        const currentScopedName = String(localStorage.getItem('activeBusinessName') || '').trim();
+        const businesses = loadStoredValue('bb_businesses', [], true);
+        const normalizedBusinesses = businesses.filter(item => item && typeof item === 'object');
+        const validCurrent = currentScopedId && normalizedBusinesses.find(item => String(item.id || '').trim() === currentScopedId);
+        const fallbackBusiness = normalizedBusinesses[0] || { id: fallbackId, name: 'FreshKart Central' };
+        const activeBusiness = validCurrent || fallbackBusiness;
+
+        return {
+            id: String(activeBusiness.id || currentScopedId || fallbackId).trim() || fallbackId,
+            name: String(activeBusiness.name || currentScopedName || 'FreshKart Central').trim() || 'FreshKart Central'
+        };
+    }
+
+    function normalizeInventoryStatus(stockValue) {
+        const stock = Math.max(0, Number(stockValue) || 0);
+        if (stock <= 0) return 'Out of Stock';
+        if (stock <= 10) return 'Critical';
+        if (stock <= 30) return 'Low Stock';
+        return 'In Stock';
+    }
+
+    function publishDataSync(domains, businessId) {
+        const payload = {
+            sourceId: syncSourceId,
+            at: new Date().toISOString(),
+            businessId: String(businessId || '').trim(),
+            domains: Array.isArray(domains) ? domains : []
+        };
+
+        try {
+            localStorage.setItem(LIVE_SYNC_KEY, JSON.stringify(payload));
+        } catch (err) {
+            // localStorage sync is best-effort only.
+        }
+
+        try {
+            const channel = new BroadcastChannel(LIVE_SYNC_CHANNEL);
+            channel.postMessage(payload);
+            channel.close();
+        } catch (err) {
+            // BroadcastChannel is optional in older browsers.
+        }
+    }
+
+    function buildOperationalOrder(order, cartItems) {
+        return {
+            id: order.id,
+            customer: order.customer,
+            items: cartItems.reduce((sum, item) => sum + (Math.max(1, Number(item.qty) || 1)), 0),
+            total: order.total,
+            payment: order.paymentMethod || 'Pending',
+            status: order.status || 'Processing',
+            date: order.date
+        };
+    }
+
+    function applyInventoryAdjustments(inventoryRows, cartItems) {
+        if (!Array.isArray(inventoryRows)) return;
+
+        cartItems.forEach(item => {
+            const baseName = String(item && item.name || '').split(' (')[0].trim().toLowerCase();
+            if (!baseName) return;
+
+            const inventoryItem = inventoryRows.find(row => String(row && row.name || '').trim().toLowerCase() === baseName);
+            if (!inventoryItem) return;
+
+            const qty = Math.max(1, Number(item && item.qty) || 1);
+            inventoryItem.stock = Math.max(0, Number(inventoryItem.stock || 0) - qty);
+            inventoryItem.status = normalizeInventoryStatus(inventoryItem.stock);
+        });
+    }
+
+    function syncScopedOperationalData(order, cartItems) {
+        const businessContext = resolveBusinessContext();
+        const operationalStore = loadStoredValue('bb_business_data', {}, false);
+        const scoped = operationalStore[businessContext.id] && typeof operationalStore[businessContext.id] === 'object'
+            ? operationalStore[businessContext.id]
+            : { orders: [], inventory: [], deliveries: [], returns: [], users: [] };
+
+        const scopedOrders = Array.isArray(scoped.orders) ? scoped.orders : [];
+        const scopedInventory = Array.isArray(scoped.inventory) ? scoped.inventory : [];
+
+        scopedOrders.unshift(buildOperationalOrder(order, cartItems));
+        applyInventoryAdjustments(scopedInventory, cartItems);
+
+        operationalStore[businessContext.id] = {
+            ...scoped,
+            orders: scopedOrders,
+            inventory: scopedInventory
+        };
+
+        localStorage.setItem('bb_business_data', JSON.stringify(operationalStore));
+        localStorage.setItem('activeBusinessId', businessContext.id);
+        localStorage.setItem('activeBusinessName', businessContext.name);
+        publishDataSync(['orders', 'inventory'], businessContext.id);
+    }
+
+    function syncTopLevelFallback(order, cartItems) {
+        const storedOrders = loadStoredValue('bb_orders', [], true);
+        const storedInventory = loadStoredValue('bb_inventory', [], true);
+
+        storedOrders.unshift(buildOperationalOrder(order, cartItems));
+        applyInventoryAdjustments(storedInventory, cartItems);
+
+        localStorage.setItem('bb_orders', JSON.stringify(storedOrders));
+        localStorage.setItem('bb_inventory', JSON.stringify(storedInventory));
+        publishDataSync(['orders', 'inventory'], '');
+    }
+
+    function syncOperationalData(order, cartItems) {
+        const businessContext = resolveBusinessContext();
+        if (businessContext.id) {
+            syncScopedOperationalData(order, cartItems);
+        } else {
+            syncTopLevelFallback(order, cartItems);
+        }
+    }
+
     async function init() {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
@@ -68,25 +209,21 @@ const DataStore = (() => {
         await loadCashierDataFromJson();
     }
 
-    function save() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-    }
-
     function getCategories() {
-        const cats = new Set(catalog.map(p => p.category));
-        return ['All', ...Array.from(cats)];
+        const categories = new Set(catalog.map(product => product.category));
+        return ['All', ...Array.from(categories)];
     }
 
     function searchCatalog(query, category) {
         let results = catalog;
         if (category && category !== 'All') {
-            results = results.filter(p => p.category === category);
+            results = results.filter(product => product.category === category);
         }
         if (query) {
-            const q = query.toLowerCase();
-            results = results.filter(p =>
-                String(p.name || '').toLowerCase().includes(q) ||
-                String(p.category || '').toLowerCase().includes(q)
+            const normalizedQuery = query.toLowerCase();
+            results = results.filter(product =>
+                String(product.name || '').toLowerCase().includes(normalizedQuery) ||
+                String(product.category || '').toLowerCase().includes(normalizedQuery)
             );
         }
         return results;
@@ -118,25 +255,35 @@ const DataStore = (() => {
             id: generateId(),
             customer: customerData.name,
             phone: customerData.phone,
-            items: cartItems.map(c => ({
-                id: c.id,
-                name: c.name,
-                price: c.price,
-                qty: c.qty
+            items: cartItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                qty: item.qty
             })),
-            subtotal: cartItems.reduce((sum, c) => sum + (c.price * c.qty), 0),
+            subtotal: cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0),
             discount: discountApplied.active ? discountApplied.discount : 0,
             promoCode: discountApplied.active ? discountApplied.code : null,
             total: 0,
             status: 'Processing',
-            paymentMethod: 'Awaiting Gateway',
+            paymentMethod: 'Pending',
             date: new Date().toISOString()
         };
 
         order.total = order.subtotal - order.discount;
         orders.unshift(order);
-        save();
+        saveOrders();
+        syncOperationalData(order, cartItems);
         return order;
+    }
+
+    function getSessionContext() {
+        const businessContext = resolveBusinessContext();
+        return {
+            businessId: businessContext.id,
+            businessName: businessContext.name,
+            userName: String(localStorage.getItem('userName') || 'Cashier').trim() || 'Cashier'
+        };
     }
 
     return {
@@ -144,6 +291,7 @@ const DataStore = (() => {
         getCategories,
         searchCatalog,
         applyPromo,
-        createOrder
+        createOrder,
+        getSessionContext
     };
 })();

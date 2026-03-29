@@ -1,30 +1,34 @@
 /**
- * app.js — Main POS Application Coordinator
+ * app.js - Main POS application coordinator
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
     'use strict';
 
-    // Initialize mock database
     await DataStore.init();
 
-    // Hook UI to Data actions
+    const session = DataStore.getSessionContext();
+    const userNameEl = document.querySelector('.user-name');
+    const userRoleEl = document.querySelector('.user-role');
+    const avatarEl = document.querySelector('.user-avatar');
+    const appLabelEl = document.querySelector('.bc-app');
+
+    if (userNameEl) userNameEl.textContent = session.userName;
+    if (userRoleEl) userRoleEl.textContent = session.businessName;
+    if (avatarEl) avatarEl.textContent = session.userName.charAt(0).toUpperCase();
+    if (appLabelEl && session.businessName) appLabelEl.textContent = session.businessName;
+
     UI.setCallbacks({
         onCheckout: (dataPayload) => {
-            // Once user triggers "Proceed to Payment",
-            // We finalize the cart into the background DB.
             const newOrder = DataStore.createOrder(
-                dataPayload.customer, 
-                dataPayload.cart, 
+                dataPayload.customer,
+                dataPayload.cart,
                 dataPayload.discount
             );
-            
-            // In a real scenario, this is where we redirect to Stripe/Razorpay gateway.
-            // On completion, their webhook handles Status = Paid.
-            console.log("Simulating Gateway redirect for Order:", newOrder);
+
+            console.log('Simulating gateway redirect for order:', newOrder);
         }
     });
 
-    // Boot UI wizard
     UI.init();
 });

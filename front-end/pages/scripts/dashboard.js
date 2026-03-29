@@ -624,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Some roles should always be scoped to a business (defaults to first business or BIZ-101).
     // - admin: full owner access within one business
     // - deliveryops / returnhandler / inventorymanager: operational access within one business
-    if (activeRoleKey === 'admin' || activeRoleKey === 'deliveryops' || activeRoleKey === 'returnhandler' || activeRoleKey === 'inventorymanager') {
+    if (activeRoleKey === 'admin' || activeRoleKey === 'cashier' || activeRoleKey === 'deliveryops' || activeRoleKey === 'returnhandler' || activeRoleKey === 'inventorymanager') {
         const fallbackBusinessId = String((businesses[0] && businesses[0].id) || 'BIZ-101').trim();
         const hasValidBusiness = activeBusinessId && businesses.some(b => b.id === activeBusinessId);
         if (!hasValidBusiness) {
@@ -917,7 +917,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const jsonUsers = await loadJsonArray('data/users.json', defaultUsers);
         const jsonBusinessesRaw = await loadJsonArray('data/businesses.json', defaultBusinesses);
         const jsonBusinessData = await loadJsonObject('data/business_data.json', {});
+        const jsonNotifications = await loadJsonArray('data/notifications.json', DEFAULT_NOTIFICATIONS);
         const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(b, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name));
+        notificationsList = cloneRows(jsonNotifications);
+        renderNotificationDropdown();
 
         businesses.splice(0, businesses.length, ...jsonBusinesses);
         saveList('bb_businesses', businesses);
@@ -982,7 +985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         persistOperationalData({ silentSync: true });
     }
 
-    const notificationsList = [
+    const DEFAULT_NOTIFICATIONS = [
         {
             id: 'NOTIF-001',
             title: 'New Order #4821 Received',
@@ -991,6 +994,8 @@ document.addEventListener('DOMContentLoaded', () => {
             desc: 'Order contains 3 items. Total: ₹1250 (Paid via UPI).',
             icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>',
             color: 'blue',
+            iconKey: 'order',
+            unread: true,
             changes: [
                 { file: 'orders/status', old: 'Pending', new: 'Processing' },
                 { file: 'payment/log', old: 'null', new: 'Transaction #TXN-89A (UPI)' }
@@ -1004,12 +1009,86 @@ document.addEventListener('DOMContentLoaded', () => {
             desc: 'SKU-05 stock level has fallen below threshold. Current stock: 5 units.',
             icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>',
             color: 'red',
+            iconKey: 'alert',
+            unread: true,
             changes: [
                 { file: 'inventory/SKU-05/quantity', old: '15', new: '5' },
                 { file: 'inventory/SKU-05/status', old: 'In Stock', new: 'Low Stock' }
             ]
+        },
+        {
+            id: 'NOTIF-003',
+            title: 'Delivery Completed',
+            type: 'delivery',
+            time: '30 mins ago',
+            desc: 'ORD-4819 was delivered successfully to Amit Kumar.',
+            color: 'green',
+            iconKey: 'delivery',
+            unread: false,
+            changes: [
+                { file: 'deliveries/DEL-899/status', old: 'In Transit', new: 'Delivered' }
+            ]
+        },
+        {
+            id: 'NOTIF-004',
+            title: 'Return Request #RET-108',
+            type: 'return',
+            time: '1 hour ago',
+            desc: 'Suresh Iyer requested a return for Ghee 500ml due to leaking packaging.',
+            color: 'amber',
+            iconKey: 'return',
+            unread: false,
+            changes: [
+                { file: 'returns/RET-108/status', old: 'Closed', new: 'Pending' }
+            ]
         }
     ];
+
+    let notificationsList = cloneRows(DEFAULT_NOTIFICATIONS);
+
+    function getNotificationIcon(notification) {
+        const iconKey = String(notification && notification.iconKey || '').trim().toLowerCase();
+        if (iconKey === 'alert') return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>';
+        if (iconKey === 'delivery') return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>';
+        if (iconKey === 'return') return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
+        if (iconKey === 'user') return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>';
+        if (iconKey === 'payment') return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+        return notification && notification.icon
+            ? notification.icon
+            : '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>';
+    }
+
+    function renderNotificationDropdown() {
+        if (!notifDropdown) return;
+        const unreadCount = notificationsList.filter(n => !!n.unread).length;
+        const previewItems = notificationsList.slice(0, 3);
+
+        notifDropdown.innerHTML = `
+            <div class="dropdown-header">
+                <strong>Notifications</strong>
+                <div class="text-sm text-muted">${unreadCount ? `You have ${unreadCount} new notifications` : 'All caught up'}</div>
+            </div>
+            ${previewItems.map(n => `
+                <div class="dropdown-item" style="align-items:flex-start; cursor:default;">
+                    <div style="background: var(--${n.color || 'blue'}-bg); color: var(--${n.color || 'blue'}); padding: 6px; border-radius: 6px; margin-right: 4px;">
+                        ${getNotificationIcon(n)}
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-primary);">${n.title}</div>
+                        <div class="text-sm text-muted">${n.time}</div>
+                    </div>
+                </div>
+            `).join('')}
+            <div class="dropdown-divider"></div>
+            <a href="notifications.html" class="dropdown-item nav-item" data-page="notifications" style="justify-content:center;font-weight:500;color:var(--accent);">View all notifications</a>
+        `;
+
+        document.querySelectorAll('.notif-dot').forEach(dot => {
+            dot.style.display = unreadCount ? '' : 'none';
+        });
+    }
+
+    renderNotificationDropdown();
 
     // Helpers
     function badge(txt, type) { return `<span class="badge b-${type}">${txt}</span>`; }
@@ -1109,30 +1188,96 @@ document.addEventListener('DOMContentLoaded', () => {
         return inferred;
     }
 
+    function startOfDay(date) {
+        const day = new Date(date);
+        day.setHours(0, 0, 0, 0);
+        return day;
+    }
+
+    function startOfWeek(date) {
+        const week = startOfDay(date);
+        const day = week.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        week.setDate(week.getDate() + diff);
+        return week;
+    }
+
+    function getOrderTimelineEntries() {
+        return orders
+            .map(order => {
+                const parsed = parseOrderDate(order && order.date);
+                if (!parsed) return null;
+                return {
+                    date: parsed,
+                    total: Math.max(0, Number(order && order.total) || 0)
+                };
+            })
+            .filter(Boolean);
+    }
+
     function buildRevenueTrendDays(dayCount) {
         const count = Math.max(1, Number(dayCount) || 7);
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-
+        const now = startOfDay(new Date());
         const labels = [];
         const values = [];
         const totalsByDay = new Map();
+        const timelineEntries = getOrderTimelineEntries();
 
-        orders.forEach(order => {
-            const parsed = parseOrderDate(order && order.date);
-            if (!parsed) return;
-            const dayStart = new Date(parsed);
-            dayStart.setHours(0, 0, 0, 0);
+        timelineEntries.forEach(entry => {
+            const dayStart = startOfDay(entry.date);
             const key = dayStart.toISOString().slice(0, 10);
-            totalsByDay.set(key, (totalsByDay.get(key) || 0) + (Number(order && order.total) || 0));
+            totalsByDay.set(key, (totalsByDay.get(key) || 0) + entry.total);
         });
 
+        let anchorDay = new Date(now);
+        if (timelineEntries.length) {
+            const currentWindowStart = new Date(now);
+            currentWindowStart.setDate(now.getDate() - (count - 1));
+            const hasRecentData = timelineEntries.some(entry => startOfDay(entry.date).getTime() >= currentWindowStart.getTime());
+            if (!hasRecentData) {
+                anchorDay = startOfDay(
+                    timelineEntries.reduce((latest, entry) => (entry.date > latest ? entry.date : latest), timelineEntries[0].date)
+                );
+            }
+        }
+
         for (let offset = count - 1; offset >= 0; offset -= 1) {
-            const day = new Date(now);
-            day.setDate(now.getDate() - offset);
+            const day = new Date(anchorDay);
+            day.setDate(anchorDay.getDate() - offset);
             const key = day.toISOString().slice(0, 10);
             labels.push(day.toLocaleDateString('en-US', { weekday: 'short' }));
             values.push(Math.round(totalsByDay.get(key) || 0));
+        }
+
+        return { labels, values };
+    }
+
+    function buildRevenueTrendWeeks(weekCount) {
+        const count = Math.max(1, Number(weekCount) || 4);
+        const timelineEntries = getOrderTimelineEntries();
+        const totalsByWeek = new Map();
+
+        timelineEntries.forEach(entry => {
+            const weekStart = startOfWeek(entry.date);
+            const key = weekStart.toISOString().slice(0, 10);
+            totalsByWeek.set(key, (totalsByWeek.get(key) || 0) + entry.total);
+        });
+
+        let anchorWeek = startOfWeek(new Date());
+        if (timelineEntries.length) {
+            anchorWeek = startOfWeek(
+                timelineEntries.reduce((latest, entry) => (entry.date > latest ? entry.date : latest), timelineEntries[0].date)
+            );
+        }
+
+        const labels = [];
+        const values = [];
+        for (let offset = count - 1; offset >= 0; offset -= 1) {
+            const weekStart = new Date(anchorWeek);
+            weekStart.setDate(anchorWeek.getDate() - (offset * 7));
+            const key = weekStart.toISOString().slice(0, 10);
+            labels.push(weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            values.push(Math.round(totalsByWeek.get(key) || 0));
         }
 
         return { labels, values };
@@ -1201,6 +1346,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 updatedAt
             };
         });
+    }
+
+    function getRecentProfileActivity() {
+        const items = [];
+
+        const latestOrder = orders
+            .map(order => ({ order, timestamp: parseOrderDate(order && order.date) }))
+            .filter(entry => entry.timestamp)
+            .sort((a, b) => b.timestamp - a.timestamp)[0];
+        if (latestOrder) {
+            items.push({
+                time: latestOrder.order.date,
+                text: `Processed order <strong>#${latestOrder.order.id}</strong> for ${latestOrder.order.customer}`
+            });
+        }
+
+        const latestReturn = returns
+            .map(item => ({ item, timestamp: parseOrderDate(item && item.updatedAt) }))
+            .filter(entry => entry.timestamp)
+            .sort((a, b) => b.timestamp - a.timestamp)[0];
+        if (latestReturn) {
+            items.push({
+                time: latestReturn.item.updatedAt,
+                text: `Updated return <strong>#${latestReturn.item.id}</strong> to ${latestReturn.item.status}`
+            });
+        }
+
+        const latestDelivery = deliveries
+            .map(item => ({ item, timestamp: parseOrderDate(item && (item.updatedAt || item.time)) }))
+            .filter(entry => entry.timestamp)
+            .sort((a, b) => b.timestamp - a.timestamp)[0];
+        if (latestDelivery) {
+            items.push({
+                time: latestDelivery.item.updatedAt || latestDelivery.item.time,
+                text: `Checked delivery <strong>#${latestDelivery.item.id}</strong> - ${normalizeDeliveryStatus(latestDelivery.item.status)}`
+            });
+        }
+
+        const alertItem = inventory
+            .map(item => ({
+                item,
+                stock: Math.max(0, Number(item && item.stock) || 0),
+                status: normalizeInventoryStatus(item && item.status, item && item.stock)
+            }))
+            .filter(entry => entry.status !== 'In Stock')
+            .sort((a, b) => a.stock - b.stock)[0];
+        if (alertItem) {
+            items.push({
+                time: 'Current inventory snapshot',
+                text: `Reviewed stock alert for <strong>${alertItem.item.name}</strong> (${alertItem.status})`
+            });
+        }
+
+        return items.slice(0, 4);
     }
 
     // Page Renderers
@@ -2152,6 +2351,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderProfile() {
+        const currentUser = loadObject('currentUser', {});
+        const profileName = String(localStorage.getItem('userName') || currentUser.name || 'User').trim() || 'User';
+        const profileRole = ROLE_LABELS[activeRoleKey] || 'Team Member';
+        const rawUsername = String(currentUser.username || '').trim();
+        const profileEmail = rawUsername && rawUsername.includes('@')
+            ? rawUsername
+            : `${rawUsername || activeRoleKey}@billbhai.com`;
+        const activityItems = getRecentProfileActivity();
+
         content.innerHTML = `
         <div class="page-header"><h2>My Profile</h2></div>
         <section class="grid-2">
@@ -2207,6 +2415,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         </section>`;
+
+        const profileCardBody = content.querySelector('.card .card-bd');
+        const profileTitle = profileCardBody ? profileCardBody.querySelector('h3') : null;
+        const profileMeta = profileCardBody ? profileCardBody.querySelector('p.text-muted') : null;
+        const avatar = profileCardBody ? profileCardBody.querySelector('div[style*="width: 80px"]') : null;
+        if (avatar) avatar.textContent = profileName.charAt(0).toUpperCase();
+        if (profileTitle) profileTitle.textContent = profileName;
+        if (profileMeta) profileMeta.textContent = `${profileRole} | ${profileEmail}`;
+
+        const timeline = content.querySelector('.timeline');
+        if (timeline && activityItems.length) {
+            timeline.innerHTML = activityItems.map(item => `
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-time">${item.time}</div>
+                    <div class="timeline-content">${item.text}</div>
+                </div>
+            `).join('');
+        }
     }
 
     function renderSettings() {
@@ -2256,7 +2483,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="card-bd" style="padding: 0;">
                 ${notificationsList.map(n => `
                 <div class="notif-item" onclick="renderNotificationDetail('${n.id}')" style="display: flex; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--border); align-items: flex-start; cursor: pointer; transition: background 0.2s;">
-                    <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 10px; border-radius: 8px; flex-shrink: 0;">${n.icon}</div>
+                    <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 10px; border-radius: 8px; flex-shrink: 0;">${getNotificationIcon(n)}</div>
                     <div style="flex: 1;">
                         <div style="font-weight: 600; color: var(--text-primary); transition: color 0.2s;">${n.title}</div>
                         <div class="text-sm text-muted" style="margin-top: 2px;">${n.desc}</div>
@@ -2272,7 +2499,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!n) return;
 
         let diffHtml = '';
-        n.changes.forEach(c => {
+        const changes = Array.isArray(n.changes) ? n.changes : [];
+        changes.forEach(c => {
             diffHtml += `
             <div style="margin-bottom: 24px;">
                 <div style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border);">
@@ -2285,6 +2513,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
         });
 
+        if (!diffHtml) {
+            diffHtml = '<div class="text-muted">No structured diff is attached to this notification.</div>';
+        }
+
         content.innerHTML = `
         <div class="page-header" style="justify-content: flex-start; gap: 16px;">
             <button class="btn btn-outline" style="padding: 8px;" onclick="document.querySelector('.nav-item[data-page=\\'notifications\\']').click()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
@@ -2292,7 +2524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="card" style="margin-bottom: 24px;">
             <div class="card-bd" style="display: flex; gap: 16px; align-items: flex-start;">
-                <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 14px; border-radius: 8px; flex-shrink: 0;">${n.icon}</div>
+                <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 14px; border-radius: 8px; flex-shrink: 0;">${getNotificationIcon(n)}</div>
                 <div>
                     <h3 style="margin-bottom: 4px; font-size: 1.2rem;">${n.title}</h3>
                     <div style="color: var(--text-muted); margin-bottom: 12px;">ID: ${n.id} • ${n.time}</div>
@@ -2552,9 +2784,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initReportCharts() {
         const c = getColors();
+        const trend = buildRevenueTrendWeeks(4);
         createChart('repRevChart', 'line', {
-            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-            datasets: [{ label: 'Projected Revenue', data: [120000, 145000, 138000, 160000], borderColor: c.blue, backgroundColor: 'rgba(100,181,246,0.1)', fill: true }]
+            labels: trend.labels,
+            datasets: [{
+                label: 'Revenue',
+                data: trend.values,
+                borderColor: c.blue,
+                backgroundColor: 'rgba(100,181,246,0.1)',
+                tension: 0.35,
+                fill: true
+            }]
         });
     }
 
