@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     // Logo is always dark mode
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
     if (sidebarLogo) sidebarLogo.src = 'public/logo.png';
@@ -740,7 +740,7 @@
             title: 'New Order #4821 Received',
             type: 'order',
             time: '2 mins ago',
-            desc: 'Order contains 3 items. Total: â‚¹1250 (Paid via UPI).',
+            desc: 'Order contains 3 items. Total: ₹1250 (Paid via UPI).',
             icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>',
             color: 'blue',
             changes: [
@@ -798,7 +798,7 @@
         content.innerHTML = `
         <div class="page-header"><h2>Dashboard${scopedName ? ` - ${scopedName}` : ''}</h2><div class="page-header-actions"><button class="btn btn-outline" onclick="window.print()">Print</button></div></div>
         <section class="stats-grid">
-            <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Revenue</span><span class="stat-value">â‚¹${totalSales.toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-info"><span class="stat-label">Revenue</span><span class="stat-value">₹${totalSales.toLocaleString()}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div><div class="stat-info"><span class="stat-label">Orders</span><span class="stat-value">${orders.length}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div><div class="stat-info"><span class="stat-label">Returns</span><span class="stat-value">${returns.length}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-info"><span class="stat-label">Alerts</span><span class="stat-value">${inventory.filter(i => i.status !== 'In Stock').length}</span></div></div>
@@ -809,7 +809,7 @@
         </section>
         <section class="card"><div class="card-hd"><h3>Recent Orders</h3></div><div class="card-bd">${table(
             ['ID', 'Customer', 'Total', 'Payment', 'Status'],
-            orders.slice(0, 5).map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>â‚¹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td></tr>`).join('')
+            orders.slice(0, 5).map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initDashboardCharts, 0);
     }
@@ -819,7 +819,7 @@
         <div class="page-header"><h2>Orders</h2><div class="page-header-actions"><button class="btn btn-primary" id="newOrderBtnDyn">+ New Order</button></div></div>
         <section class="card"><div class="card-bd">${table(
             ['ID', 'Customer', 'Items', 'Total', 'Payment', 'Status', 'Date', 'Actions'],
-            orders.map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td><td>â‚¹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td><td>${o.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${o.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${o.id}')">Delete</button></td></tr>`).join('')
+            orders.map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td><td>${o.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${o.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${o.id}')">Delete</button></td></tr>`).join('')
         )}</div></section>`;
         const dynBtn = document.getElementById('newOrderBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openNewOrderModal);
@@ -834,7 +834,7 @@
         </section>
         <section class="card"><div class="card-bd">${table(
             ['SKU', 'Product', 'Category', 'Supplier', 'Stock', 'Unit Price', 'Status', 'Actions'],
-            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.supplier || '-'}</td><td>${i.stock}</td><td>â‚¹${i.price}</td><td>${statusBadge(i.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${i.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${i.sku}')">Delete</button></td></tr>`).join('')
+            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.supplier || '-'}</td><td>${i.stock}</td><td>₹${i.price}</td><td>${statusBadge(i.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${i.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${i.sku}')">Delete</button></td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initInventoryCharts, 0);
         // Wire up dynamic Add Product button
@@ -863,7 +863,7 @@
         </section>
         <section class="card"><div class="card-bd">${table(
             ['ID', 'Order', 'Reason', 'Amount', 'Status', 'Requested By', 'Updated', 'Actions'],
-            returns.map(r => `<tr><td class="cell-main">${r.id}</td><td>${r.oid}</td><td>${r.reason}</td><td>â‚¹${r.amount}</td><td>${statusBadge(r.status)}</td><td>${r.requestedBy || '-'}</td><td>${r.updatedAt || '-'}</td><td><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.approveReturn('${r.id}')">Approve</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.refundReturn('${r.id}')">Refund</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.rejectReturn('${r.id}')">Reject</button></td></tr>`).join('')
+            returns.map(r => `<tr><td class="cell-main">${r.id}</td><td>${r.oid}</td><td>${r.reason}</td><td>₹${r.amount}</td><td>${statusBadge(r.status)}</td><td>${r.requestedBy || '-'}</td><td>${r.updatedAt || '-'}</td><td><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.approveReturn('${r.id}')">Approve</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.refundReturn('${r.id}')">Refund</button><button class="btn btn-outline" data-action="returns" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.rejectReturn('${r.id}')">Reject</button></td></tr>`).join('')
         )}</div></section>`;
         setTimeout(initReturnCharts, 0);
         const raiseBtn = document.getElementById('raiseReturnBtnDyn');
@@ -896,11 +896,11 @@
             <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/></svg></div><div class="stat-info"><span class="stat-label">Total Businesses</span><span class="stat-value">${businesses.length}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="stat-info"><span class="stat-label">Active Stores</span><span class="stat-value">${activeCount}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="stat-info"><span class="stat-label">Trial Stores</span><span class="stat-value">${trialCount}</span></div></div>
-            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-info"><span class="stat-label">Pending Payments</span><span class="stat-value">â‚¹${paymentDueTotal.toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-info"><span class="stat-label">Pending Payments</span><span class="stat-value">₹${paymentDueTotal.toLocaleString()}</span></div></div>
         </section>
         <section class="card"><div class="card-hd"><h3>All Client Businesses</h3></div><div class="card-bd">${table(
             ['Business ID', 'Business Name', 'Using BillBhai', 'Stores', 'Profit', 'Payment Due', 'Status', 'Actions'],
-            businesses.map(b => `<tr><td class="cell-main">${b.id}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.openBusinessDetails('${b.id}')">${b.name}</button></td><td>${b.tenureMonths} months</td><td>${b.storesCount}</td><td>â‚¹${Number(b.profit || 0).toLocaleString()}</td><td>â‚¹${Number(b.paymentDue || 0).toLocaleString()}</td><td>${statusBadge(b.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.openBusinessAdminDashboard('${b.id}')">View</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></td></tr>`).join('')
+            businesses.map(b => `<tr><td class="cell-main">${b.id}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.openBusinessDetails('${b.id}')">${b.name}</button></td><td>${b.tenureMonths} months</td><td>${b.storesCount}</td><td>₹${Number(b.profit || 0).toLocaleString()}</td><td>₹${Number(b.paymentDue || 0).toLocaleString()}</td><td>${statusBadge(b.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.openBusinessAdminDashboard('${b.id}')">View</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></td></tr>`).join('')
         )}</div></section>`;
     }
 
@@ -913,15 +913,15 @@
 
         const usersRows = (b.users || []).map((u, idx) => `<tr><td class="cell-main">${u.name}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessUser('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessUser('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
         const storesRows = (b.stores || []).map((s, idx) => `<tr><td class="cell-main">${s.code}</td><td>${s.city}</td><td>${statusBadge(s.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessStore('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessStore('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
-        const paymentRows = (b.payments || []).map((p, idx) => `<tr><td class="cell-main">${p.month}</td><td>â‚¹${Number(p.amount || 0).toLocaleString()}</td><td>${statusBadge(p.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessPayment('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessPayment('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
+        const paymentRows = (b.payments || []).map((p, idx) => `<tr><td class="cell-main">${p.month}</td><td>₹${Number(p.amount || 0).toLocaleString()}</td><td>${statusBadge(p.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusinessPayment('${b.id}', ${idx})">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusinessPayment('${b.id}', ${idx})">Delete</button></td></tr>`).join('');
 
         content.innerHTML = `
         <div class="page-header"><h2>${b.name}</h2><div class="page-header-actions"><button class="btn btn-outline" data-action="businesses" onclick="window.renderBusinessesHome()">Back to Businesses</button><button class="btn btn-outline" data-action="businesses" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></div></div>
         <section class="stats-grid">
             <div class="stat-card"><div class="stat-info"><span class="stat-label">Using BillBhai</span><span class="stat-value">${b.tenureMonths} months</span></div></div>
             <div class="stat-card"><div class="stat-info"><span class="stat-label">Stores</span><span class="stat-value">${b.storesCount}</span></div></div>
-            <div class="stat-card"><div class="stat-info"><span class="stat-label">Profit</span><span class="stat-value">â‚¹${Number(b.profit || 0).toLocaleString()}</span></div></div>
-            <div class="stat-card"><div class="stat-info"><span class="stat-label">Payment Due</span><span class="stat-value">â‚¹${Number(b.paymentDue || 0).toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Profit</span><span class="stat-value">₹${Number(b.profit || 0).toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Payment Due</span><span class="stat-value">₹${Number(b.paymentDue || 0).toLocaleString()}</span></div></div>
         </section>
         <section class="grid-2" style="margin-top: 12px;">
             <div class="card"><div class="card-hd"><h3>Business Profile</h3></div><div class="card-bd"><div class="text-muted" style="display:flex;flex-direction:column;gap:8px;"><div><strong>Owner:</strong> ${b.owner}</div><div><strong>Admin:</strong> ${b.adminName}</div><div><strong>Type:</strong> ${b.type}</div><div><strong>Email:</strong> ${b.email}</div><div><strong>Phone:</strong> ${b.phone}</div><div><strong>Plan:</strong> ${b.productsPlan}</div><div><strong>Status:</strong> ${statusBadge(b.status)}</div></div></div></div>
@@ -986,7 +986,7 @@
              <div class="timeline-item"><div class="timeline-marker"></div><div class="timeline-time">Yesterday, 17:00</div><div class="timeline-content">Finished shift</div></div>`;
         } else if (user.role === 'Sales') {
             activityHtml = `
-             <div class="timeline-item"><div class="timeline-marker"></div><div class="timeline-time">Today, 14:02</div><div class="timeline-content">Created Order <strong>#ORD-4821</strong> for â‚¹1250</div></div>
+             <div class="timeline-item"><div class="timeline-marker"></div><div class="timeline-time">Today, 14:02</div><div class="timeline-content">Created Order <strong>#ORD-4821</strong> for ₹1250</div></div>
              <div class="timeline-item"><div class="timeline-marker"></div><div class="timeline-time">Yesterday, 16:45</div><div class="timeline-content">Processed Return <strong>#RET-201</strong></div></div>
              <div class="timeline-item"><div class="timeline-marker"></div><div class="timeline-time">Yesterday, 10:30</div><div class="timeline-content">Logged in</div></div>`;
         } else {
@@ -1006,7 +1006,7 @@
                     <div class="card-bd" style="text-align: center; padding-top: 30px;">
                         <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--amber)); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; font-weight: 700;">${initial}</div>
                         <h3 style="font-size: 1.2rem; margin-bottom: 4px;">${user.name}</h3>
-                        <p class="text-muted" style="margin-bottom: 8px;">${user.role} â€¢ ${email}</p>
+                        <p class="text-muted" style="margin-bottom: 8px;">${user.role} • ${email}</p>
                         <div style="margin-bottom: 20px;">${statusBadge(user.status)}</div>
                     </div>
                 </div>
@@ -1040,7 +1040,7 @@
                     <div class="card-bd" style="text-align: center; padding-top: 30px;">
                         <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--amber)); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; font-weight: 700;">A</div>
                         <h3 style="font-size: 1.2rem; margin-bottom: 4px;">Admin Demo</h3>
-                        <p class="text-muted" style="margin-bottom: 20px;">Head of Ops â€¢ admindemo@billbhai.com</p>
+                        <p class="text-muted" style="margin-bottom: 20px;">Head of Ops • admindemo@billbhai.com</p>
                         <button class="btn btn-outline" style="width: 100%; justify-content: center;">Edit Profile</button>
                     </div>
                 </div>
@@ -1049,11 +1049,11 @@
                     <div class="card-bd">
                         <div class="form-group">
                             <label class="form-label">Current Password</label>
-                            <input type="password" class="form-control" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+                            <input type="password" class="form-control" placeholder="••••••••">
                         </div>
                         <div class="form-group">
                             <label class="form-label">New Password</label>
-                            <input type="password" class="form-control" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+                            <input type="password" class="form-control" placeholder="••••••••">
                         </div>
                         <button class="btn btn-primary" style="width: 100%; justify-content: center;">Update Password</button>
                     </div>
@@ -1107,7 +1107,7 @@
                     </div>
                     <div class="form-group" style="max-width: 400px;">
                         <label class="form-label">Currency Symbol</label>
-                        <select class="form-control"><option>â‚¹ (INR)</option><option>$ (USD)</option></select>
+                        <select class="form-control"><option>₹ (INR)</option><option>$ (USD)</option></select>
                     </div>
                     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
                         <div style="display: flex; justify-content: space-between; align-items: center; max-width: 400px;">
@@ -1175,7 +1175,7 @@
                 <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 14px; border-radius: 8px; flex-shrink: 0;">${n.icon}</div>
                 <div>
                     <h3 style="margin-bottom: 4px; font-size: 1.2rem;">${n.title}</h3>
-                    <div style="color: var(--text-muted); margin-bottom: 12px;">ID: ${n.id} â€¢ ${n.time}</div>
+                    <div style="color: var(--text-muted); margin-bottom: 12px;">ID: ${n.id} • ${n.time}</div>
                     <p style="color: var(--text-primary);">${n.desc}</p>
                 </div>
             </div>
@@ -1501,7 +1501,7 @@
 
         // Update DOM row if editing, else append
         const statusClass = pData.status === 'In Stock' ? 'b-active' : pData.status === 'Low Stock' ? 'b-pending' : pData.status === 'Critical' ? 'b-cancelled' : 'b-inactive';
-        const trHtml = `<td class="cell-main">${pData.sku}</td><td>${pData.name}</td><td>${pData.cat}</td><td>${pData.supplier}</td><td>${pData.stock}</td><td>â‚¹${pData.price}</td><td><span class="badge ${statusClass}">${pData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${pData.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${pData.sku}')">Delete</button></td>`;
+        const trHtml = `<td class="cell-main">${pData.sku}</td><td>${pData.name}</td><td>${pData.cat}</td><td>${pData.supplier}</td><td>${pData.stock}</td><td>₹${pData.price}</td><td><span class="badge ${statusClass}">${pData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${pData.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${pData.sku}')">Delete</button></td>`;
         
         let existingRow = null;
         document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) existingRow = r; });
@@ -1665,7 +1665,7 @@
 
         const payClass = 'b-' + oData.payment.toLowerCase();
         const statusClass = oData.status === 'Delivered' ? 'b-delivered' : oData.status === 'Processing' ? 'b-processing' : oData.status === 'Pending' ? 'b-pending' : 'b-cancelled';
-        const trHtml = `<td class="cell-main">${oData.id}</td><td>${oData.customer}</td><td>${oData.items}</td><td>â‚¹${oData.total.toLocaleString()}</td><td><span class="badge ${payClass}">${oData.payment}</span></td><td><span class="badge ${statusClass}">${oData.status}</span></td><td>${oData.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${oData.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${oData.id}')">Delete</button></td>`;
+        const trHtml = `<td class="cell-main">${oData.id}</td><td>${oData.customer}</td><td>${oData.items}</td><td>₹${oData.total.toLocaleString()}</td><td><span class="badge ${payClass}">${oData.payment}</span></td><td><span class="badge ${statusClass}">${oData.status}</span></td><td>${oData.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${oData.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${oData.id}')">Delete</button></td>`;
 
         let existingRow = null;
         document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === oid) existingRow = r; });
@@ -2466,4 +2466,3 @@
         renderPage(currentPage);
     })();
 });
-

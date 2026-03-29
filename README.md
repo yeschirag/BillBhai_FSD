@@ -23,7 +23,7 @@ BillBhai is a web-based order and billing management prototype with role-based a
 - Functional modules for Orders, Inventory, Returns, Delivery, Users, Reports, and Profile.
 - Super User business-portfolio overview to see all client businesses using BillBhai products.
 - Super User lands first on Super User Portal (`front-end/pages/superuser.html`) instead of Dashboard.
-- Business and operational data now load from editable JSON files in `front-end/data/`.
+- Business and operational data now load from editable JSON files in `front-end/pages/data/`.
 - Businesses now support in-app CRUD and detail drill-down (view/edit/delete + add business).
 - Inside each business detail page, nested CRUD is available for business users, store locations, and payment history entries.
 - CRUD actions now use compact modal forms/confirmations (no browser prompt/confirm dialogs).
@@ -35,13 +35,13 @@ BillBhai is a web-based order and billing management prototype with role-based a
 
 Update these files directly to control initial app data:
 
-- `front-end/data/orders.json`
-- `front-end/data/inventory.json`
-- `front-end/data/deliveries.json`
-- `front-end/data/returns.json`
-- `front-end/data/users.json`
-- `front-end/data/businesses.json`
-- `front-end/data/business_data.json`
+- `front-end/pages/data/orders.json`
+- `front-end/pages/data/inventory.json`
+- `front-end/pages/data/deliveries.json`
+- `front-end/pages/data/returns.json`
+- `front-end/pages/data/users.json`
+- `front-end/pages/data/businesses.json`
+- `front-end/pages/data/business_data.json`
 
 ## Login Credentials (All Actors)
 
