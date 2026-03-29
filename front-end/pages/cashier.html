@@ -9,14 +9,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Load base dashboard styles first, then POS-specific overrides -->
     <link rel="stylesheet" href="/styles/dashboard.css">
-    <link rel="stylesheet" href="/end_user/css/cashier.css">
+    <link rel="stylesheet" href="/styles/cashier.css">
 </head>
 <body data-page="cashier" class="no-sidebar">
 
     <main class="main-content" id="mainContent">
         <header class="top-header">
             <div class="header-left">
-                <a href="../index.html" class="header-logo-link">
+                <a href="index.html" class="header-logo-link">
                     <img src="/public/logo.png" alt="BillBhai" class="header-logo-img">
                 </a>
                 <div class="breadcrumb">
@@ -42,7 +42,7 @@
                             <div class="text-sm text-muted">Counter Terminal 1</div>
                         </div>
 
-                        <a href="../login.html" class="dropdown-item text-danger">
+                        <a href="login.html" class="dropdown-item text-danger">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                             Logout
                         </a>
@@ -160,10 +160,10 @@
         </div>
     </main>
 
-    <script src="/end_user/js/data.js"></script>
-    <script src="/end_user/js/validation.js"></script>
-    <script src="/end_user/js/ui.js"></script>
-    <script src="/end_user/js/app.js"></script>
+    <script src="/scripts/data.js"></script>
+    <script src="/scripts/validation.js"></script>
+    <script src="/scripts/ui.js"></script>
+    <script src="/scripts/app.js"></script>
     <script>
         // Profile dropdown toggle
         const userMenuBtn = document.getElementById('userMenuBtn');
