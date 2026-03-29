@@ -1,5 +1,22 @@
-/* POS Grid Style Overrides extending standard dashboard CSS */
-@import url("/styles/dashboard.css");
+/* POS Grid Style Overrides — base styles loaded via <link> in HTML */
+
+/* ── Full-width layout when no sidebar ───── */
+body.no-sidebar .main-content {
+    margin-left: 0;
+}
+
+/* ── Header logo (replaces sidebar brand) ─── */
+.header-logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.header-logo-img {
+    height: 28px;
+    width: auto;
+    display: block;
+}
 
 /* ── Layout & Wizard Views ──────────── */
 .step-container { display: none; }
@@ -178,7 +195,44 @@
 .cf-tot { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-weight: 700; font-size: 1.2rem; color: var(--accent); }
 
 .promo-block { display: flex; gap: 8px; margin-bottom: 16px; }
-.promo-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.8rem;}
+.promo-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.8rem; background: var(--bg-body); color: #fff; }
+
+/* Applied promo tag row */
+.promo-applied {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 8px;
+}
+.promo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green-bg, rgba(34,197,94,0.12));
+    color: var(--green, #22c55e);
+    border: 1px solid var(--green, #22c55e);
+    border-radius: var(--radius-lg);
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+.promo-remove {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: color var(--t), background var(--t);
+    white-space: nowrap;
+}
+.promo-remove:hover {
+    color: var(--red, #ef4444);
+    background: rgba(239,68,68,0.1);
+}
 
 /* ── Step 3: Success Screen ──────────── */
 .success-block {

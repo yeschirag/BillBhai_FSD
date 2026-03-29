@@ -43,6 +43,10 @@ const UI = (() => {
             inpPromo: document.getElementById('promoCode'),
             btnPromo: document.getElementById('applyPromoBtn'),
             errPromo: document.getElementById('promoError'),
+            promoInputBlock:  document.getElementById('promoInputBlock'),
+            promoAppliedTag:  document.getElementById('promoAppliedTag'),
+            promoAppliedCode: document.getElementById('promoAppliedCode'),
+            btnRemovePromo:   document.getElementById('removePromoBtn'),
 
             // Step 3 Actions
             btnReset: document.getElementById('btnResetFlow')
@@ -72,8 +76,12 @@ const UI = (() => {
         searchQuery = '';
         
         if(el.searchInp) el.searchInp.value = '';
-        if(el.inpPromo) el.inpPromo.value = '';
-        if(el.errPromo) el.errPromo.textContent = '';
+        if(el.inpPromo)  el.inpPromo.value = '';
+        if(el.errPromo)  el.errPromo.textContent = '';
+        // Reset promo UI visibility
+        if(el.promoInputBlock)  el.promoInputBlock.style.display = 'flex';
+        if(el.promoAppliedTag)  el.promoAppliedTag.style.display = 'none';
+        if(el.promoAppliedCode) el.promoAppliedCode.textContent = '';
         
         showStep(1);
         renderCart();
@@ -215,15 +223,24 @@ const UI = (() => {
 
     function bindPromo() {
         el.btnPromo.addEventListener('click', () => {
-            const code = el.inpPromo.value;
+            const code = el.inpPromo.value.trim();
             if(!code) return;
             el.errPromo.textContent = '';
+
+            if (cart.length === 0) {
+                el.errPromo.textContent = 'Add items to the cart before applying a promo code.';
+                return;
+            }
             
             const subtotal = cart.reduce((s, c) => s + (c.price * c.qty), 0);
             const res = DataStore.applyPromo(code, subtotal);
             
             if (res.active) {
                 currentDiscount = res;
+                // Show applied badge, hide input
+                el.promoInputBlock.style.display  = 'none';
+                el.promoAppliedTag.style.display   = 'flex';
+                el.promoAppliedCode.textContent = code.toUpperCase();
                 updateCartTotal();
             } else {
                 el.errPromo.textContent = res.error || 'Invalid Code';
@@ -233,6 +250,17 @@ const UI = (() => {
         });
         
         el.inpPromo.addEventListener('input', () => el.errPromo.textContent = '');
+
+        // Remove promo handler
+        el.btnRemovePromo.addEventListener('click', () => {
+            currentDiscount = { active: false, discount: 0 };
+            el.inpPromo.value = '';
+            el.errPromo.textContent = '';
+            el.promoAppliedTag.style.display  = 'none';
+            el.promoInputBlock.style.display  = 'flex';
+            el.promoAppliedCode.textContent = '';
+            updateCartTotal();
+        });
     }
 
     function updateCartTotal() {
