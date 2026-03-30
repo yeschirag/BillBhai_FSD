@@ -21,13 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const ROLE_ALLOWED_PAGES = {
-        superuser: ['superuser', 'businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
-        admin: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'settings', 'profile', 'notifications'],
-        cashier: ['dashboard', 'orders', 'profile', 'notifications'],
-        returnhandler: ['dashboard', 'returns', 'orders', 'profile', 'notifications'],
-        inventorymanager: ['dashboard', 'inventory', 'reports', 'profile', 'notifications'],
-        deliveryops: ['dashboard', 'delivery', 'profile', 'notifications'],
-        customer: ['profile', 'notifications']
+        superuser: ['superuser', 'businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'profile', 'settings', 'notifications'],
+        admin: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'profile', 'settings', 'notifications'],
+        cashier: ['dashboard', 'orders', 'reports', 'profile', 'settings', 'notifications'],
+        returnhandler: ['dashboard', 'returns', 'orders', 'reports', 'profile', 'settings', 'notifications'],
+        inventorymanager: ['dashboard', 'inventory', 'reports', 'profile', 'settings', 'notifications'],
+        deliveryops: ['dashboard', 'delivery', 'reports', 'profile', 'settings', 'notifications'],
+        customer: ['profile', 'settings', 'reports', 'notifications']
     };
 
     const ROLE_ACTIONS = {
@@ -304,6 +304,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = document.body.getAttribute('data-page') || 'dashboard';
     const LIVE_SYNC_KEY = 'bb_live_sync_event';
     const LIVE_SYNC_CHANNEL = 'bb_live_sync';
+    const NOTIFICATIONS_STORAGE_KEY = 'bb_notifications';
+    const PROFILE_SETTINGS_STORAGE_KEY = 'bb_profile_settings';
+    const AUTH_OVERRIDE_STORAGE_KEY = 'bb_auth_overrides';
     const syncSourceId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let syncDebounceTimer = null;
     let syncChannel = null;
@@ -318,7 +321,14 @@ document.addEventListener('DOMContentLoaded', () => {
             item.classList.remove('active');
         }
 
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            const targetPage = String(item.getAttribute('data-page') || '').trim();
+            const href = String(item.getAttribute('href') || '').trim();
+            if (targetPage && (!href || href === '#')) {
+                e.preventDefault();
+                window.location.href = `${targetPage}.html`;
+                return;
+            }
             if (window.innerWidth <= 768) sidebar.classList.remove('mobile-open');
         });
     });
@@ -909,6 +919,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!opts.silentSync) publishDataSync(opts.domains);
     }
 
+    function mergeBusinessCollections(preferredList, fallbackList) {
+        const map = new Map();
+
+        (Array.isArray(fallbackList) ? fallbackList : []).forEach((item, idx) => {
+            const normalized = normalizeBusinessRecord(item, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name);
+            map.set(normalized.id, normalized);
+        });
+
+        (Array.isArray(preferredList) ? preferredList : []).forEach((item, idx) => {
+            const normalized = normalizeBusinessRecord(item, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name);
+            map.set(normalized.id, normalized);
+        });
+
+        return Array.from(map.values());
+    }
+
     async function hydrateDataFromJsonFiles() {
         const jsonOrders = await loadJsonArray('data/orders.json', defaultOrders);
         const jsonInventory = await loadJsonArray('data/inventory.json', defaultInventory);
@@ -918,28 +944,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const jsonBusinessesRaw = await loadJsonArray('data/businesses.json', defaultBusinesses);
         const jsonBusinessData = await loadJsonObject('data/business_data.json', {});
         const jsonNotifications = await loadJsonArray('data/notifications.json', DEFAULT_NOTIFICATIONS);
-        const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(b, defaultBusinesses[idx] && defaultBusinesses[idx].id, defaultBusinesses[idx] && defaultBusinesses[idx].name));
-        notificationsList = cloneRows(jsonNotifications);
-        renderNotificationDropdown();
+        const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(
+            b,
+            defaultBusinesses[idx] && defaultBusinesses[idx].id,
+            defaultBusinesses[idx] && defaultBusinesses[idx].name
+        ));
 
-        businesses.splice(0, businesses.length, ...jsonBusinesses);
+        const storedNotifications = loadList(NOTIFICATIONS_STORAGE_KEY, []);
+        const hasStoredNotifications = Array.isArray(storedNotifications) && storedNotifications.length > 0;
+        notificationsList = normalizeNotificationsList(hasStoredNotifications ? storedNotifications : jsonNotifications, DEFAULT_NOTIFICATIONS);
+        persistNotifications();
+
+        const storedBusinesses = loadList('bb_businesses', []);
+        const hasStoredBusinesses = Array.isArray(storedBusinesses) && storedBusinesses.length > 0;
+        const mergedBusinesses = mergeBusinessCollections(hasStoredBusinesses ? storedBusinesses : jsonBusinesses, jsonBusinesses);
+        businesses.splice(0, businesses.length, ...mergedBusinesses);
         saveList('bb_businesses', businesses);
 
+        const storedBusinessData = loadObject('bb_business_data', {});
         const rebuiltBusinessData = {};
         businesses.forEach((business, idx) => {
             const seed = buildBusinessSeedData(business, idx);
+            const storedEntry = storedBusinessData[business.id];
             const jsonEntry = jsonBusinessData[business.id];
-            if (!jsonEntry || typeof jsonEntry !== 'object') {
-                rebuiltBusinessData[business.id] = seed;
-                return;
-            }
+            const source = storedEntry && typeof storedEntry === 'object'
+                ? storedEntry
+                : (jsonEntry && typeof jsonEntry === 'object' ? jsonEntry : seed);
 
             rebuiltBusinessData[business.id] = {
-                orders: Array.isArray(jsonEntry.orders) ? cloneRows(jsonEntry.orders) : seed.orders,
-                inventory: Array.isArray(jsonEntry.inventory) ? cloneRows(jsonEntry.inventory) : seed.inventory,
-                deliveries: Array.isArray(jsonEntry.deliveries) ? cloneRows(jsonEntry.deliveries) : seed.deliveries,
-                returns: Array.isArray(jsonEntry.returns) ? cloneRows(jsonEntry.returns) : seed.returns,
-                users: Array.isArray(jsonEntry.users) ? cloneRows(jsonEntry.users) : seed.users
+                orders: Array.isArray(source.orders) ? cloneRows(source.orders) : seed.orders,
+                inventory: Array.isArray(source.inventory) ? cloneRows(source.inventory) : seed.inventory,
+                deliveries: Array.isArray(source.deliveries) ? mergeSeedRecords(source.deliveries, seed.deliveries, 'id') : seed.deliveries,
+                returns: Array.isArray(source.returns) ? mergeSeedRecords(source.returns, seed.returns, 'id') : seed.returns,
+                users: Array.isArray(source.users)
+                    ? cloneRows(source.users)
+                    : (Array.isArray(business.users) && business.users.length ? cloneRows(business.users) : seed.users)
             };
         });
 
@@ -977,11 +1016,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        orders = cloneRows(jsonOrders);
-        inventory = cloneRows(jsonInventory);
-        deliveries = cloneRows(jsonDeliveries);
-        returns = cloneRows(jsonReturns);
-        users = cloneRows(jsonUsers);
+        const useStoredOrders = !!localStorage.getItem('bb_orders');
+        const useStoredInventory = !!localStorage.getItem('bb_inventory');
+        const useStoredDeliveries = !!localStorage.getItem('bb_deliveries');
+        const useStoredReturns = !!localStorage.getItem('bb_returns');
+        const useStoredUsers = !!localStorage.getItem('bb_users');
+
+        orders = useStoredOrders ? loadList('bb_orders', jsonOrders) : cloneRows(jsonOrders);
+        inventory = useStoredInventory ? loadList('bb_inventory', jsonInventory) : cloneRows(jsonInventory);
+        deliveries = useStoredDeliveries ? loadList('bb_deliveries', jsonDeliveries) : cloneRows(jsonDeliveries);
+        returns = useStoredReturns ? loadList('bb_returns', jsonReturns) : cloneRows(jsonReturns);
+        users = useStoredUsers ? loadList('bb_users', jsonUsers) : cloneRows(jsonUsers);
+
         persistOperationalData({ silentSync: true });
     }
 
@@ -1044,7 +1090,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
-    let notificationsList = cloneRows(DEFAULT_NOTIFICATIONS);
+    function normalizeNotificationRecord(raw, index) {
+        const safe = raw && typeof raw === 'object' ? raw : {};
+        const idx = Number(index) || 0;
+        const fallback = DEFAULT_NOTIFICATIONS[idx % DEFAULT_NOTIFICATIONS.length] || DEFAULT_NOTIFICATIONS[0];
+        const changes = Array.isArray(safe.changes) ? safe.changes : (Array.isArray(fallback.changes) ? fallback.changes : []);
+
+        return {
+            id: String(safe.id || fallback.id || `NOTIF-${String(idx + 1).padStart(3, '0')}`).trim(),
+            title: String(safe.title || fallback.title || 'Notification').trim(),
+            type: String(safe.type || fallback.type || 'system').trim().toLowerCase(),
+            time: String(safe.time || fallback.time || 'Recently').trim(),
+            desc: String(safe.desc || fallback.desc || '').trim(),
+            icon: typeof safe.icon === 'string' ? safe.icon : (typeof fallback.icon === 'string' ? fallback.icon : ''),
+            color: String(safe.color || fallback.color || 'blue').trim().toLowerCase(),
+            iconKey: String(safe.iconKey || fallback.iconKey || safe.type || 'order').trim().toLowerCase(),
+            unread: Boolean(safe.unread),
+            changes: changes.map((change, changeIndex) => {
+                const safeChange = change && typeof change === 'object' ? change : {};
+                return {
+                    file: String(safeChange.file || `changes/${idx + 1}/${changeIndex + 1}`).trim(),
+                    old: String(safeChange.old || '-').trim(),
+                    new: String(safeChange.new || '-').trim()
+                };
+            })
+        };
+    }
+
+    function normalizeNotificationsList(list, fallbackList) {
+        const source = Array.isArray(list) && list.length ? list : fallbackList;
+        const normalized = Array.isArray(source)
+            ? source.map((item, idx) => normalizeNotificationRecord(item, idx))
+            : [];
+        return normalized.length
+            ? normalized
+            : DEFAULT_NOTIFICATIONS.map((item, idx) => normalizeNotificationRecord(item, idx));
+    }
+
+    let notificationsList = normalizeNotificationsList(loadList(NOTIFICATIONS_STORAGE_KEY, DEFAULT_NOTIFICATIONS), DEFAULT_NOTIFICATIONS);
+    saveList(NOTIFICATIONS_STORAGE_KEY, notificationsList);
 
     function getNotificationIcon(notification) {
         const iconKey = String(notification && notification.iconKey || '').trim().toLowerCase();
@@ -1056,6 +1140,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return notification && notification.icon
             ? notification.icon
             : '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>';
+    }
+
+    function persistNotifications() {
+        notificationsList = normalizeNotificationsList(notificationsList, DEFAULT_NOTIFICATIONS);
+        saveList(NOTIFICATIONS_STORAGE_KEY, notificationsList);
+        renderNotificationDropdown();
     }
 
     function renderNotificationDropdown() {
@@ -1305,16 +1395,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return badge('Pending', 'pending');
     }
 
+    const DELIVERY_PARTNER_DIRECTORY = {
+        'Rajesh K.': { phone: '+91 98214 44770', agency: 'SwiftDrop Logistics', vehicle: 'Bike', coverage: 'MG Road - Sector 20' },
+        'Sunil M.': { phone: '+91 98104 31852', agency: 'Metro Last Mile', vehicle: 'Bike', coverage: 'Green Park - Civil Lines' },
+        'Deepak R.': { phone: '+91 98739 22815', agency: 'RapidX Couriers', vehicle: 'Bike', coverage: 'Industrial Area - Lake View' },
+        'Rider Team A': { phone: '+91 80109 42021', agency: 'Fleet Hub A', vehicle: 'Shared Rider Pool', coverage: 'Central Zone' },
+        'Rider Team B': { phone: '+91 80109 42022', agency: 'Fleet Hub B', vehicle: 'Shared Rider Pool', coverage: 'North Zone' },
+        'Rider Team C': { phone: '+91 80109 42023', agency: 'Fleet Hub C', vehicle: 'Shared Rider Pool', coverage: 'South Zone' }
+    };
+
+    function getDeliveryPartnerDetails(item) {
+        const partnerName = String(item && item.partner || '').trim();
+        const directory = DELIVERY_PARTNER_DIRECTORY[partnerName] || {};
+        const phoneRaw = String((item && item.partnerPhone) || directory.phone || '').trim();
+        const normalizedPhone = phoneRaw.replace(/[^\d+]/g, '');
+        return {
+            name: partnerName || 'Unassigned',
+            phone: phoneRaw || 'Not available',
+            phoneHref: normalizedPhone && normalizedPhone !== '+'
+                ? `tel:${normalizedPhone.startsWith('+') ? normalizedPhone : `+91${normalizedPhone}`}`
+                : '',
+            agency: String((item && item.partnerAgency) || directory.agency || 'External partner').trim(),
+            vehicle: String((item && item.partnerVehicle) || directory.vehicle || 'Bike').trim(),
+            coverage: String((item && item.partnerCoverage) || directory.coverage || 'City zone').trim()
+        };
+    }
+
     function getDeliveryView() {
         return deliveries.map(d => {
             const order = orders.find(o => o.id === d.oid);
             const customer = String(d.customer || (order ? order.customer : '') || '').trim() || '-';
+            const partnerDetails = getDeliveryPartnerDetails(d);
             return {
                 id: d.id,
                 oid: d.oid,
                 customer,
                 address: String(d.address || '').trim() || '-',
-                partner: String(d.partner || '').trim() || 'Unassigned',
+                partner: partnerDetails.name,
+                partnerPhone: partnerDetails.phone,
+                partnerPhoneHref: partnerDetails.phoneHref,
+                partnerAgency: partnerDetails.agency,
+                partnerVehicle: partnerDetails.vehicle,
+                partnerCoverage: partnerDetails.coverage,
                 status: normalizeDeliveryStatus(d.status),
                 etaMin: Number.isFinite(Number(d.etaMin)) ? Number(d.etaMin) : null,
                 updatedAt: String(d.updatedAt || d.time || '-').trim() || '-'
@@ -1346,6 +1468,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 updatedAt
             };
         });
+    }
+
+    const SUPPLIER_DIRECTORY = {
+        'Agarwal Traders': { contact: 'Sanjay Agarwal', phone: '+91 98115 44101', email: 'sanjay@agarwaltraders.in', leadTimeDays: 2, moq: 25, rating: 4.8 },
+        'Sharma Wholesale': { contact: 'Neha Sharma', phone: '+91 98917 22055', email: 'orders@sharmawholesale.in', leadTimeDays: 3, moq: 30, rating: 4.6 },
+        'Fortune Dist.': { contact: 'Ritesh Jain', phone: '+91 99004 11233', email: 'north@fortunedist.in', leadTimeDays: 4, moq: 20, rating: 4.5 },
+        'City Dairy': { contact: 'Mehul Shah', phone: '+91 97170 55544', email: 'supply@citydairy.in', leadTimeDays: 1, moq: 40, rating: 4.7 },
+        'Cool Bev': { contact: 'Ankita Roy', phone: '+91 98180 33021', email: 'ops@coolbev.in', leadTimeDays: 2, moq: 36, rating: 4.4 }
+    };
+
+    function getSupplierDetails(item) {
+        const supplierName = String(item && item.supplier || '').trim() || 'Unknown Supplier';
+        const meta = item && item.supplierDetails && typeof item.supplierDetails === 'object'
+            ? item.supplierDetails
+            : {};
+        const directory = SUPPLIER_DIRECTORY[supplierName] || {};
+
+        return {
+            name: supplierName,
+            contact: String(meta.contact || item.supplierContact || directory.contact || 'Procurement Desk').trim(),
+            phone: String(meta.phone || item.supplierPhone || directory.phone || 'Not available').trim(),
+            email: String(meta.email || item.supplierEmail || directory.email || 'supplier@na.local').trim(),
+            leadTimeDays: Math.max(1, Number(meta.leadTimeDays || item.leadTimeDays || directory.leadTimeDays || 3)),
+            moq: Math.max(1, Number(meta.moq || item.minimumOrderQty || directory.moq || 10)),
+            rating: Math.max(0, Number(meta.rating || item.supplierRating || directory.rating || 4.2))
+        };
     }
 
     function getRecentProfileActivity() {
@@ -1555,6 +1703,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 actionBtn('Mark Failed', `window.markDeliveryFailed('${item.id}')`, 'color: var(--red); border-color: var(--red);')
             ].join('');
         };
+        const externalFor = (item) => item.partnerPhoneHref
+            ? `<a class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" href="${item.partnerPhoneHref}">Call Partner</a>`
+            : '<span class="text-muted text-sm">No contact</span>';
 
         const rows = activeRows
             .map(d => {
@@ -1565,10 +1716,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${d.oid}</td>
                     <td>${d.customer}</td>
                     <td>${d.address}</td>
-                    <td>${d.partner}</td>
+                    <td>${d.partner}<div class="text-sm text-muted">${d.partnerAgency} • ${d.partnerPhone}</div></td>
                     <td>${eta}</td>
                     <td>${deliveryBadge(d.status)}</td>
                     <td>${updated}</td>
+                    <td>${externalFor(d)}</td>
                     <td>${actionsFor(d)}</td>
                 </tr>`;
             })
@@ -1648,15 +1800,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th>Order</th>
                                 <th>Customer</th>
                                 <th>Address</th>
-                                <th>Partner</th>
+                                <th>Partner Info</th>
                                 <th>ETA</th>
                                 <th>Status</th>
                                 <th>Updated</th>
+                                <th>External</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${rows || `<tr><td colspan="9" class="text-muted">No active deliveries.</td></tr>`}
+                            ${rows || `<tr><td colspan="10" class="text-muted">No active deliveries.</td></tr>`}
                         </tbody>
                     </table>
                 </div>
@@ -1784,6 +1937,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderInventory() {
+        const supplierSummaryRows = Array.from(
+            inventory.reduce((map, item) => {
+                const details = getSupplierDetails(item);
+                if (!map.has(details.name)) map.set(details.name, details);
+                return map;
+            }, new Map()).values()
+        ).map(details => `<tr>
+            <td class="cell-main">${details.name}</td>
+            <td>${details.contact}</td>
+            <td>${details.phone}</td>
+            <td>${details.email}</td>
+            <td>${details.leadTimeDays} days</td>
+            <td>${details.moq}</td>
+            <td>${details.rating.toFixed(1)} / 5</td>
+        </tr>`).join('');
+
         content.innerHTML = `
         <div class="page-header"><h2>Inventory</h2><div class="page-header-actions"><button class="btn btn-primary" id="addProductBtnDyn">+ Add Product</button></div></div>
         <section class="grid-2">
@@ -1791,8 +1960,27 @@ document.addEventListener('DOMContentLoaded', () => {
              <div class="card"><div class="card-hd"><h3>Stock Levels</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invStockChart"></canvas></div></div>
         </section>
         <section class="card"><div class="card-bd">${table(
-            ['SKU', 'Product', 'Category', 'Supplier', 'Stock', 'Unit Price', 'Status', 'Actions'],
-            inventory.map(i => `<tr><td class="cell-main">${i.sku}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.supplier || '-'}</td><td>${i.stock}</td><td>₹${i.price}</td><td>${statusBadge(i.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${i.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${i.sku}')">Delete</button></td></tr>`).join('')
+            ['SKU', 'Product', 'Category', 'Supplier', 'Supplier Contact', 'Lead Time', 'Stock', 'Unit Price', 'Status', 'Actions'],
+            inventory.map(i => {
+                const details = getSupplierDetails(i);
+                const status = normalizeInventoryStatus(i.status, i.stock);
+                return `<tr>
+                    <td class="cell-main">${i.sku}</td>
+                    <td>${i.name}</td>
+                    <td>${i.cat}</td>
+                    <td>${details.name}</td>
+                    <td>${details.contact}<div class="text-sm text-muted">${details.phone}</div></td>
+                    <td>${details.leadTimeDays} days</td>
+                    <td>${i.stock}</td>
+                    <td>₹${i.price}</td>
+                    <td>${statusBadge(status)}</td>
+                    <td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${i.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${i.sku}')">Delete</button></td>
+                </tr>`;
+            }).join('')
+        )}</div></section>
+        <section class="card"><div class="card-hd"><h3>Supplier Directory</h3></div><div class="card-bd">${table(
+            ['Supplier', 'Contact Person', 'Phone', 'Email', 'Lead Time', 'MOQ', 'Rating'],
+            supplierSummaryRows || '<tr><td colspan="7" class="text-muted">No supplier details available.</td></tr>'
         )}</div></section>`;
         setTimeout(initInventoryCharts, 0);
         // Wire up dynamic Add Product button
@@ -1899,6 +2087,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th>ETA</th>
                                 <th>Status</th>
                                 <th>Updated</th>
+                                <th>External</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1941,6 +2130,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ].join('');
         }
 
+        function externalActionsFor(item) {
+            if (!item.partnerPhoneHref) return '<span class="text-muted text-sm">No contact</span>';
+            return `<a class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" href="${item.partnerPhoneHref}">Call Partner</a>`;
+        }
+
         function renderTable(filter) {
             if (!tbody) return;
             const rows = view
@@ -1953,16 +2147,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${d.oid}</td>
                         <td>${d.customer}</td>
                         <td>${d.address}</td>
-                        <td>${d.partner}</td>
+                        <td>${d.partner}<div class="text-sm text-muted">${d.partnerAgency} • ${d.partnerPhone}</div></td>
                         <td>${eta}</td>
                         <td>${deliveryBadge(d.status)}</td>
                         <td>${updated}</td>
+                        <td>${externalActionsFor(d)}</td>
                         <td>${actionsFor(d)}</td>
                     </tr>`;
                 })
                 .join('');
 
-            tbody.innerHTML = rows || `<tr><td colspan="9" class="text-muted">No deliveries found.</td></tr>`;
+            tbody.innerHTML = rows || `<tr><td colspan="10" class="text-muted">No deliveries found.</td></tr>`;
         }
 
         renderTable('active');
@@ -2190,9 +2385,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReports() {
+        const roleLabel = ROLE_LABELS[activeRoleKey] || 'Team Member';
+        const scopedName = selectedBusiness ? ` - ${selectedBusiness.name}` : (activeBusinessName ? ` - ${activeBusinessName}` : '');
+        const totalRevenue = orders.reduce((sum, order) => sum + Math.max(0, Number(order && order.total) || 0), 0);
+        const totalReturnsValue = returns.reduce((sum, item) => sum + Math.max(0, Number(item && item.amount) || 0), 0);
+        const netRevenue = Math.max(0, totalRevenue - totalReturnsValue);
+        const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
+        const deliveredOrders = orders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length;
+        const completionRate = orders.length ? Math.round((deliveredOrders / orders.length) * 100) : 0;
+
+        const monthlyTotals = new Map();
+        getOrderTimelineEntries().forEach(entry => {
+            const monthLabel = entry.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            monthlyTotals.set(monthLabel, (monthlyTotals.get(monthLabel) || 0) + Math.max(0, Number(entry.total) || 0));
+        });
+        const monthlyRows = Array.from(monthlyTotals.entries())
+            .slice(-6)
+            .reverse()
+            .map(([label, value], idx) => `<tr>
+                <td class="cell-main">${label}</td>
+                <td>₹${Math.round(value).toLocaleString()}</td>
+                <td>${Math.max(0, orders.length - (idx * 2))}</td>
+                <td>${Math.max(0, returns.length - idx)}</td>
+            </tr>`)
+            .join('');
+
+        const supplierSpendRows = inventory
+            .map(item => ({
+                supplier: String(item.supplier || 'Unknown Supplier').trim(),
+                value: Math.max(0, Number(item.price) || 0) * Math.max(0, Number(item.stock) || 0)
+            }))
+            .reduce((acc, row) => {
+                acc.set(row.supplier, (acc.get(row.supplier) || 0) + row.value);
+                return acc;
+            }, new Map());
+
+        const supplierRows = Array.from(supplierSpendRows.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([supplier, value], idx) => `<tr>
+                <td class="cell-main">#${idx + 1}</td>
+                <td>${supplier}</td>
+                <td>₹${Math.round(value).toLocaleString()}</td>
+            </tr>`)
+            .join('');
+
         content.innerHTML = `
-        <div class="page-header"><h2>Reports</h2></div>
-        <section class="card"><div class="card-hd"><h3>Monthly Revenue (Projected)</h3></div><div class="card-bd" style="position:relative;height:300px"><canvas id="repRevChart"></canvas></div></section>`;
+        <div class="page-header">
+            <h2>Reports${scopedName}</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-outline" onclick="window.print()">Print</button>
+            </div>
+        </div>
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                <div class="stat-info">
+                    <span class="stat-label">Net Revenue</span>
+                    <span class="stat-value">₹${netRevenue.toLocaleString()}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Role view: ${roleLabel}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div>
+                <div class="stat-info">
+                    <span class="stat-label">Orders Processed</span>
+                    <span class="stat-value">${orders.length}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Delivered: ${deliveredOrders}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                <div class="stat-info">
+                    <span class="stat-label">Avg Order Value</span>
+                    <span class="stat-value">₹${avgOrderValue.toLocaleString()}</span>
+                    <div class="text-sm text-muted" style="margin-top:6px;">Completion rate: ${completionRate}%</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
+                <div class="stat-info">
+                    <span class="stat-label">Return Value</span>
+                    <span class="stat-value">₹${totalReturnsValue.toLocaleString()}</span>
+                </div>
+            </div>
+        </section>
+        <section class="grid-2">
+            <div class="card"><div class="card-hd"><h3>Revenue Trend</h3></div><div class="card-bd" style="position:relative;height:260px"><canvas id="repRevChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Order Status Mix</h3></div><div class="card-bd" style="position:relative;height:260px"><canvas id="repStatusChart"></canvas></div></div>
+        </section>
+        <section class="grid-2">
+            <div class="card"><div class="card-hd"><h3>Payment Method Mix</h3></div><div class="card-bd" style="position:relative;height:240px"><canvas id="repPaymentChart"></canvas></div></div>
+            <div class="card"><div class="card-hd"><h3>Top Supplier Stock Value</h3></div><div class="card-bd">${table(
+                ['Rank', 'Supplier', 'Stock Value'],
+                supplierRows || '<tr><td colspan="3" class="text-muted">No supplier records available.</td></tr>'
+            )}</div></div>
+        </section>
+        <section class="card"><div class="card-hd"><h3>Monthly Summary</h3></div><div class="card-bd">${table(
+            ['Month', 'Revenue', 'Orders', 'Returns'],
+            monthlyRows || '<tr><td colspan="4" class="text-muted">No report data available yet.</td></tr>'
+        )}</div></section>`;
         setTimeout(initReportCharts, 0);
     }
 
@@ -2210,7 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const trialCount = businesses.filter(b => b.status === 'Trial').length;
 
         content.innerHTML = `
-        <div class="page-header"><h2>Businesses Using Your Products</h2><div class="page-header-actions"><button class="btn btn-primary" data-action="businesses" onclick="window.addBusiness()">+ Add Business</button><button class="btn btn-outline" onclick="window.location.href='reports.html'">View Revenue Reports</button></div></div>
+        <div class="page-header"><h2>Businesses Using Your Products</h2><div class="page-header-actions"><button class="btn btn-primary" data-action="businesses" onclick="window.addBusiness()">+ Add Business</button></div></div>
         <section class="stats-grid">
             <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/></svg></div><div class="stat-info"><span class="stat-label">Total Businesses</span><span class="stat-value">${businesses.length}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="stat-info"><span class="stat-label">Active Stores</span><span class="stat-value">${activeCount}</span></div></div>
@@ -2350,40 +2642,120 @@ document.addEventListener('DOMContentLoaded', () => {
         </section>`;
     }
 
-    function renderProfile() {
+    function getCurrentUserIdentity() {
         const currentUser = loadObject('currentUser', {});
-        const profileName = String(localStorage.getItem('userName') || currentUser.name || 'User').trim() || 'User';
-        const profileRole = ROLE_LABELS[activeRoleKey] || 'Team Member';
-        const rawUsername = String(currentUser.username || '').trim();
-        const profileEmail = rawUsername && rawUsername.includes('@')
-            ? rawUsername
-            : `${rawUsername || activeRoleKey}@billbhai.com`;
+        const username = String(currentUser.username || '').trim();
+        const displayName = String(localStorage.getItem('userName') || currentUser.name || 'User').trim() || 'User';
+        const roleLabel = ROLE_LABELS[activeRoleKey] || 'Team Member';
+        const email = username && username.includes('@')
+            ? username
+            : `${username || activeRoleKey}@billbhai.com`;
+        const key = (username || displayName.toLowerCase().replace(/\s+/g, '.')).trim();
+
+        return {
+            key,
+            username,
+            displayName,
+            roleLabel,
+            email
+        };
+    }
+
+    function loadProfileSettingsRecord() {
+        const identity = getCurrentUserIdentity();
+        const store = loadObject(PROFILE_SETTINGS_STORAGE_KEY, {});
+        const saved = store[identity.key] && typeof store[identity.key] === 'object' ? store[identity.key] : {};
+
+        return {
+            key: identity.key,
+            fullName: String(saved.fullName || identity.displayName).trim() || identity.displayName,
+            email: String(saved.email || identity.email).trim() || identity.email,
+            phone: String(saved.phone || '').trim(),
+            location: String(saved.location || '').trim(),
+            bio: String(saved.bio || '').trim(),
+            language: String(saved.language || 'English (India)').trim(),
+            currency: String(saved.currency || 'INR').trim(),
+            timezone: String(saved.timezone || 'Asia/Kolkata').trim(),
+            dateFormat: String(saved.dateFormat || 'DD/MM/YYYY').trim(),
+            notifications: {
+                orders: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.orders) : true,
+                inventory: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.inventory) : true,
+                returns: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.returns) : true,
+                summary: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.summary) : false
+            }
+        };
+    }
+
+    function saveProfileSettingsRecord(record) {
+        const identity = getCurrentUserIdentity();
+        const key = String(record.key || identity.key).trim() || identity.key;
+        const store = loadObject(PROFILE_SETTINGS_STORAGE_KEY, {});
+
+        store[key] = {
+            fullName: record.fullName,
+            email: record.email,
+            phone: record.phone,
+            location: record.location,
+            bio: record.bio,
+            language: record.language,
+            currency: record.currency,
+            timezone: record.timezone,
+            dateFormat: record.dateFormat,
+            notifications: { ...record.notifications }
+        };
+        saveObject(PROFILE_SETTINGS_STORAGE_KEY, store);
+
+        localStorage.setItem('userName', record.fullName);
+        const currentUser = loadObject('currentUser', {});
+        saveObject('currentUser', {
+            ...currentUser,
+            name: record.fullName
+        });
+
+        document.querySelectorAll('.user-name').forEach(el => {
+            el.textContent = record.fullName;
+        });
+        document.querySelectorAll('.user-avatar').forEach(el => {
+            el.textContent = record.fullName.charAt(0).toUpperCase();
+        });
+    }
+
+    function updatePasswordOverrideForCurrentUser(newPassword) {
+        const identity = getCurrentUserIdentity();
+        if (!identity.username) return false;
+
+        const overrides = loadObject(AUTH_OVERRIDE_STORAGE_KEY, {});
+        overrides[identity.username] = {
+            ...(overrides[identity.username] || {}),
+            password: String(newPassword).trim()
+        };
+        saveObject(AUTH_OVERRIDE_STORAGE_KEY, overrides);
+        return true;
+    }
+
+    function renderProfileSettingsUnified() {
+        const profile = loadProfileSettingsRecord();
         const activityItems = getRecentProfileActivity();
+        const initial = profile.fullName.charAt(0).toUpperCase();
 
         content.innerHTML = `
-        <div class="page-header"><h2>My Profile</h2></div>
+        <div class="page-header"><h2>Profile & Settings</h2><div class="page-header-actions"><button class="btn btn-primary" id="saveProfileSettingsBtn">Save Changes</button></div></div>
         <section class="grid-2">
-            <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="display:flex;flex-direction:column;gap:16px;">
                 <div class="card">
-                    <div class="card-bd" style="text-align: center; padding-top: 30px;">
-                        <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--amber)); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; font-weight: 700;">A</div>
-                        <h3 style="font-size: 1.2rem; margin-bottom: 4px;">Admin Demo</h3>
-                        <p class="text-muted" style="margin-bottom: 20px;">Head of Ops • admindemo@billbhai.com</p>
-                        <button class="btn btn-outline" style="width: 100%; justify-content: center;">Edit Profile</button>
+                    <div class="card-bd" style="text-align:center;padding-top:26px;">
+                        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--amber));margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:1.9rem;color:#fff;font-weight:700;">${initial}</div>
+                        <h3 style="font-size:1.12rem;margin-bottom:4px;">${profile.fullName}</h3>
+                        <p class="text-muted" style="margin-bottom:4px;">${ROLE_LABELS[activeRoleKey] || 'Team Member'}</p>
+                        <p class="text-sm text-muted">${profile.email}</p>
                     </div>
                 </div>
                 <div class="card">
                     <div class="card-hd"><h3>Security</h3></div>
                     <div class="card-bd">
-                        <div class="form-group">
-                            <label class="form-label">Current Password</label>
-                            <input type="password" class="form-control" placeholder="••••••••">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">New Password</label>
-                            <input type="password" class="form-control" placeholder="••••••••">
-                        </div>
-                        <button class="btn btn-primary" style="width: 100%; justify-content: center;">Update Password</button>
+                        <div class="form-group"><label class="form-label">New Password</label><input type="password" id="psNewPassword" class="form-control" placeholder="Minimum 6 characters"></div>
+                        <div class="form-group"><label class="form-label">Confirm Password</label><input type="password" id="psConfirmPassword" class="form-control" placeholder="Re-enter password"></div>
+                        <button class="btn btn-outline" id="psPasswordBtn" style="width:100%;justify-content:center;">Update Password</button>
                     </div>
                 </div>
             </div>
@@ -2391,156 +2763,263 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="card-hd"><h3>Recent Activity</h3></div>
                 <div class="card-bd">
                     <div class="timeline">
-                        <div class="timeline-item">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-time">Today, 14:30</div>
-                            <div class="timeline-content">Approved Return <strong>#RET-201</strong></div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-time">Yesterday, 18:45</div>
-                            <div class="timeline-content">Generated Monthly Sales Report</div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-time">15 Feb, 09:12</div>
-                            <div class="timeline-content">Updated inventory stock for <strong>SKU-05</strong></div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-time">14 Feb, 10:00</div>
-                            <div class="timeline-content">System login from new IP Address</div>
-                        </div>
+                        ${(activityItems.length ? activityItems : [{ time: 'Just now', text: 'No recent activity available.' }]).map(item => `
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-time">${item.time}</div>
+                                <div class="timeline-content">${item.text}</div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             </div>
+        </section>
+        <section class="card" style="margin-top:14px;">
+            <div class="card-hd"><h3>Account Preferences</h3></div>
+            <div class="card-bd">
+                <form id="profileSettingsForm">
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Full Name</label><input id="psFullName" class="form-control" value="${profile.fullName}"></div>
+                        <div class="form-group"><label class="form-label">Email</label><input id="psEmail" type="email" class="form-control" value="${profile.email}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Phone</label><input id="psPhone" class="form-control" value="${profile.phone}" placeholder="10-digit mobile"></div>
+                        <div class="form-group"><label class="form-label">Location</label><input id="psLocation" class="form-control" value="${profile.location}" placeholder="Store or city"></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Bio</label><textarea id="psBio" class="form-control" rows="3" style="resize:vertical;">${profile.bio}</textarea></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Language</label><select id="psLanguage" class="form-control"><option ${profile.language === 'English (India)' ? 'selected' : ''}>English (India)</option><option ${profile.language === 'Hindi' ? 'selected' : ''}>Hindi</option><option ${profile.language === 'Tamil' ? 'selected' : ''}>Tamil</option></select></div>
+                        <div class="form-group"><label class="form-label">Currency</label><select id="psCurrency" class="form-control"><option value="INR" ${profile.currency === 'INR' ? 'selected' : ''}>INR</option><option value="USD" ${profile.currency === 'USD' ? 'selected' : ''}>USD</option></select></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Timezone</label><select id="psTimezone" class="form-control"><option value="Asia/Kolkata" ${profile.timezone === 'Asia/Kolkata' ? 'selected' : ''}>Asia/Kolkata</option><option value="UTC" ${profile.timezone === 'UTC' ? 'selected' : ''}>UTC</option></select></div>
+                        <div class="form-group"><label class="form-label">Date Format</label><select id="psDateFormat" class="form-control"><option ${profile.dateFormat === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY</option><option ${profile.dateFormat === 'MM/DD/YYYY' ? 'selected' : ''}>MM/DD/YYYY</option></select></div>
+                    </div>
+                    <div style="margin-top:6px;padding-top:12px;border-top:1px solid var(--border);display:grid;gap:10px;">
+                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Order Alerts</span><input id="psNotifOrders" type="checkbox" ${profile.notifications.orders ? 'checked' : ''}></label>
+                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Inventory Alerts</span><input id="psNotifInventory" type="checkbox" ${profile.notifications.inventory ? 'checked' : ''}></label>
+                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Return Alerts</span><input id="psNotifReturns" type="checkbox" ${profile.notifications.returns ? 'checked' : ''}></label>
+                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Daily Summary</span><input id="psNotifSummary" type="checkbox" ${profile.notifications.summary ? 'checked' : ''}></label>
+                    </div>
+                </form>
+            </div>
         </section>`;
 
-        const profileCardBody = content.querySelector('.card .card-bd');
-        const profileTitle = profileCardBody ? profileCardBody.querySelector('h3') : null;
-        const profileMeta = profileCardBody ? profileCardBody.querySelector('p.text-muted') : null;
-        const avatar = profileCardBody ? profileCardBody.querySelector('div[style*="width: 80px"]') : null;
-        if (avatar) avatar.textContent = profileName.charAt(0).toUpperCase();
-        if (profileTitle) profileTitle.textContent = profileName;
-        if (profileMeta) profileMeta.textContent = `${profileRole} | ${profileEmail}`;
+        const saveBtn = document.getElementById('saveProfileSettingsBtn');
+        const settingsForm = document.getElementById('profileSettingsForm');
+        const saveProfile = () => {
+            if (!settingsForm) return;
+            const fullName = String(document.getElementById('psFullName').value || '').trim();
+            const email = String(document.getElementById('psEmail').value || '').trim();
+            if (!fullName) {
+                showToast('Full name is required.');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showToast('Please enter a valid email.');
+                return;
+            }
 
-        const timeline = content.querySelector('.timeline');
-        if (timeline && activityItems.length) {
-            timeline.innerHTML = activityItems.map(item => `
-                <div class="timeline-item">
-                    <div class="timeline-marker"></div>
-                    <div class="timeline-time">${item.time}</div>
-                    <div class="timeline-content">${item.text}</div>
-                </div>
-            `).join('');
+            const nextRecord = {
+                key: profile.key,
+                fullName,
+                email,
+                phone: String(document.getElementById('psPhone').value || '').trim(),
+                location: String(document.getElementById('psLocation').value || '').trim(),
+                bio: String(document.getElementById('psBio').value || '').trim(),
+                language: String(document.getElementById('psLanguage').value || 'English (India)').trim(),
+                currency: String(document.getElementById('psCurrency').value || 'INR').trim(),
+                timezone: String(document.getElementById('psTimezone').value || 'Asia/Kolkata').trim(),
+                dateFormat: String(document.getElementById('psDateFormat').value || 'DD/MM/YYYY').trim(),
+                notifications: {
+                    orders: Boolean(document.getElementById('psNotifOrders').checked),
+                    inventory: Boolean(document.getElementById('psNotifInventory').checked),
+                    returns: Boolean(document.getElementById('psNotifReturns').checked),
+                    summary: Boolean(document.getElementById('psNotifSummary').checked)
+                }
+            };
+
+            saveProfileSettingsRecord(nextRecord);
+            showToast('Profile and settings saved.');
+            renderProfileSettingsUnified();
+        };
+
+        if (saveBtn) saveBtn.addEventListener('click', saveProfile);
+        if (settingsForm) settingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveProfile();
+        });
+
+        const passwordBtn = document.getElementById('psPasswordBtn');
+        if (passwordBtn) {
+            passwordBtn.addEventListener('click', () => {
+                const newPassword = String(document.getElementById('psNewPassword').value || '').trim();
+                const confirmPassword = String(document.getElementById('psConfirmPassword').value || '').trim();
+
+                if (!newPassword || newPassword.length < 6) {
+                    showToast('Password must be at least 6 characters.');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    showToast('Password confirmation does not match.');
+                    return;
+                }
+                if (!updatePasswordOverrideForCurrentUser(newPassword)) {
+                    showToast('Could not map current account for password update.');
+                    return;
+                }
+
+                document.getElementById('psNewPassword').value = '';
+                document.getElementById('psConfirmPassword').value = '';
+                showToast('Password updated for next login.');
+            });
         }
+    }
+
+    function renderProfile() {
+        renderProfileSettingsUnified();
     }
 
     function renderSettings() {
+        renderProfileSettingsUnified();
+    }
+
+    function renderNotifications(filter) {
+        const activeFilter = String(filter || 'all').trim().toLowerCase() || 'all';
+        const unreadCount = notificationsList.filter(item => item.unread).length;
+        const readCount = Math.max(0, notificationsList.length - unreadCount);
+
+        const filteredRows = notificationsList.filter(item => {
+            if (activeFilter === 'unread') return item.unread;
+            if (activeFilter === 'read') return !item.unread;
+            return true;
+        });
+
         content.innerHTML = `
-        <div class="page-header"><h2>Settings</h2><div class="page-header-actions"><button class="btn btn-primary">Save Changes</button></div></div>
-        <section class="card" style="padding: 20px;">
-            <div class="settings-layout">
-                <div class="settings-nav">
-                    <button class="settings-tab active"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> General</button>
-                    <button class="settings-tab"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Store Details</button>
-                    <button class="settings-tab"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</button>
+        <div class="page-header"><h2>Notifications</h2><div class="page-header-actions"><button class="btn btn-outline" id="markAllReadBtn" ${unreadCount ? '' : 'disabled'}>Mark all as read</button></div></div>
+        <section class="stats-grid" style="margin-bottom:12px;">
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Total</span><span class="stat-value">${notificationsList.length}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Unread</span><span class="stat-value">${unreadCount}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Read</span><span class="stat-value">${readCount}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Actionable</span><span class="stat-value">${notificationsList.filter(item => item.unread || item.type === 'alert').length}</span></div></div>
+        </section>
+        <section class="card notification-center" id="notificationCenter">
+            <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <h3>Inbox</h3>
+                <div class="chart-tabs">
+                    <button class="chart-tab notif-filter ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">All</button>
+                    <button class="chart-tab notif-filter ${activeFilter === 'unread' ? 'active' : ''}" data-filter="unread">Unread</button>
+                    <button class="chart-tab notif-filter ${activeFilter === 'read' ? 'active' : ''}" data-filter="read">Read</button>
                 </div>
-                <div>
-                    <h3 style="font-size: 1.1rem; margin-bottom: 20px;">General Preferences</h3>
-                    <div class="form-group" style="max-width: 400px;">
-                        <label class="form-label">Language</label>
-                        <select class="form-control"><option>English (US)</option><option>Hindi</option></select>
-                    </div>
-                    <div class="form-group" style="max-width: 400px;">
-                        <label class="form-label">Currency Symbol</label>
-                        <select class="form-control"><option>₹ (INR)</option><option>$ (USD)</option></select>
-                    </div>
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 400px;">
-                            <div>
-                                <div style="font-weight: 500;">Two-Factor Authentication</div>
-                                <div class="text-sm text-muted">Require 2FA for all admin logins</div>
+            </div>
+            <div class="card-bd" style="padding:0;">
+                ${filteredRows.length ? filteredRows.map(item => `
+                    <div class="notif-row ${item.unread ? 'unread' : ''}" data-notif-id="${item.id}" style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:flex-start;">
+                        <div style="background:var(--${item.color || 'blue'}-bg);color:var(--${item.color || 'blue'});padding:8px;border-radius:8px;">${getNotificationIcon(item)}</div>
+                        <div>
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <strong>${item.title}</strong>
+                                ${item.unread ? '<span class="badge b-processing">Unread</span>' : '<span class="badge b-active">Read</span>'}
                             </div>
-                            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                            <div class="text-sm text-muted" style="margin-top:4px;">${item.desc}</div>
+                            <div class="text-sm text-muted" style="margin-top:6px;">${item.time}</div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                            <button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;" data-notif-action="toggle-read">${item.unread ? 'Mark read' : 'Mark unread'}</button>
+                            <button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;" data-notif-action="open">View</button>
                         </div>
                     </div>
-                </div>
+                `).join('') : '<div style="padding:28px;" class="text-muted">No notifications in this filter.</div>'}
             </div>
         </section>`;
+
+        const markAllBtn = document.getElementById('markAllReadBtn');
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', () => {
+                notificationsList = notificationsList.map(item => ({ ...item, unread: false }));
+                persistNotifications();
+                renderNotifications(activeFilter);
+            });
+        }
+
+        content.querySelectorAll('.notif-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                renderNotifications(String(btn.getAttribute('data-filter') || 'all'));
+            });
+        });
+
+        const center = document.getElementById('notificationCenter');
+        if (center) {
+            center.addEventListener('click', (event) => {
+                const actionBtn = event.target.closest('[data-notif-action]');
+                if (!actionBtn) return;
+
+                const row = actionBtn.closest('[data-notif-id]');
+                const notifId = row ? String(row.getAttribute('data-notif-id') || '').trim() : '';
+                if (!notifId) return;
+
+                const notification = notificationsList.find(item => item.id === notifId);
+                if (!notification) return;
+
+                const action = String(actionBtn.getAttribute('data-notif-action') || '').trim();
+                if (action === 'toggle-read') {
+                    notification.unread = !notification.unread;
+                    persistNotifications();
+                    renderNotifications(activeFilter);
+                    return;
+                }
+
+                if (action === 'open') {
+                    renderNotificationDetail(notifId, activeFilter);
+                }
+            });
+        }
     }
 
-    function renderNotifications() {
-        content.innerHTML = `
-        <div class="page-header"><h2>Notifications</h2><div class="page-header-actions"><button class="btn btn-outline">Mark all as read</button></div></div>
-        <div class="card">
-            <div class="card-hd" style="padding: 0;">
-                <div style="display: flex; border-bottom: 1px solid var(--border);">
-                    <button style="padding: 14px 20px; border: none; background: none; color: var(--accent); border-bottom: 2px solid var(--accent); font-weight: 600; cursor: pointer;">All</button>
-                    <button style="padding: 14px 20px; border: none; background: none; color: var(--text-muted); font-weight: 500; cursor: pointer;">Unread</button>
-                </div>
-            </div>
-            <div class="card-bd" style="padding: 0;">
-                ${notificationsList.map(n => `
-                <div class="notif-item" onclick="renderNotificationDetail('${n.id}')" style="display: flex; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--border); align-items: flex-start; cursor: pointer; transition: background 0.2s;">
-                    <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 10px; border-radius: 8px; flex-shrink: 0;">${getNotificationIcon(n)}</div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: var(--text-primary); transition: color 0.2s;">${n.title}</div>
-                        <div class="text-sm text-muted" style="margin-top: 2px;">${n.desc}</div>
-                    </div>
-                    <div class="text-sm text-muted">${n.time}</div>
-                </div>`).join('')}
-            </div>
-        </div>`;
-    }
-
-    function renderNotificationDetail(id) {
+    function renderNotificationDetail(id, returnFilter) {
         const n = notificationsList.find(x => x.id === id);
         if (!n) return;
 
-        let diffHtml = '';
-        const changes = Array.isArray(n.changes) ? n.changes : [];
-        changes.forEach(c => {
-            diffHtml += `
-            <div style="margin-bottom: 24px;">
-                <div style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border);">
-                    File: <strong>${c.file}</strong>
-                </div>
-                <div class="diff-view">
-                    <div class="diff-line removed">- ${c.old}</div>
-                    <div class="diff-line added">+ ${c.new}</div>
-                </div>
-            </div>`;
-        });
-
-        if (!diffHtml) {
-            diffHtml = '<div class="text-muted">No structured diff is attached to this notification.</div>';
+        if (n.unread) {
+            n.unread = false;
+            persistNotifications();
         }
 
-        content.innerHTML = `
-        <div class="page-header" style="justify-content: flex-start; gap: 16px;">
-            <button class="btn btn-outline" style="padding: 8px;" onclick="document.querySelector('.nav-item[data-page=\\'notifications\\']').click()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
-            <h2>Event Details</h2>
-        </div>
-        <div class="card" style="margin-bottom: 24px;">
-            <div class="card-bd" style="display: flex; gap: 16px; align-items: flex-start;">
-                <div style="background: var(--${n.color}-bg); color: var(--${n.color}); padding: 14px; border-radius: 8px; flex-shrink: 0;">${getNotificationIcon(n)}</div>
-                <div>
-                    <h3 style="margin-bottom: 4px; font-size: 1.2rem;">${n.title}</h3>
-                    <div style="color: var(--text-muted); margin-bottom: 12px;">ID: ${n.id} • ${n.time}</div>
-                    <p style="color: var(--text-primary);">${n.desc}</p>
+        const filterToReturn = String(returnFilter || 'all').trim().toLowerCase() || 'all';
+        const changes = Array.isArray(n.changes) ? n.changes : [];
+        const diffHtml = changes.length
+            ? changes.map(c => `
+                <div style="margin-bottom:14px;">
+                    <div class="text-sm text-muted" style="margin-bottom:6px;">${c.file}</div>
+                    <div class="diff-view">
+                        <div class="diff-line removed">- ${c.old}</div>
+                        <div class="diff-line added">+ ${c.new}</div>
+                    </div>
                 </div>
-            </div>
+            `).join('')
+            : '<div class="text-muted">No structured diff is attached to this notification.</div>';
+
+        content.innerHTML = `
+        <div class="page-header" style="justify-content:flex-start;gap:10px;">
+            <button class="btn btn-outline" id="notifBackBtn" style="padding:8px;">Back</button>
+            <h2>Notification Details</h2>
+            <div class="page-header-actions" style="margin-left:auto;"><button class="btn btn-outline" id="notifToggleBtn">${n.unread ? 'Mark read' : 'Mark unread'}</button></div>
         </div>
-        <div class="card">
-            <div class="card-hd"><h3>System Changes (Diff)</h3></div>
-            <div class="card-bd" style="background: #1e1e1e; border-radius: 0 0 var(--radius) var(--radius); padding: 24px;">
-                ${diffHtml}
-            </div>
-        </div>`;
+        <div class="card" style="margin-bottom:14px;"><div class="card-bd" style="display:flex;gap:12px;align-items:flex-start;"><div style="background:var(--${n.color}-bg);color:var(--${n.color});padding:10px;border-radius:8px;">${getNotificationIcon(n)}</div><div><h3 style="margin-bottom:4px;">${n.title}</h3><div class="text-sm text-muted" style="margin-bottom:8px;">${n.time}</div><p>${n.desc}</p></div></div></div>
+        <div class="card"><div class="card-hd"><h3>System Changes</h3></div><div class="card-bd">${diffHtml}</div></div>`;
+
+        const backBtn = document.getElementById('notifBackBtn');
+        if (backBtn) backBtn.addEventListener('click', () => renderNotifications(filterToReturn));
+
+        const toggleBtn = document.getElementById('notifToggleBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                n.unread = !n.unread;
+                persistNotifications();
+                renderNotificationDetail(id, filterToReturn);
+            });
+        }
     }
-
-
 
     function getColors() {
         return {
@@ -2784,7 +3263,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initReportCharts() {
         const c = getColors();
-        const trend = buildRevenueTrendWeeks(4);
+        const trend = buildRevenueTrendWeeks(8);
         createChart('repRevChart', 'line', {
             labels: trend.labels,
             datasets: [{
@@ -2795,6 +3274,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 tension: 0.35,
                 fill: true
             }]
+        });
+
+        const statusCounts = {
+            delivered: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length,
+            processing: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Processing').length,
+            pending: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Pending').length,
+            cancelled: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Cancelled').length
+        };
+        createChart('repStatusChart', 'doughnut', {
+            labels: ['Delivered', 'Processing', 'Pending', 'Cancelled'],
+            datasets: [{
+                data: [statusCounts.delivered, statusCounts.processing, statusCounts.pending, statusCounts.cancelled],
+                backgroundColor: [c.green, c.blue, c.amber, c.red]
+            }]
+        });
+
+        const paymentBuckets = new Map();
+        orders.forEach(order => {
+            const paymentLabel = String(order && order.payment || 'Unknown').trim() || 'Unknown';
+            paymentBuckets.set(paymentLabel, (paymentBuckets.get(paymentLabel) || 0) + 1);
+        });
+        const paymentLabels = Array.from(paymentBuckets.keys());
+        const paymentValues = Array.from(paymentBuckets.values());
+        createChart('repPaymentChart', 'bar', {
+            labels: paymentLabels.length ? paymentLabels : ['No Data'],
+            datasets: [{
+                label: 'Orders',
+                data: paymentValues.length ? paymentValues : [0],
+                backgroundColor: c.purple
+            }]
+        }, {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: c.grid, display: false }, ticks: { color: c.text } },
+                y: { grid: { color: c.grid }, ticks: { color: c.text, precision: 0 }, beginAtZero: true }
+            }
         });
     }
 
@@ -2825,6 +3340,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const overlay = document.getElementById('addProductModal');
         if (!overlay) return;
+        const heading = overlay.querySelector('.modal-header h3');
+        if (heading) heading.textContent = 'Add New Product';
+        const submitBtn = overlay.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Add Product';
         // Set auto-generated SKU
         const skuInput = document.getElementById('prodSku');
         if (skuInput) skuInput.value = getNextSku();
@@ -2836,6 +3355,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('prodName').value = '';
             document.getElementById('prodCategory').value = '';
             document.getElementById('prodSupplier').value = '';
+            const supplierPhoneInput = document.getElementById('prodSupplierPhone');
+            const supplierEmailInput = document.getElementById('prodSupplierEmail');
+            const supplierLeadTimeInput = document.getElementById('prodLeadTime');
+            if (supplierPhoneInput) supplierPhoneInput.value = '';
+            if (supplierEmailInput) supplierEmailInput.value = '';
+            if (supplierLeadTimeInput) supplierLeadTimeInput.value = '';
             document.getElementById('prodPrice').value = '';
             document.getElementById('prodStock').value = '';
             document.getElementById('prodStatus').value = 'In Stock';
@@ -3012,21 +3537,65 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        const supplierPhoneInput = document.getElementById('prodSupplierPhone');
+        const supplierEmailInput = document.getElementById('prodSupplierEmail');
+        const supplierLeadTimeInput = document.getElementById('prodLeadTime');
+        const supplierPhoneRaw = supplierPhoneInput ? supplierPhoneInput.value.trim() : '';
+        const supplierEmailRaw = supplierEmailInput ? supplierEmailInput.value.trim() : '';
+        const supplierLeadTimeRaw = supplierLeadTimeInput ? supplierLeadTimeInput.value.trim() : '';
+
+        if (supplierEmailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supplierEmailRaw)) {
+            if (supplierEmailInput) {
+                const emailGroup = supplierEmailInput.closest('.form-group');
+                if (emailGroup) emailGroup.classList.add('has-error');
+                supplierEmailInput.classList.add('error');
+            }
+            valid = false;
+        }
+
+        if (supplierLeadTimeRaw) {
+            const leadTimeValue = Number(supplierLeadTimeRaw);
+            if (!Number.isFinite(leadTimeValue) || leadTimeValue < 1) {
+                if (supplierLeadTimeInput) {
+                    const leadGroup = supplierLeadTimeInput.closest('.form-group');
+                    if (leadGroup) leadGroup.classList.add('has-error');
+                    supplierLeadTimeInput.classList.add('error');
+                }
+                valid = false;
+            }
+        }
+
         if (!valid) return;
 
         const stock = parseInt(document.getElementById('prodStock').value, 10);
         const selectedStatus = document.getElementById('prodStatus').value;
         const sku = document.getElementById('prodSku').value || getNextSku();
+        const supplierName = document.getElementById('prodSupplier').value.trim();
+        const supplierDefaults = getSupplierDetails({ supplier: supplierName });
+        const leadTimeDays = supplierLeadTimeRaw
+            ? Math.max(1, Math.round(Number(supplierLeadTimeRaw)))
+            : supplierDefaults.leadTimeDays;
 
         const existingIdx = inventory.findIndex(i => i.sku === sku);
         const pData = {
             sku: sku,
             name: document.getElementById('prodName').value.trim(),
             cat: document.getElementById('prodCategory').value,
-            supplier: document.getElementById('prodSupplier').value.trim(),
+            supplier: supplierName,
             price: parseFloat(document.getElementById('prodPrice').value),
             stock: stock,
-            status: determineStatus(stock, selectedStatus)
+            status: determineStatus(stock, selectedStatus),
+            supplierPhone: supplierPhoneRaw || supplierDefaults.phone,
+            supplierEmail: supplierEmailRaw || supplierDefaults.email,
+            leadTimeDays,
+            supplierDetails: {
+                contact: supplierDefaults.contact,
+                phone: supplierPhoneRaw || supplierDefaults.phone,
+                email: supplierEmailRaw || supplierDefaults.email,
+                leadTimeDays,
+                moq: supplierDefaults.moq,
+                rating: supplierDefaults.rating
+            }
         };
 
         if (existingIdx !== -1) {
@@ -3036,30 +3605,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         persistOperationalData();
 
-        // Update DOM row if editing, else append
-        const statusClass = pData.status === 'In Stock' ? 'b-active' : pData.status === 'Low Stock' ? 'b-pending' : pData.status === 'Critical' ? 'b-cancelled' : 'b-inactive';
-        const trHtml = `<td class="cell-main">${pData.sku}</td><td>${pData.name}</td><td>${pData.cat}</td><td>${pData.supplier}</td><td>${pData.stock}</td><td>₹${pData.price}</td><td><span class="badge ${statusClass}">${pData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${pData.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${pData.sku}')">Delete</button></td>`;
-        
-        let existingRow = null;
-        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) existingRow = r; });
-        
-        if (existingRow) {
-            existingRow.innerHTML = trHtml;
-        } else {
-            const tbody = document.getElementById('inventoryTableBody') || (document.querySelector('table.dt tbody'));
-            if (tbody) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = trHtml;
-                tbody.appendChild(tr);
-            }
-        }
-
         if (currentPage === 'inventory') {
-            if (activeCharts.length) {
-                activeCharts.forEach(c => c.destroy());
-                activeCharts = [];
-            }
-            initInventoryCharts();
+            renderPage('inventory');
         }
 
         closeAddProductModal();
@@ -3373,10 +3920,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!p) return;
         openAddProductModal();
         document.querySelector('#addProductModal h3').textContent = 'Edit Product';
+        const submitBtn = document.querySelector('#addProductModal button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Save Product';
         document.getElementById('prodSku').value = p.sku;
         document.getElementById('prodName').value = p.name;
         document.getElementById('prodCategory').value = p.cat;
         document.getElementById('prodSupplier').value = p.supplier || '';
+        const supplierDetails = getSupplierDetails(p);
+        const supplierPhoneInput = document.getElementById('prodSupplierPhone');
+        const supplierEmailInput = document.getElementById('prodSupplierEmail');
+        const supplierLeadTimeInput = document.getElementById('prodLeadTime');
+        if (supplierPhoneInput) supplierPhoneInput.value = p.supplierPhone || supplierDetails.phone || '';
+        if (supplierEmailInput) supplierEmailInput.value = p.supplierEmail || supplierDetails.email || '';
+        if (supplierLeadTimeInput) supplierLeadTimeInput.value = String(p.leadTimeDays || supplierDetails.leadTimeDays || 3);
         document.getElementById('prodPrice').value = p.price;
         document.getElementById('prodStock').value = p.stock;
         document.getElementById('prodStatus').value = p.status;
@@ -3394,7 +3950,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const index = inventory.findIndex(i => i.sku === sku);
                 if (index !== -1) inventory.splice(index, 1);
                 persistOperationalData();
-                document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === sku) r.remove(); });
+                if (currentPage === 'inventory') {
+                    renderPage('inventory');
+                }
                 showToast(`Product "${sku}" deleted!`);
             }
         });
@@ -3570,11 +4128,22 @@ document.addEventListener('DOMContentLoaded', () => {
             title: `Assign Partner - ${id}`,
             submitLabel: 'Assign',
             fields: [
-                { name: 'partner', label: 'Delivery Partner', type: 'text', required: true }
+                { name: 'partner', label: 'Delivery Partner', type: 'text', required: true },
+                { name: 'partnerPhone', label: 'Partner Phone', type: 'text', required: false, placeholder: '+91 98xxxxxx' },
+                { name: 'partnerAgency', label: 'Agency / Team', type: 'text', required: false, placeholder: 'External delivery partner' },
+                { name: 'partnerVehicle', label: 'Vehicle', type: 'text', required: false, placeholder: 'Bike' }
             ],
-            initialValues: { partner: item.partner || '' },
+            initialValues: {
+                partner: item.partner || '',
+                partnerPhone: item.partnerPhone || '',
+                partnerAgency: item.partnerAgency || '',
+                partnerVehicle: item.partnerVehicle || ''
+            },
             onSubmit: (values, closeModal) => {
                 item.partner = String(values.partner).trim();
+                item.partnerPhone = String(values.partnerPhone || '').trim();
+                item.partnerAgency = String(values.partnerAgency || '').trim();
+                item.partnerVehicle = String(values.partnerVehicle || '').trim();
                 if (normalizeDeliveryStatus(item.status) !== 'Delivered') item.status = 'In Transit';
                 item.updatedAt = formatDate();
                 item.time = item.updatedAt.split(' ').slice(-1)[0];
@@ -3628,6 +4197,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item) return;
         item.status = 'Pending';
         item.partner = '';
+        item.partnerPhone = '';
+        item.partnerAgency = '';
+        item.partnerVehicle = '';
         item.updatedAt = formatDate();
         item.time = '-';
         persistOperationalData();
@@ -4061,3 +4633,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })();
 });
+

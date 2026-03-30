@@ -8,6 +8,7 @@ const DataStore = (() => {
     'use strict';
 
     const STORAGE_KEY = 'bb_pos_orders';
+    const CUSTOMER_STORAGE_KEY = 'bb_pos_customers';
     const CASHIER_DATA_PATH = 'data/cashier_data.json';
     const LIVE_SYNC_KEY = 'bb_live_sync_event';
     const LIVE_SYNC_CHANNEL = 'bb_live_sync';
@@ -33,6 +34,7 @@ const DataStore = (() => {
     let catalog = clone(DEFAULT_CATALOG);
     let promos = { ...DEFAULT_PROMOS };
     let orders = [];
+    let customers = {};
 
     function clone(value) {
         return JSON.parse(JSON.stringify(value));
@@ -52,6 +54,81 @@ const DataStore = (() => {
 
     function saveOrders() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+    }
+
+    function normalizePhone(value) {
+        return String(value || '').replace(/\D/g, '').slice(0, 10);
+    }
+
+    function saveCustomers() {
+        localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customers));
+    }
+
+    function getCustomerByPhone(phone) {
+        const normalized = normalizePhone(phone);
+        if (normalized.length !== 10) return null;
+        if (!Object.prototype.hasOwnProperty.call(customers, normalized)) return null;
+        return clone(customers[normalized]);
+    }
+
+    function upsertCustomerProfile(order) {
+        const phone = normalizePhone(order && order.phone);
+        if (phone.length !== 10) return;
+
+        const existing = customers[phone] && typeof customers[phone] === 'object'
+            ? customers[phone]
+            : {};
+
+        customers[phone] = {
+            ...existing,
+            phone,
+            name: String(order && order.customer || existing.name || '').trim(),
+            email: String(order && order.email || existing.email || '').trim(),
+            address: String(order && order.address || existing.address || '').trim(),
+            notes: String(order && order.notes || existing.notes || '').trim(),
+            preferredDeliveryOption: String(order && order.deliveryOption || existing.preferredDeliveryOption || 'pickup').toLowerCase(),
+            deliveryPartner: String(order && order.deliveryPartner || existing.deliveryPartner || '').trim(),
+            deliveryPartnerPhone: String(order && order.deliveryPartnerPhone || existing.deliveryPartnerPhone || '').trim(),
+            lastOrderId: String(order && order.id || existing.lastOrderId || '').trim(),
+            lastOrderAt: String(order && order.date || existing.lastOrderAt || '').trim(),
+            orderCount: Number(existing.orderCount || 0) + 1
+        };
+        saveCustomers();
+    }
+
+    function formatOrderMoment() {
+        const now = new Date();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        return `${now.getDate()} ${months[now.getMonth()]} ${hh}:${mm}`;
+    }
+
+    function getNextDeliveryId(rows) {
+        const numbers = (Array.isArray(rows) ? rows : [])
+            .map(item => parseInt(String(item && item.id || '').replace(/[^\d]/g, ''), 10))
+            .filter(num => Number.isFinite(num));
+        const base = numbers.length ? Math.max(...numbers) + 1 : 901;
+        return `DEL-${base}`;
+    }
+
+    function buildDeliveryRecord(order, existingRows) {
+        if (String(order && order.deliveryOption || '').toLowerCase() !== 'delivery') return null;
+        const formattedNow = formatOrderMoment();
+        const hasPartner = String(order && order.deliveryPartner || '').trim().length > 0;
+
+        return {
+            id: getNextDeliveryId(existingRows),
+            oid: String(order && order.id || '').trim(),
+            customer: String(order && order.customer || '').trim(),
+            address: String(order && order.address || 'Address to be confirmed').trim(),
+            partner: String(order && order.deliveryPartner || '').trim(),
+            partnerPhone: String(order && order.deliveryPartnerPhone || '').trim(),
+            status: hasPartner ? 'In Transit' : 'Pending',
+            etaMin: hasPartner ? 40 : null,
+            time: formattedNow.slice(-5),
+            updatedAt: formattedNow
+        };
     }
 
     async function loadCashierDataFromJson() {
@@ -158,32 +235,40 @@ const DataStore = (() => {
 
         const scopedOrders = Array.isArray(scoped.orders) ? scoped.orders : [];
         const scopedInventory = Array.isArray(scoped.inventory) ? scoped.inventory : [];
+        const scopedDeliveries = Array.isArray(scoped.deliveries) ? scoped.deliveries : [];
 
         scopedOrders.unshift(buildOperationalOrder(order, cartItems));
         applyInventoryAdjustments(scopedInventory, cartItems);
+        const deliveryRecord = buildDeliveryRecord(order, scopedDeliveries);
+        if (deliveryRecord) scopedDeliveries.unshift(deliveryRecord);
 
         operationalStore[businessContext.id] = {
             ...scoped,
             orders: scopedOrders,
-            inventory: scopedInventory
+            inventory: scopedInventory,
+            deliveries: scopedDeliveries
         };
 
         localStorage.setItem('bb_business_data', JSON.stringify(operationalStore));
         localStorage.setItem('activeBusinessId', businessContext.id);
         localStorage.setItem('activeBusinessName', businessContext.name);
-        publishDataSync(['orders', 'inventory'], businessContext.id);
+        publishDataSync(['orders', 'inventory', 'deliveries'], businessContext.id);
     }
 
     function syncTopLevelFallback(order, cartItems) {
         const storedOrders = loadStoredValue('bb_orders', [], true);
         const storedInventory = loadStoredValue('bb_inventory', [], true);
+        const storedDeliveries = loadStoredValue('bb_deliveries', [], true);
 
         storedOrders.unshift(buildOperationalOrder(order, cartItems));
         applyInventoryAdjustments(storedInventory, cartItems);
+        const deliveryRecord = buildDeliveryRecord(order, storedDeliveries);
+        if (deliveryRecord) storedDeliveries.unshift(deliveryRecord);
 
         localStorage.setItem('bb_orders', JSON.stringify(storedOrders));
         localStorage.setItem('bb_inventory', JSON.stringify(storedInventory));
-        publishDataSync(['orders', 'inventory'], '');
+        localStorage.setItem('bb_deliveries', JSON.stringify(storedDeliveries));
+        publishDataSync(['orders', 'inventory', 'deliveries'], '');
     }
 
     function syncOperationalData(order, cartItems) {
@@ -204,6 +289,18 @@ const DataStore = (() => {
             }
         } catch (err) {
             orders = [];
+        }
+
+        try {
+            const rawCustomers = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+            if (rawCustomers) {
+                const parsedCustomers = JSON.parse(rawCustomers);
+                if (parsedCustomers && typeof parsedCustomers === 'object' && !Array.isArray(parsedCustomers)) {
+                    customers = parsedCustomers;
+                }
+            }
+        } catch (err) {
+            customers = {};
         }
 
         await loadCashierDataFromJson();
@@ -251,10 +348,19 @@ const DataStore = (() => {
     }
 
     function createOrder(customerData, cartItems, discountApplied) {
+        const deliveryOption = String(customerData && customerData.deliveryOption || 'pickup').toLowerCase() === 'delivery'
+            ? 'delivery'
+            : 'pickup';
         const order = {
             id: generateId(),
-            customer: customerData.name,
-            phone: customerData.phone,
+            customer: String(customerData && customerData.name || '').trim(),
+            phone: normalizePhone(customerData && customerData.phone || ''),
+            email: String(customerData && customerData.email || '').trim(),
+            address: String(customerData && customerData.address || '').trim(),
+            notes: String(customerData && customerData.notes || '').trim(),
+            deliveryOption,
+            deliveryPartner: String(customerData && customerData.deliveryPartner || '').trim(),
+            deliveryPartnerPhone: String(customerData && customerData.deliveryPartnerPhone || '').trim(),
             items: cartItems.map(item => ({
                 id: item.id,
                 name: item.name,
@@ -270,9 +376,15 @@ const DataStore = (() => {
             date: new Date().toISOString()
         };
 
+        if (deliveryOption !== 'delivery') {
+            order.deliveryPartner = '';
+            order.deliveryPartnerPhone = '';
+        }
+
         order.total = order.subtotal - order.discount;
         orders.unshift(order);
         saveOrders();
+        upsertCustomerProfile(order);
         syncOperationalData(order, cartItems);
         return order;
     }
@@ -291,6 +403,7 @@ const DataStore = (() => {
         getCategories,
         searchCatalog,
         applyPromo,
+        getCustomerByPhone,
         createOrder,
         getSessionContext
     };

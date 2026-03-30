@@ -37,6 +37,34 @@ body.no-sidebar .main-content {
     padding: 30px;
 }
 .wizard-centered h3 { margin-bottom: 20px; color: var(--accent); }
+.wizard-centered .form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.wizard-centered textarea.form-control {
+    resize: vertical;
+    min-height: 72px;
+}
+.lookup-existing {
+    color: var(--green, #22c55e);
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+}
+.lookup-new {
+    color: var(--amber, #f59e0b);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+}
+#deliveryPartnerFields {
+    border-top: 1px dashed var(--border);
+    margin-top: 8px;
+    padding-top: 12px;
+}
 
 /* ── Step 2: POS Split View ───────────── */
 .pos-layout {
@@ -286,4 +314,24 @@ body.no-sidebar .main-content {
 .cmi-price { font-size: 0.75rem; opacity: 0.8; }
 
 .context-menu-item:hover .cmi-price { opacity: 1; }
+
+@media (max-width: 960px) {
+    .pos-layout {
+        flex-direction: column;
+        height: auto;
+    }
+    .pos-sidebar {
+        width: 100%;
+    }
+}
+
+@media (max-width: 720px) {
+    .wizard-centered {
+        margin: 16px auto;
+        padding: 20px;
+    }
+    .wizard-centered .form-row {
+        grid-template-columns: 1fr;
+    }
+}
 

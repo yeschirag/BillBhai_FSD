@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const usernameInput = document.getElementById('username');
     const btnLogin = document.getElementById('btnLogin');
     const loginError = document.getElementById('loginError');
+    const forgotLink = document.querySelector('.forgot-link');
+    const AUTH_OVERRIDE_STORAGE_KEY = 'bb_auth_overrides';
 
     function normalizeRole(role) {
         return String(role || '').toLowerCase().replace(/\s+/g, '');
@@ -120,6 +122,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         return authConfig.aliases[normalized] || '';
     }
 
+    function loadAuthOverrides() {
+        try {
+            const raw = localStorage.getItem(AUTH_OVERRIDE_STORAGE_KEY);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (err) {
+            return {};
+        }
+    }
+
+    function saveAuthOverrides(overrides) {
+        localStorage.setItem(AUTH_OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+    }
+
+    function resolveUserRecord(userKey) {
+        if (!Object.prototype.hasOwnProperty.call(authConfig.users, userKey)) return null;
+        const baseRecord = authConfig.users[userKey] || {};
+        const overrides = loadAuthOverrides();
+        const overrideRecord = overrides[userKey] && typeof overrides[userKey] === 'object'
+            ? overrides[userKey]
+            : {};
+        return {
+            ...baseRecord,
+            ...overrideRecord,
+            password: String(overrideRecord.password || baseRecord.password || '').trim()
+        };
+    }
+
     function resolveScopedBusinessId() {
         const fallbackId = 'BIZ-101';
         const currentScopedId = String(localStorage.getItem('activeBusinessId') || '').trim();
@@ -154,7 +185,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!u) { const g = document.getElementById('usernameGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (!p) { const g = document.getElementById('passwordGroup'); g.classList.add('error', 'shake'); g.addEventListener('animationend', () => g.classList.remove('shake'), { once: true }); err = true; }
         if (err) return;
-        if (!Object.prototype.hasOwnProperty.call(authConfig.users, u) || authConfig.users[u].password !== p) {
+        const userRecord = resolveUserRecord(u);
+        if (!userRecord || userRecord.password !== p) {
             const pg = document.getElementById('passwordGroup');
             pg.classList.add('error', 'shake');
             pg.addEventListener('animationend', () => pg.classList.remove('shake'), { once: true });
@@ -163,9 +195,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Store session state
-        localStorage.setItem('userRole', authConfig.users[u].role);
-        localStorage.setItem('userName', authConfig.users[u].name);
-        const normalizedRole = normalizeRole(authConfig.users[u].role);
+        localStorage.setItem('userRole', userRecord.role);
+        localStorage.setItem('userName', userRecord.name);
+        const normalizedRole = normalizeRole(userRecord.role);
 
         // Tenant context:
         // - Operational roles are scoped to exactly one business.
@@ -180,16 +212,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         localStorage.setItem('currentUser', JSON.stringify({
             username: u,
-            name: authConfig.users[u].name,
+            name: userRecord.name,
             role: normalizedRole
         }));
 
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
             btnLogin.classList.remove('loading'); btnLogin.classList.add('success');
-            setTimeout(() => { window.location.href = routeByRole(authConfig.users[u].role); }, 800);
+            setTimeout(() => { window.location.href = routeByRole(userRecord.role); }, 800);
         }, 1800);
     });
+
+    if (forgotLink) {
+        forgotLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            const lookupInput = window.prompt('Enter your username or email to reset password:');
+            if (!lookupInput) return;
+
+            const userKey = resolveUserKey(lookupInput);
+            if (!userKey) {
+                loginError.textContent = 'No account found for the entered username/email.';
+                return;
+            }
+
+            const newPassword = window.prompt('Enter your new password (minimum 6 characters):');
+            if (!newPassword) return;
+            if (newPassword.trim().length < 6) {
+                loginError.textContent = 'Password reset failed: minimum length is 6.';
+                return;
+            }
+
+            const confirmPassword = window.prompt('Confirm your new password:');
+            if (confirmPassword !== newPassword) {
+                loginError.textContent = 'Password reset failed: confirmation does not match.';
+                return;
+            }
+
+            const overrides = loadAuthOverrides();
+            overrides[userKey] = {
+                ...(overrides[userKey] || {}),
+                password: newPassword.trim()
+            };
+            saveAuthOverrides(overrides);
+
+            usernameInput.value = lookupInput.trim();
+            passwordInput.value = '';
+            loginError.textContent = '';
+            window.alert('Password reset successful. Please sign in with your new password.');
+        });
+    }
 
     document.querySelectorAll('.input-group input').forEach(input => {
         input.addEventListener('focus', () => input.closest('.input-group').classList.remove('error'));
