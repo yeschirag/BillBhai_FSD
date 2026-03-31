@@ -272,6 +272,22 @@ body:not([data-app-ready="true"])::after {
     min-height: 100vh
 }
 
+/* Superuser focused pages (portal/profile/notifications) use a clean full-width canvas. */
+body.no-sidebar-layout .sidebar,
+body.no-sidebar-layout .sidebar-overlay {
+    display: none !important
+}
+
+body.no-sidebar-layout .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important
+}
+
+body.no-sidebar-layout .menu-toggle {
+    display: none !important
+}
+
 .sidebar.collapsed~.main-content {
     margin-left: var(--sidebar-collapsed);
     width: calc(100% - var(--sidebar-collapsed));

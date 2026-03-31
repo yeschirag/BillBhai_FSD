@@ -78,34 +78,10 @@
                                 <input type="email" class="form-control" id="cEmail" placeholder="customer@email.com">
                                 <div class="form-error" id="errEmail" style="display:block; color:var(--red); font-size:0.8rem; margin-top:4px;"></div>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label" for="cDeliveryOption">Delivery Option *</label>
-                                <select class="form-control" id="cDeliveryOption">
-                                    <option value="pickup" selected>Pickup (Counter)</option>
-                                    <option value="delivery">Home Delivery</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="cAddress">Address</label>
-                            <textarea class="form-control" id="cAddress" rows="2" placeholder="Required for delivery"></textarea>
-                            <div class="form-error" id="errAddress" style="display:block; color:var(--red); font-size:0.8rem; margin-top:4px;"></div>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="cNotes">Customer Notes (Optional)</label>
                             <input type="text" class="form-control" id="cNotes" placeholder="Preferences, landmark, etc.">
-                        </div>
-                        <div id="deliveryPartnerFields" style="display:none;">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label" for="cDeliveryPartner">Delivery Partner / Boy</label>
-                                    <input type="text" class="form-control" id="cDeliveryPartner" placeholder="Optional assignment">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label" for="cDeliveryPartnerPhone">Delivery Contact</label>
-                                    <input type="text" class="form-control" id="cDeliveryPartnerPhone" placeholder="+91 98xxxxxx">
-                                </div>
-                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary" id="customerStepSubmitBtn" style="width:100%; justify-content:center;">Begin Scanning / Manual Entry</button>
                     </form>
@@ -190,6 +166,21 @@
                                         <span class="checkout-mode-title">Delivery + COD</span>
                                         <span class="checkout-mode-copy">Dispatch now and collect cash on delivery.</span>
                                     </label>
+                                </div>
+                                <div id="deliveryPartnerFields" class="delivery-details-block" style="display:none;">
+                                    <label class="form-label" for="cAddress">Delivery Address *</label>
+                                    <textarea class="form-control" id="cAddress" rows="2" placeholder="Required for delivery"></textarea>
+                                    <div class="form-error" id="errAddress" style="display:block; color:var(--red); font-size:0.8rem; margin-top:4px;"></div>
+                                    <div class="form-row delivery-contact-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="cDeliveryPartner">Delivery Partner / Boy</label>
+                                            <input type="text" class="form-control" id="cDeliveryPartner" placeholder="Optional assignment">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="cDeliveryPartnerPhone">Delivery Contact</label>
+                                            <input type="text" class="form-control" id="cDeliveryPartnerPhone" placeholder="+91 98xxxxxx">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div id="checkoutModeError" class="text-sm" style="color:var(--red); min-height:18px;"></div>
                             </div>

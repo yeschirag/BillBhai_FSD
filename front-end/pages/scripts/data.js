@@ -11,6 +11,7 @@ const DataStore = (() => {
     const CUSTOMER_STORAGE_KEY = 'bb_pos_customers';
     const CUSTOMER_SESSION_NOTIFICATION_KEY = 'bb_customer_session_notifications';
     const CASHIER_DATA_PATH = 'data/cashier_data.json';
+    const FETCH_TIMEOUT_MS = 7000;
     const LIVE_SYNC_KEY = 'bb_live_sync_event';
     const LIVE_SYNC_CHANNEL = 'bb_live_sync';
     const syncSourceId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -242,23 +243,43 @@ const DataStore = (() => {
         };
     }
 
-    async function loadCashierDataFromJson() {
+    async function fetchJsonWithTimeout(path) {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const requestOptions = { cache: 'no-store' };
+        if (controller) requestOptions.signal = controller.signal;
+
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                if (controller) controller.abort();
+                reject(new Error('Request timed out'));
+            }, FETCH_TIMEOUT_MS);
+        });
+
         try {
-            const response = await fetch(CASHIER_DATA_PATH, { cache: 'no-store' });
-            if (!response.ok) return;
-
-            const parsed = await response.json();
-            if (!parsed || typeof parsed !== 'object') return;
-
-            if (Array.isArray(parsed.catalog) && parsed.catalog.length) {
-                catalog = mergeCatalogProducts(parsed.catalog, DEFAULT_CATALOG);
-            }
-
-            if (parsed.promos && typeof parsed.promos === 'object' && !Array.isArray(parsed.promos)) {
-                promos = { ...parsed.promos };
-            }
+            const response = await Promise.race([
+                fetch(path, requestOptions),
+                timeoutPromise
+            ]);
+            if (!response.ok) return null;
+            return await response.json();
         } catch (err) {
-            // Keep fallback defaults when JSON is unavailable.
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    async function loadCashierDataFromJson() {
+        const parsed = await fetchJsonWithTimeout(CASHIER_DATA_PATH);
+        if (!parsed || typeof parsed !== 'object') return;
+
+        if (Array.isArray(parsed.catalog) && parsed.catalog.length) {
+            catalog = mergeCatalogProducts(parsed.catalog, DEFAULT_CATALOG);
+        }
+
+        if (parsed.promos && typeof parsed.promos === 'object' && !Array.isArray(parsed.promos)) {
+            promos = { ...parsed.promos };
         }
     }
 

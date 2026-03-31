@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const loginError = document.getElementById('loginError');
     const forgotLink = document.querySelector('.forgot-link');
     const AUTH_OVERRIDE_STORAGE_KEY = 'bb_auth_overrides';
+    const FETCH_TIMEOUT_MS = 7000;
 
     function normalizeRole(role) {
         return String(role || '').toLowerCase().replace(/\s+/g, '');
@@ -55,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const DEFAULT_AUTH_CONFIG = {
         users: {
-            superuser: { password: 'super123', role: 'Admin', name: 'Legacy Admin Account' },
+            superuser: { password: 'super123', role: 'Super User', name: 'Legacy Admin Account' },
             admin: { password: 'admin123', role: 'Admin', name: 'Store Admin' },
             cashier: { password: 'cashier123', role: 'Cashier', name: 'POS Cashier' },
             returnhandler: { password: 'return123', role: 'Return Handler', name: 'Returns Desk' },
@@ -86,31 +87,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         aliases: { ...DEFAULT_AUTH_CONFIG.aliases }
     };
 
-    async function loadAuthConfig() {
+    async function fetchJsonWithTimeout(path) {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const requestOptions = { cache: 'no-store' };
+        if (controller) requestOptions.signal = controller.signal;
+
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                if (controller) controller.abort();
+                reject(new Error('Request timed out'));
+            }, FETCH_TIMEOUT_MS);
+        });
+
         try {
-            const response = await fetch('data/auth_users.json', { cache: 'no-store' });
-            if (!response.ok) return;
-
-            const parsed = await response.json();
-            if (!parsed || typeof parsed !== 'object') return;
-
-            const users = parsed.users && typeof parsed.users === 'object' && !Array.isArray(parsed.users)
-                ? parsed.users
-                : DEFAULT_AUTH_CONFIG.users;
-            const aliases = parsed.aliases && typeof parsed.aliases === 'object' && !Array.isArray(parsed.aliases)
-                ? parsed.aliases
-                : DEFAULT_AUTH_CONFIG.aliases;
-
-            authConfig = {
-                users: { ...users },
-                aliases: { ...aliases }
-            };
+            const response = await Promise.race([
+                fetch(path, requestOptions),
+                timeoutPromise
+            ]);
+            if (!response.ok) return null;
+            return await response.json();
         } catch (err) {
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    async function loadAuthConfig() {
+        const parsed = await fetchJsonWithTimeout('data/auth_users.json');
+        if (!parsed || typeof parsed !== 'object') {
             authConfig = {
                 users: { ...DEFAULT_AUTH_CONFIG.users },
                 aliases: { ...DEFAULT_AUTH_CONFIG.aliases }
             };
+            return;
         }
+
+        const users = parsed.users && typeof parsed.users === 'object' && !Array.isArray(parsed.users)
+            ? parsed.users
+            : DEFAULT_AUTH_CONFIG.users;
+        const aliases = parsed.aliases && typeof parsed.aliases === 'object' && !Array.isArray(parsed.aliases)
+            ? parsed.aliases
+            : DEFAULT_AUTH_CONFIG.aliases;
+
+        authConfig = {
+            users: { ...users },
+            aliases: { ...aliases }
+        };
     }
 
     await loadAuthConfig();

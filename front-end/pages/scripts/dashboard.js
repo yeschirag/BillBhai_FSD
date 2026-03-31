@@ -5,6 +5,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Keep UI hidden until role-based permissions are applied (prevents brief admin flash).
     setAppReady(false);
+    const bootstrapVisibilityWatchdog = setTimeout(() => {
+        if (document.body.getAttribute('data-app-ready') !== 'true') {
+            console.warn('Dashboard bootstrap fallback triggered. Revealing UI shell.');
+            setAppReady(true);
+        }
+    }, 12000);
 
     // Logo is always dark mode
     const sidebarLogo = document.querySelector('.sidebar-brand-img');
@@ -39,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
         deliveryops: { orders: false, inventory: false, users: false, returns: false, delivery: true, businesses: false },
         customer: { orders: false, inventory: false, users: false, returns: false, delivery: false, businesses: false }
     };
+
+    // Initialized early to avoid temporal-dead-zone crashes when notifications render before helper sections run.
+    var DELIVERY_PARTNER_DIRECTORY = {};
+    var SUPPLIER_DIRECTORY = {};
 
     let activeRoleKey = 'customer';
 
@@ -114,14 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Apply Role-Based UI
     function applyRoleBasedUI() {
-        const storedName = localStorage.getItem('userName');
-        const storedRole = localStorage.getItem('userRole');
+        const currentUser = loadObject('currentUser', {});
+        const storedName = String(localStorage.getItem('userName') || currentUser.name || '').trim();
+        const storedRole = String(localStorage.getItem('userRole') || currentUser.role || '').trim();
 
         if (!storedName || !storedRole) {
             clearSession();
             goToLogin();
             return;
         }
+
+        // Normalize legacy sessions where one of these fields may be missing.
+        if (!localStorage.getItem('userName')) localStorage.setItem('userName', storedName);
+        if (!localStorage.getItem('userRole')) localStorage.setItem('userRole', storedRole);
 
         const roleKey = roleFromStorage(storedRole);
         if (!roleKey || !ROLE_ALLOWED_PAGES[roleKey]) {
@@ -147,6 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentPage = document.body.getAttribute('data-page') || 'dashboard';
         const allowedPages = ROLE_ALLOWED_PAGES[roleKey] || [];
         let activeBusinessName = localStorage.getItem('activeBusinessName') || '';
+
+        const shouldHideSidebarLayout = roleKey === 'superuser' && ['superuser', 'profile', 'notifications'].includes(currentPage);
+        document.body.classList.toggle('no-sidebar-layout', shouldHideSidebarLayout);
 
         if (roleKey === 'superuser' && currentPage === 'superuser') {
             localStorage.removeItem('activeBusinessId');
@@ -296,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = document.body.getAttribute('data-page') || 'dashboard';
     const LIVE_SYNC_KEY = 'bb_live_sync_event';
     const LIVE_SYNC_CHANNEL = 'bb_live_sync';
+    const FETCH_TIMEOUT_MS = 7000;
     const NOTIFICATION_STATE_STORAGE_KEY = 'bb_notification_state';
     const NOTIFICATIONS_STORAGE_KEY = 'bb_notifications';
     const PROFILE_SETTINGS_STORAGE_KEY = 'bb_profile_settings';
@@ -411,26 +430,41 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(key, JSON.stringify(value));
     }
 
-    async function loadJsonArray(path, fallback) {
+    async function fetchJsonWithTimeout(path) {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const requestOptions = { cache: 'no-store' };
+        if (controller) requestOptions.signal = controller.signal;
+
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                if (controller) controller.abort();
+                reject(new Error('Request timed out'));
+            }, FETCH_TIMEOUT_MS);
+        });
+
         try {
-            const response = await fetch(path, { cache: 'no-store' });
-            if (!response.ok) return fallback;
-            const parsed = await response.json();
-            return Array.isArray(parsed) ? parsed : fallback;
+            const response = await Promise.race([
+                fetch(path, requestOptions),
+                timeoutPromise
+            ]);
+            if (!response.ok) return null;
+            return await response.json();
         } catch (err) {
-            return fallback;
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
+    async function loadJsonArray(path, fallback) {
+        const parsed = await fetchJsonWithTimeout(path);
+        return Array.isArray(parsed) ? parsed : fallback;
+    }
+
     async function loadJsonObject(path, fallback) {
-        try {
-            const response = await fetch(path, { cache: 'no-store' });
-            if (!response.ok) return fallback;
-            const parsed = await response.json();
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
-        } catch (err) {
-            return fallback;
-        }
+        const parsed = await fetchJsonWithTimeout(path);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
     }
 
     function normalizeBusinessRecord(raw, fallbackId, fallbackName) {
@@ -1046,13 +1080,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function hydrateDataFromJsonFiles() {
-        const jsonOrders = mergeSeedRecords(await loadJsonArray('data/orders.json', defaultOrders), defaultOrders, 'id');
-        const jsonInventory = mergeSeedRecords(await loadJsonArray('data/inventory.json', defaultInventory), defaultInventory, 'sku');
-        const jsonDeliveries = mergeSeedRecords(await loadJsonArray('data/deliveries.json', defaultDeliveries), defaultDeliveries, 'id');
-        const jsonReturns = mergeSeedRecords(await loadJsonArray('data/returns.json', defaultReturns), defaultReturns, 'id');
-        const jsonUsers = mergeSeedRecords(await loadJsonArray('data/users.json', defaultUsers), defaultUsers, 'name');
-        const jsonBusinessesRaw = await loadJsonArray('data/businesses.json', defaultBusinesses);
-        const jsonBusinessData = await loadJsonObject('data/business_data.json', {});
+        const [
+            jsonOrdersRaw,
+            jsonInventoryRaw,
+            jsonDeliveriesRaw,
+            jsonReturnsRaw,
+            jsonUsersRaw,
+            jsonBusinessesRaw,
+            jsonBusinessData
+        ] = await Promise.all([
+            loadJsonArray('data/orders.json', defaultOrders),
+            loadJsonArray('data/inventory.json', defaultInventory),
+            loadJsonArray('data/deliveries.json', defaultDeliveries),
+            loadJsonArray('data/returns.json', defaultReturns),
+            loadJsonArray('data/users.json', defaultUsers),
+            loadJsonArray('data/businesses.json', defaultBusinesses),
+            loadJsonObject('data/business_data.json', {})
+        ]);
+
+        const jsonOrders = mergeSeedRecords(jsonOrdersRaw, defaultOrders, 'id');
+        const jsonInventory = mergeSeedRecords(jsonInventoryRaw, defaultInventory, 'sku');
+        const jsonDeliveries = mergeSeedRecords(jsonDeliveriesRaw, defaultDeliveries, 'id');
+        const jsonReturns = mergeSeedRecords(jsonReturnsRaw, defaultReturns, 'id');
+        const jsonUsers = mergeSeedRecords(jsonUsersRaw, defaultUsers, 'name');
         const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(
             b,
             defaultBusinesses[idx] && defaultBusinesses[idx].id,
@@ -2035,7 +2085,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderNotificationDropdown() {
         if (!notifDropdown) return;
-        const notifications = getActiveNotifications();
+        let notifications = [];
+        try {
+            notifications = getActiveNotifications();
+        } catch (err) {
+            console.error('Failed to build notifications.', err);
+            notifications = [];
+        }
         const unreadCount = notifications.filter(item => item.unread).length;
         const previewItems = notifications.slice(0, 3);
 
@@ -2282,7 +2338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return badge('Pending', 'pending');
     }
 
-    const DELIVERY_PARTNER_DIRECTORY = {
+    DELIVERY_PARTNER_DIRECTORY = {
         'Rajesh K.': { phone: '+91 98214 44770', agency: 'SwiftDrop Logistics', vehicle: 'Bike', coverage: 'MG Road - Sector 20' },
         'Sunil M.': { phone: '+91 98104 31852', agency: 'Metro Last Mile', vehicle: 'Bike', coverage: 'Green Park - Civil Lines' },
         'Deepak R.': { phone: '+91 98739 22815', agency: 'RapidX Couriers', vehicle: 'Bike', coverage: 'Industrial Area - Lake View' },
@@ -2357,7 +2413,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const SUPPLIER_DIRECTORY = {
+    SUPPLIER_DIRECTORY = {
         'Agarwal Traders': { contact: 'Sanjay Agarwal', phone: '+91 98115 44101', email: 'sanjay@agarwaltraders.in', leadTimeDays: 2, moq: 25, rating: 4.8 },
         'Sharma Wholesale': { contact: 'Neha Sharma', phone: '+91 98917 22055', email: 'orders@sharmawholesale.in', leadTimeDays: 3, moq: 30, rating: 4.6 },
         'Fortune Dist.': { contact: 'Ritesh Jain', phone: '+91 99004 11233', email: 'north@fortunedist.in', leadTimeDays: 4, moq: 20, rating: 4.5 },
@@ -6033,13 +6089,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddUsr = document.getElementById('addUserBtn');
     if (btnAddUsr) btnAddUsr.addEventListener('click', () => { const h3 = document.querySelector('#addUserModal h3'); if (h3) h3.textContent = 'Add New User'; const inName = document.getElementById('userName'); if (inName) inName.readOnly = false; });
 
+    const appReadyWatchdog = setTimeout(() => {
+        console.warn('Dashboard startup exceeded timeout. Rendering shell with fallback data.');
+        setAppReady(true);
+    }, FETCH_TIMEOUT_MS + 3000);
+
     (async function startApp() {
         try {
-            await hydrateDataFromJsonFiles();
+            // Render immediately from local/default data so users never stare at static placeholders.
             initRealtimeSync();
             renderPage(currentPage);
+
+            // Refresh from JSON files in the background and repaint when done.
+            await hydrateDataFromJsonFiles();
+            renderPage(currentPage);
+        } catch (err) {
+            console.error('Dashboard startup failed; showing fallback shell.', err);
+            try {
+                renderPage(currentPage);
+            } catch (renderErr) {
+                console.error('Fallback render failed.', renderErr);
+            }
         } finally {
             // Reveal UI only after initial data + page render to avoid a brief "wrong dashboard" flash.
+            clearTimeout(appReadyWatchdog);
+            clearTimeout(bootstrapVisibilityWatchdog);
             setAppReady(true);
         }
     })();

@@ -29,7 +29,6 @@ const UI = (() => {
             inpEmail: document.getElementById('cEmail'),
             inpAddress: document.getElementById('cAddress'),
             inpNotes: document.getElementById('cNotes'),
-            selDeliveryOption: document.getElementById('cDeliveryOption'),
             inpDeliveryPartner: document.getElementById('cDeliveryPartner'),
             inpDeliveryPartnerPhone: document.getElementById('cDeliveryPartnerPhone'),
             lookupHint: document.getElementById('customerLookupHint'),
@@ -165,8 +164,8 @@ const UI = (() => {
     }
 
     function toggleDeliveryFields() {
-        if (!el.selDeliveryOption || !el.deliveryPartnerFields) return;
-        const isDelivery = String(el.selDeliveryOption.value || 'pickup').toLowerCase() === 'delivery';
+        if (!el.deliveryPartnerFields) return;
+        const isDelivery = getCheckoutModeConfig(currentCheckoutMode).deliveryOption === 'delivery';
         el.deliveryPartnerFields.style.display = isDelivery ? 'block' : 'none';
         if (!isDelivery && el.errAddress) el.errAddress.textContent = '';
     }
@@ -183,7 +182,7 @@ const UI = (() => {
         el.btnCheckout.textContent = getCheckoutModeConfig(currentCheckoutMode).buttonLabel;
     }
 
-    function setCheckoutMode(mode, syncDelivery) {
+    function setCheckoutMode(mode) {
         const config = getCheckoutModeConfig(mode);
         currentCheckoutMode = config.mode;
 
@@ -194,11 +193,7 @@ const UI = (() => {
         updateCheckoutButtonLabel();
 
         if (el.checkoutModeError) el.checkoutModeError.textContent = '';
-
-        if (syncDelivery !== false && el.selDeliveryOption) {
-            el.selDeliveryOption.value = config.deliveryOption;
-            toggleDeliveryFields();
-        }
+        toggleDeliveryFields();
     }
 
     function buildCheckoutCustomerPayload() {
@@ -248,11 +243,6 @@ const UI = (() => {
         if (el.inpAddress) el.inpAddress.value = String(profile.address || '').trim();
         if (el.inpNotes) el.inpNotes.value = String(profile.notes || '').trim();
 
-        if (el.selDeliveryOption) {
-            const option = String(profile.preferredDeliveryOption || 'pickup').toLowerCase();
-            el.selDeliveryOption.value = option === 'delivery' ? 'delivery' : 'pickup';
-        }
-
         if (el.inpDeliveryPartner) {
             el.inpDeliveryPartner.value = String(profile.deliveryPartner || '').trim();
         }
@@ -286,9 +276,9 @@ const UI = (() => {
                 if (el.inpEmail) el.inpEmail.value = '';
                 if (el.inpAddress) el.inpAddress.value = '';
                 if (el.inpNotes) el.inpNotes.value = '';
-                if (el.selDeliveryOption) el.selDeliveryOption.value = 'pickup';
                 if (el.inpDeliveryPartner) el.inpDeliveryPartner.value = '';
                 if (el.inpDeliveryPartnerPhone) el.inpDeliveryPartnerPhone.value = '';
+                setCheckoutMode('takeaway_now');
                 toggleDeliveryFields();
             }
             setLookupHint('new', getTerminalCopy().lookupNew);
@@ -296,13 +286,14 @@ const UI = (() => {
     }
 
     function getCustomerPayload() {
+        const modeConfig = getCheckoutModeConfig(currentCheckoutMode);
         return {
             name: String(el.inpName && el.inpName.value || '').trim(),
             phone: sanitizePhone(el.inpPhone && el.inpPhone.value || ''),
             email: String(el.inpEmail && el.inpEmail.value || '').trim(),
             address: String(el.inpAddress && el.inpAddress.value || '').trim(),
             notes: String(el.inpNotes && el.inpNotes.value || '').trim(),
-            deliveryOption: String(el.selDeliveryOption && el.selDeliveryOption.value || 'pickup').toLowerCase(),
+            deliveryOption: modeConfig.deliveryOption,
             deliveryPartner: String(el.inpDeliveryPartner && el.inpDeliveryPartner.value || '').trim(),
             deliveryPartnerPhone: String(el.inpDeliveryPartnerPhone && el.inpDeliveryPartnerPhone.value || '').trim(),
             isExistingCustomer: Boolean(currentCustomerProfile)
@@ -315,7 +306,6 @@ const UI = (() => {
         if (el.inpEmail) el.inpEmail.value = '';
         if (el.inpAddress) el.inpAddress.value = '';
         if (el.inpNotes) el.inpNotes.value = '';
-        if (el.selDeliveryOption) el.selDeliveryOption.value = 'pickup';
         if (el.inpDeliveryPartner) el.inpDeliveryPartner.value = '';
         if (el.inpDeliveryPartnerPhone) el.inpDeliveryPartnerPhone.value = '';
 
@@ -370,9 +360,6 @@ const UI = (() => {
             if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
 
             if (validation.isValid) {
-                if (el.selDeliveryOption && String(el.selDeliveryOption.value || 'pickup').toLowerCase() === 'delivery' && currentCheckoutMode === 'takeaway_now') {
-                    setCheckoutMode('prepaid_delivery', false);
-                }
                 renderCategories();
                 renderCatalog();
                 showStep(2);
@@ -403,18 +390,7 @@ const UI = (() => {
         if (el.inpAddress) {
             el.inpAddress.addEventListener('input', () => {
                 if (el.errAddress) el.errAddress.textContent = '';
-            });
-        }
-
-        if (el.selDeliveryOption) {
-            el.selDeliveryOption.addEventListener('change', () => {
-                toggleDeliveryFields();
-                if (el.errAddress) el.errAddress.textContent = '';
-                if (String(el.selDeliveryOption.value || 'pickup').toLowerCase() === 'delivery') {
-                    if (currentCheckoutMode === 'takeaway_now') setCheckoutMode('prepaid_delivery', false);
-                } else if (currentCheckoutMode !== 'takeaway_now') {
-                    setCheckoutMode('takeaway_now', false);
-                }
+                if (el.checkoutModeError) el.checkoutModeError.textContent = '';
             });
         }
     }
@@ -687,12 +663,14 @@ const UI = (() => {
                 if (el.errPhone) el.errPhone.textContent = validation.errors.phone || '';
                 if (el.errEmail) el.errEmail.textContent = validation.errors.email || '';
                 if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
+
+                const hasCustomerFieldErrors = Boolean(validation.errors.name || validation.errors.phone || validation.errors.email);
                 if (el.checkoutModeError) {
                     el.checkoutModeError.textContent = validation.errors.address
                         ? 'Delivery needs a valid address before confirmation.'
                         : 'Please complete the customer details before checkout.';
                 }
-                showStep(1);
+                showStep(hasCustomerFieldErrors ? 1 : 2);
                 return;
             }
 
