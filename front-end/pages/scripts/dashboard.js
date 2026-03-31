@@ -3828,7 +3828,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
             tbody.innerHTML = filteredRows.length
-                ? filteredRows.map(item => `<tr><td class="cell-main">${item.name}</td><td>${item.email || ''}</td><td>${item.normalizedRole}</td><td>${statusBadge(item.normalizedStatus)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${item.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${item.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${item.name}')">Delete</button></td></tr>`).join('')
+                ? filteredRows.map(item => {
+                    const token = encodeUserToken(item.name);
+                    return `<tr><td class="cell-main">${item.name}</td><td>${item.email || ''}</td><td>${item.normalizedRole}</td><td>${statusBadge(item.normalizedStatus)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${token}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${token}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${token}')">Delete</button></td></tr>`;
+                }).join('')
                 : '<tr><td colspan="5" class="text-muted">No users match the selected filters.</td></tr>';
         }
 
@@ -3966,12 +3969,196 @@ document.addEventListener('DOMContentLoaded', () => {
         renderBusinessDetails(id);
     }
 
+    const USER_MANAGED_ROLE_OPTIONS = ['Admin', 'Cashier', 'Return Handler', 'Inventory Manager', 'Delivery Ops', 'Customer', 'Super User'];
+    const CORE_AUTH_USER_KEYS = new Set(['superuser', 'admin', 'cashier', 'returnhandler', 'inventorymanager', 'deliveryops', 'customer', 'chirag']);
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function decodeUserToken(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        try {
+            return decodeURIComponent(raw);
+        } catch (err) {
+            return raw;
+        }
+    }
+
+    function encodeUserToken(value) {
+        return encodeURIComponent(String(value || '').trim());
+    }
+
+    function normalizeAuthUserKey(value) {
+        return String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '')
+            .replace(/[^a-z0-9._-]/g, '');
+    }
+
+    function mapUserRoleToAuthRole(roleLabel) {
+        const key = normalizeRole(roleLabel);
+        if (key === 'superuser' || key === 'super') return 'Super User';
+        if (key === 'admin' || key === 'opshead' || key === 'storemanager' || key === 'accountant' || key === 'supportagent') return 'Admin';
+        if (key === 'cashier') return 'Cashier';
+        if (key === 'returnhandler' || key === 'returns') return 'Return Handler';
+        if (key === 'inventorymanager' || key === 'inventory') return 'Inventory Manager';
+        if (key === 'deliveryops' || key === 'delivery' || key === 'deliverymanager' || key === 'deliverydriver') return 'Delivery Ops';
+        if (key === 'customer' || key === 'user') return 'Customer';
+        return 'Admin';
+    }
+
+    function buildUsernameSeed(name, email) {
+        const emailSeed = String(email || '').trim().split('@')[0] || '';
+        const nameSeed = String(name || '').trim().toLowerCase().replace(/\s+/g, '.');
+        const rawSeed = emailSeed || nameSeed || 'user';
+        return normalizeAuthUserKey(rawSeed) || `user${Math.floor(Math.random() * 900 + 100)}`;
+    }
+
+    function usernameTaken(usernameKey, existingOwnerName) {
+        if (!usernameKey) return true;
+        if (CORE_AUTH_USER_KEYS.has(usernameKey)) return true;
+
+        const overrides = loadObject(AUTH_OVERRIDE_STORAGE_KEY, {});
+        if (Object.prototype.hasOwnProperty.call(overrides, usernameKey)) {
+            const owner = String(overrides[usernameKey] && overrides[usernameKey].name || '').trim();
+            if (!existingOwnerName || owner !== existingOwnerName) return true;
+        }
+
+        return users.some(user => {
+            const currentKey = normalizeAuthUserKey(user && user.username);
+            if (!currentKey) return false;
+            if (currentKey !== usernameKey) return false;
+            const ownerName = String(user && user.name || '').trim();
+            return !existingOwnerName || ownerName !== existingOwnerName;
+        });
+    }
+
+    function generateUniqueUsername(name, email, existingUsername) {
+        const currentKey = normalizeAuthUserKey(existingUsername);
+        if (currentKey) return currentKey;
+
+        const base = buildUsernameSeed(name, email);
+        let candidate = base;
+        let suffix = 2;
+        while (usernameTaken(candidate, String(name || '').trim())) {
+            candidate = `${base}${suffix}`;
+            suffix += 1;
+        }
+        return candidate;
+    }
+
+    function generateTemporaryPassword() {
+        const randomPart = Math.random().toString(36).slice(2, 8);
+        const numberPart = String(Math.floor(Math.random() * 90) + 10);
+        return `Bb${randomPart}${numberPart}!`;
+    }
+
+    function getUserLoginHandle(user) {
+        const username = normalizeAuthUserKey(user && user.username);
+        if (username) return username;
+
+        const email = String(user && user.email || '').trim().toLowerCase();
+        if (email) return email;
+
+        return buildUsernameSeed(user && user.name, email);
+    }
+
+    function showCredentialsModal(title, credential) {
+        if (!credential) return;
+
+        openQuickConfirmModal({
+            title,
+            message: `Share these credentials with ${escapeHtml(credential.name)}:<br><br><strong>Username:</strong> ${escapeHtml(credential.username)}<br><strong>Password:</strong> ${escapeHtml(credential.password)}<br><strong>Role:</strong> ${escapeHtml(credential.role)}<br><strong>Email:</strong> ${escapeHtml(credential.email || '-')}`,
+            confirmLabel: 'Done',
+            onConfirm: () => {}
+        });
+    }
+
+    function upsertAuthCredentialsForUser(userRecord, options) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const userName = String(userRecord && userRecord.name || '').trim();
+        const userEmail = String(userRecord && userRecord.email || '').trim();
+        const userStatus = String(userRecord && userRecord.status || 'Active').trim() || 'Active';
+        const existingUsername = normalizeAuthUserKey(opts.existingUsername || userRecord && userRecord.username);
+        const username = generateUniqueUsername(userName, userEmail, existingUsername);
+
+        const overrides = loadObject(AUTH_OVERRIDE_STORAGE_KEY, {});
+        const previousRecord = existingUsername && overrides[existingUsername] && typeof overrides[existingUsername] === 'object'
+            ? overrides[existingUsername]
+            : {};
+        const currentRecord = overrides[username] && typeof overrides[username] === 'object'
+            ? overrides[username]
+            : {};
+
+        const knownPassword = String(currentRecord.password || previousRecord.password || '').trim();
+        const forcedPassword = String(opts.forcePassword || '').trim();
+        const password = forcedPassword || knownPassword || generateTemporaryPassword();
+
+        if (existingUsername && existingUsername !== username) {
+            delete overrides[existingUsername];
+        }
+
+        overrides[username] = {
+            ...currentRecord,
+            username,
+            email: userEmail,
+            name: userName,
+            role: mapUserRoleToAuthRole(userRecord && userRecord.role),
+            status: userStatus,
+            password
+        };
+
+        saveObject(AUTH_OVERRIDE_STORAGE_KEY, overrides);
+
+        return {
+            username,
+            password,
+            generated: !forcedPassword && !knownPassword
+        };
+    }
+
+    function removeAuthCredentialsForUser(userRecord) {
+        const overrides = loadObject(AUTH_OVERRIDE_STORAGE_KEY, {});
+        const username = normalizeAuthUserKey(userRecord && userRecord.username);
+        const userEmail = String(userRecord && userRecord.email || '').trim().toLowerCase();
+        const userName = String(userRecord && userRecord.name || '').trim().toLowerCase();
+
+        if (username && Object.prototype.hasOwnProperty.call(overrides, username)) {
+            delete overrides[username];
+            saveObject(AUTH_OVERRIDE_STORAGE_KEY, overrides);
+            return;
+        }
+
+        Object.keys(overrides).forEach(key => {
+            const record = overrides[key] && typeof overrides[key] === 'object' ? overrides[key] : {};
+            const recordEmail = String(record.email || '').trim().toLowerCase();
+            const recordName = String(record.name || '').trim().toLowerCase();
+            if ((userEmail && recordEmail === userEmail) || (userName && recordName === userName)) {
+                delete overrides[key];
+            }
+        });
+
+        saveObject(AUTH_OVERRIDE_STORAGE_KEY, overrides);
+    }
+
     function renderUserProfile(username) {
-        const user = users.find(u => u.name === username);
+        const decodedUsername = decodeUserToken(username);
+        const user = users.find(u => u.name === decodedUsername);
         if (!user) return;
 
         const initial = user.name.charAt(0).toUpperCase();
-        const email = user.name.toLowerCase().replace(' ', '.') + '@billbhai.com';
+        const email = String(user.email || `${user.name.toLowerCase().replace(/\s+/g, '.')}@billbhai.com`).trim();
+        const loginHandle = getUserLoginHandle(user);
+        const userToken = encodeUserToken(user.name);
+        const normalizedStatus = String(user.status || '').toLowerCase();
 
         let activityHtml = '';
         if (user.role === 'Delivery') {
@@ -4002,16 +4189,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--amber)); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; font-weight: 700;">${initial}</div>
                         <h3 style="font-size: 1.2rem; margin-bottom: 4px;">${user.name}</h3>
                         <p class="text-muted" style="margin-bottom: 8px;">${user.role} • ${email}</p>
+                        <p class="text-sm text-muted" style="margin-bottom: 8px;">Login: ${loginHandle}</p>
                         <div style="margin-bottom: 20px;">${statusBadge(user.status)}</div>
                     </div>
                 </div>
                 <div class="card">
                     <div class="card-hd"><h3 style="color: var(--red);">Admin Actions</h3></div>
                     <div class="card-bd" style="display: flex; flex-direction: column; gap: 10px;">
-                        <button class="btn btn-outline" style="justify-content: center;">Change User Role</button>
-                        <button class="btn btn-outline" style="justify-content: center;">Send Password Reset Link</button>
-                        <button class="btn" style="justify-content: center; background: rgba(220, 53, 69, 0.1); color: var(--red); border: 1px solid rgba(220, 53, 69, 0.3);">Suspend Account</button>
-                        <button class="btn" style="justify-content: center; background: var(--red-bg); color: var(--red); border: 1px solid var(--red);">Delete User</button>
+                        <button class="btn btn-outline" style="justify-content: center;" onclick="window.changeUserRole('${userToken}')">Change User Role</button>
+                        <button class="btn btn-outline" style="justify-content: center;" onclick="window.sendUserPasswordReset('${userToken}')">Send Password Reset</button>
+                        <button class="btn" style="justify-content: center; background: rgba(220, 53, 69, 0.1); color: var(--red); border: 1px solid rgba(220, 53, 69, 0.3);" onclick="window.toggleUserSuspension('${userToken}')">${normalizedStatus === 'suspended' ? 'Activate Account' : 'Suspend Account'}</button>
+                        <button class="btn" style="justify-content: center; background: var(--red-bg); color: var(--red); border: 1px solid var(--red);" onclick="window.deleteUser('${userToken}')">Delete User</button>
                     </div>
                 </div>
             </div>
@@ -5269,11 +5457,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const overlay = document.getElementById('addUserModal');
         if (!overlay) return;
+        const heading = overlay.querySelector('.modal-header h3');
+        if (heading) heading.textContent = 'Add New User';
+        const submitBtn = overlay.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Add User';
         const form = document.getElementById('addUserForm');
         if (form) {
             form.querySelectorAll('.form-group').forEach(g => g.classList.remove('has-error'));
             form.querySelectorAll('.form-control').forEach(c => c.classList.remove('error'));
-            document.getElementById('userName').value = '';
+            const nameEl = document.getElementById('userName');
+            if (nameEl) {
+                nameEl.value = '';
+                nameEl.readOnly = false;
+            }
             document.getElementById('userEmail').value = '';
             document.getElementById('userRole').value = '';
             const phoneEl = document.getElementById('userPhone');
@@ -5316,13 +5512,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const uname = document.getElementById('userName').value.trim();
         const existingIdx = users.findIndex(u => u.name === uname);
-        
+        const existingUser = existingIdx !== -1 ? users[existingIdx] : null;
+
         const uData = {
+            ...(existingUser || {}),
             name: uname,
             role: document.getElementById('userRole').value,
             status: document.getElementById('userStatus').value,
-            email: document.getElementById('userEmail').value.trim()
+            email: document.getElementById('userEmail').value.trim(),
+            phone: String(document.getElementById('userPhone') && document.getElementById('userPhone').value || '').trim()
         };
+
+        const credential = upsertAuthCredentialsForUser(uData, {
+            existingUsername: existingUser && existingUser.username
+        });
+        uData.username = credential.username;
 
         if (existingIdx !== -1) {
             users[existingIdx] = uData;
@@ -5331,25 +5535,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         persistOperationalData();
 
-        const statusClass = uData.status === 'Active' ? 'b-active' : uData.status === 'Offline' ? 'b-offline' : 'b-cancelled';
-        const trHtml = `<td class="cell-main">${uData.name}</td><td>${uData.email}</td><td>${uData.role}</td><td>Just now</td><td><span class="badge ${statusClass}">${uData.status}</span></td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${uData.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${uData.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${uData.name}')">Delete</button></td>`;
-
-        let existingRow = null;
-        document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === uname) existingRow = r; });
-        
-        if (existingRow) {
-            existingRow.innerHTML = trHtml;
-        } else {
-            const tbody = document.getElementById('usersTableBody') || (document.querySelector('table.dt tbody'));
-            if (tbody) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = trHtml;
-                tbody.appendChild(tr);
-            }
-        }
-
         closeAddUserModal();
+        renderPage('users');
         showToast(`User "${uData.name}" saved successfully!`);
+
+        if (existingIdx === -1 || credential.generated) {
+            showCredentialsModal(existingIdx === -1 ? 'New User Credentials' : 'User Credentials', {
+                name: uData.name,
+                username: credential.username,
+                password: credential.password,
+                role: mapUserRoleToAuthRole(uData.role),
+                email: uData.email
+            });
+        }
     }
 
     // Wire up Add User modal events
@@ -5460,38 +5658,129 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    window.editUser = function(name) {
+    window.editUser = function(nameToken) {
         if (!hasActionAccess('users')) {
             denyAction('User update');
             return;
         }
+        const name = decodeUserToken(nameToken);
         const u = users.find(i => i.name === name);
         if (!u) return;
         openAddUserModal();
-        document.querySelector('#addUserModal h3').textContent = 'Edit User';
+        const heading = document.querySelector('#addUserModal h3');
+        if (heading) heading.textContent = 'Edit User';
+        const submitBtn = document.querySelector('#addUserModal button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Save User';
         document.getElementById('userName').value = u.name;
         document.getElementById('userName').readOnly = true; // Name acts as ID, so don't change
         document.getElementById('userEmail').value = u.email || '';
         document.getElementById('userRole').value = u.role;
         document.getElementById('userStatus').value = u.status;
+        const phoneInput = document.getElementById('userPhone');
+        if (phoneInput) phoneInput.value = u.phone || '';
     };
-    window.deleteUser = function(name) {
+    window.deleteUser = function(nameToken) {
         if (!hasActionAccess('users')) {
             denyAction('User delete');
             return;
         }
+        const name = decodeUserToken(nameToken);
         openQuickConfirmModal({
             title: 'Delete User',
             message: `Delete User ${name}?`,
             confirmLabel: 'Delete',
             onConfirm: () => {
                 const index = users.findIndex(i => i.name === name);
+                const targetUser = index !== -1 ? users[index] : null;
                 if (index !== -1) users.splice(index, 1);
+                if (targetUser) removeAuthCredentialsForUser(targetUser);
                 persistOperationalData();
-                document.querySelectorAll('tr').forEach(r => { if(r.children[0] && r.children[0].textContent === name) r.remove(); });
+                if (currentPage === 'users') {
+                    renderPage('users');
+                } else {
+                    document.querySelectorAll('tr').forEach(r => { if (r.children[0] && r.children[0].textContent === name) r.remove(); });
+                }
                 showToast(`User "${name}" deleted!`);
             }
         });
+    };
+
+    window.changeUserRole = function(nameToken) {
+        if (!hasActionAccess('users')) {
+            denyAction('User update');
+            return;
+        }
+        const name = decodeUserToken(nameToken);
+        const userIndex = users.findIndex(user => user.name === name);
+        if (userIndex === -1) return;
+        const user = users[userIndex];
+
+        openQuickFormModal({
+            title: `Change Role - ${user.name}`,
+            submitLabel: 'Update Role',
+            fields: [
+                { name: 'role', label: 'Role', type: 'select', required: true, options: USER_MANAGED_ROLE_OPTIONS }
+            ],
+            initialValues: {
+                role: mapUserRoleToAuthRole(user.role)
+            },
+            onSubmit: (values, closeModal) => {
+                user.role = String(values.role || '').trim();
+                const credential = upsertAuthCredentialsForUser(user, { existingUsername: user.username });
+                user.username = credential.username;
+                persistOperationalData();
+                closeModal();
+                renderUserProfile(user.name);
+                showToast(`${user.name}'s role updated to ${user.role}.`);
+            }
+        });
+    };
+
+    window.sendUserPasswordReset = function(nameToken) {
+        if (!hasActionAccess('users')) {
+            denyAction('User password reset');
+            return;
+        }
+        const name = decodeUserToken(nameToken);
+        const userIndex = users.findIndex(user => user.name === name);
+        if (userIndex === -1) return;
+        const user = users[userIndex];
+        const tempPassword = generateTemporaryPassword();
+        const credential = upsertAuthCredentialsForUser(user, {
+            existingUsername: user.username,
+            forcePassword: tempPassword
+        });
+        user.username = credential.username;
+        persistOperationalData();
+
+        showCredentialsModal('Temporary Password Generated', {
+            name: user.name,
+            username: credential.username,
+            password: credential.password,
+            role: mapUserRoleToAuthRole(user.role),
+            email: user.email
+        });
+        renderUserProfile(user.name);
+        showToast(`Temporary password generated for ${user.name}.`);
+    };
+
+    window.toggleUserSuspension = function(nameToken) {
+        if (!hasActionAccess('users')) {
+            denyAction('User status update');
+            return;
+        }
+        const name = decodeUserToken(nameToken);
+        const userIndex = users.findIndex(user => user.name === name);
+        if (userIndex === -1) return;
+        const user = users[userIndex];
+        const currentlySuspended = String(user.status || '').toLowerCase() === 'suspended';
+
+        user.status = currentlySuspended ? 'Active' : 'Suspended';
+        const credential = upsertAuthCredentialsForUser(user, { existingUsername: user.username });
+        user.username = credential.username;
+        persistOperationalData();
+        renderUserProfile(user.name);
+        showToast(currentlySuspended ? `${user.name} reactivated.` : `${user.name} suspended.`);
     };
 
     window.raiseReturnRequest = function() {

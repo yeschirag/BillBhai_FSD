@@ -12,15 +12,52 @@ const UI = (() => {
     let searchQuery = '';
     let currentCustomerProfile = null;
     let currentCheckoutMode = 'takeaway_now';
+    let checkoutSettings = { deliveryCharge: 0 };
     let sessionContext = { roleKey: 'cashier', roleLabel: 'Cashier', isCustomerTerminal: false };
 
     let callbacks = { onCheckout: null };
+
+    const PRODUCT_VISUAL_FALLBACK = {
+        rice: '🍚',
+        dal: '🫘',
+        oil: '🛢️',
+        butter: '🧈',
+        milk: '🥛',
+        bread: '🍞',
+        noodles: '🍜',
+        tea: '🍵',
+        coffee: '☕',
+        atta: '🌾',
+        sugar: '🧂',
+        paneer: '🧀',
+        curd: '🥣',
+        chips: '🍟',
+        biscuits: '🍪',
+        juice: '🧃',
+        water: '💧',
+        soap: '🧼',
+        dishwash: '🧴',
+        detergent: '🫧'
+    };
+
+    function resolveProductVisual(product) {
+        const explicitVisual = String(product && product.image || '').trim();
+        if (explicitVisual && /[^\x00-\x7F]/.test(explicitVisual)) return explicitVisual;
+
+        const key = String(explicitVisual || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (key && PRODUCT_VISUAL_FALLBACK[key]) return PRODUCT_VISUAL_FALLBACK[key];
+
+        const productName = String(product && product.name || '').trim().toLowerCase();
+        const byName = Object.keys(PRODUCT_VISUAL_FALLBACK).find(token => productName.includes(token));
+        return byName ? PRODUCT_VISUAL_FALLBACK[byName] : '🛍️';
+    }
 
     function cacheElements() {
         el = {
             step1: document.getElementById('step-1-customer'),
             step2: document.getElementById('step-2-pos'),
-            step3: document.getElementById('step-3-payment'),
+            step3: document.getElementById('step-3-fulfillment'),
+            step4: document.getElementById('step-4-payment'),
 
             // Step 1 Form
             custForm: document.getElementById('customerForm'),
@@ -49,9 +86,15 @@ const UI = (() => {
             subSpan: document.getElementById('subSpan'),
             discSpan: document.getElementById('discSpan'),
             totSpan: document.getElementById('totSpan'),
+            btnGoFulfillment: document.getElementById('btnGoFulfillment'),
+            btnBackToCart: document.getElementById('btnBackToCart'),
             btnCheckout: document.getElementById('btnCheckout'),
             checkoutModeGrid: document.getElementById('checkoutModeGrid'),
             checkoutModeError: document.getElementById('checkoutModeError'),
+            fulfillmentSubSpan: document.getElementById('fulfillmentSubSpan'),
+            fulfillmentDiscSpan: document.getElementById('fulfillmentDiscSpan'),
+            fulfillmentDeliverySpan: document.getElementById('fulfillmentDeliverySpan'),
+            fulfillmentTotSpan: document.getElementById('fulfillmentTotSpan'),
             checkoutSummary: document.getElementById('paymentOutcomeSummary'),
 
             // Step 2 Discount
@@ -104,7 +147,7 @@ const UI = (() => {
                 deliveryOption: 'delivery',
                 paymentMethod: 'Paid Upfront',
                 orderStatus: 'Processing',
-                buttonLabel: isCustomer ? 'Pay Now for Delivery' : 'Confirm Prepaid Delivery',
+                buttonLabel: 'Proceed to Payment Gateway',
                 successTitle: 'Payment Gateway Ready',
                 successSubtitle: `${titlePrefix} logged for home delivery. Collect payment now and dispatch once confirmed.`,
                 summaryLabel: 'Prepaid delivery'
@@ -117,7 +160,7 @@ const UI = (() => {
                 deliveryOption: 'delivery',
                 paymentMethod: 'COD',
                 orderStatus: 'Processing',
-                buttonLabel: isCustomer ? 'Confirm COD Delivery' : 'Confirm COD Dispatch',
+                buttonLabel: isCustomer ? 'Place COD Order' : 'Confirm COD Dispatch',
                 successTitle: 'COD Delivery Booked',
                 successSubtitle: `${titlePrefix} will be sent for delivery and payment will be collected at the doorstep.`,
                 summaryLabel: 'Cash on delivery'
@@ -129,10 +172,34 @@ const UI = (() => {
             deliveryOption: 'pickup',
             paymentMethod: 'Counter Paid',
             orderStatus: 'Delivered',
-            buttonLabel: isCustomer ? 'Confirm Takeaway' : 'Mark as Takeaway',
+            buttonLabel: 'Proceed to Payment Gateway',
             successTitle: 'Takeaway Ready',
             successSubtitle: `${titlePrefix} is marked for immediate handover from the counter.`,
             summaryLabel: 'Take away now'
+        };
+    }
+
+    function getDeliveryChargeAmount() {
+        const isDelivery = getCheckoutModeConfig(currentCheckoutMode).deliveryOption === 'delivery';
+        if (!isDelivery) return 0;
+
+        const configured = Number(checkoutSettings && checkoutSettings.deliveryCharge);
+        return Number.isFinite(configured) && configured > 0 ? configured : 0;
+    }
+
+    function getCartTotals() {
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const discount = Math.max(0, Number(currentDiscount.discount || 0));
+        const itemTotal = Math.max(0, subtotal - discount);
+        const deliveryCharge = getDeliveryChargeAmount();
+        const payableTotal = itemTotal + deliveryCharge;
+
+        return {
+            subtotal,
+            discount,
+            itemTotal,
+            deliveryCharge,
+            payableTotal
         };
     }
 
@@ -152,15 +219,15 @@ const UI = (() => {
     }
 
     function showStep(stepNum) {
-        if (!el.step1 || !el.step2 || !el.step3) return;
+        const allSteps = [el.step1, el.step2, el.step3, el.step4].filter(Boolean);
+        if (!allSteps.length) return;
 
-        el.step1.classList.remove('active');
-        el.step2.classList.remove('active');
-        el.step3.classList.remove('active');
+        allSteps.forEach(stepEl => stepEl.classList.remove('active'));
 
-        if (stepNum === 1) el.step1.classList.add('active');
-        if (stepNum === 2) el.step2.classList.add('active');
-        if (stepNum === 3) el.step3.classList.add('active');
+        if (stepNum === 1 && el.step1) el.step1.classList.add('active');
+        if (stepNum === 2 && el.step2) el.step2.classList.add('active');
+        if (stepNum === 3 && el.step3) el.step3.classList.add('active');
+        if (stepNum === 4 && el.step4) el.step4.classList.add('active');
     }
 
     function toggleDeliveryFields() {
@@ -194,6 +261,7 @@ const UI = (() => {
 
         if (el.checkoutModeError) el.checkoutModeError.textContent = '';
         toggleDeliveryFields();
+        updateCartTotal();
     }
 
     function buildCheckoutCustomerPayload() {
@@ -203,8 +271,10 @@ const UI = (() => {
         payload.deliveryOption = config.deliveryOption;
         payload.paymentMethod = config.paymentMethod;
         payload.orderStatus = config.orderStatus;
+        payload.deliveryCharge = getDeliveryChargeAmount();
 
         if (config.deliveryOption !== 'delivery') {
+            payload.address = '';
             payload.deliveryPartner = '';
             payload.deliveryPartnerPhone = '';
         }
@@ -225,6 +295,7 @@ const UI = (() => {
             <div class="checkout-summary-row"><span>Customer</span><strong>${order.customer || '-'}</strong></div>
             <div class="checkout-summary-row"><span>Mode</span><strong>${config.summaryLabel}</strong></div>
             <div class="checkout-summary-row"><span>Payment</span><strong>${order.paymentMethod || config.paymentMethod}</strong></div>
+            <div class="checkout-summary-row"><span>Delivery Charges</span><strong>Rs ${Math.max(0, Number(order.deliveryCharge || 0)).toFixed(2)}</strong></div>
             <div class="checkout-summary-row"><span>Total</span><strong>Rs ${Math.max(0, Number(order.total || 0)).toFixed(2)}</strong></div>
             <div class="checkout-summary-row"><span>Destination</span><strong>${detailAddress}</strong></div>
         `;
@@ -330,6 +401,7 @@ const UI = (() => {
         if (el.promoInputBlock) el.promoInputBlock.style.display = 'flex';
         if (el.promoAppliedTag) el.promoAppliedTag.style.display = 'none';
         if (el.promoAppliedCode) el.promoAppliedCode.textContent = '';
+        if (el.checkoutModeError) el.checkoutModeError.textContent = '';
         if (el.checkoutSummary) {
             el.checkoutSummary.style.display = 'none';
             el.checkoutSummary.innerHTML = '';
@@ -352,12 +424,15 @@ const UI = (() => {
         el.custForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const customerPayload = getCustomerPayload();
-            const validation = Validator.validateCustomerStep(customerPayload);
+            const validation = Validator.validateCustomerStep({
+                ...customerPayload,
+                deliveryOption: 'pickup'
+            });
 
             if (el.errName) el.errName.textContent = validation.errors.name || '';
             if (el.errPhone) el.errPhone.textContent = validation.errors.phone || '';
             if (el.errEmail) el.errEmail.textContent = validation.errors.email || '';
-            if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
+            if (el.errAddress) el.errAddress.textContent = '';
 
             if (validation.isValid) {
                 renderCategories();
@@ -439,8 +514,9 @@ const UI = (() => {
             const card = document.createElement('div');
             card.className = 'prod-card';
             const defaultOpt = p.options[0];
+            const visual = resolveProductVisual(p);
             card.innerHTML = `
-                <div class="prod-img">${p.image}</div>
+                <div class="prod-img">${visual}</div>
                 <div class="prod-info">
                     <div class="prod-name">${p.name} (${defaultOpt.label})</div>
                     <div class="prod-price">\u20B9${defaultOpt.price.toFixed(2)}</div>
@@ -548,16 +624,17 @@ const UI = (() => {
     }
 
     function renderCart() {
-        if (!el.cartList || !el.btnCheckout) return;
+        if (!el.cartList) return;
 
         el.cartList.innerHTML = '';
 
-        if (cart.length === 0) {
+        const hasItems = cart.length > 0;
+        if (!hasItems) {
             el.cartList.innerHTML = '<div class="cart-empty text-muted">Cart is empty. Click items to add.</div>';
-            el.btnCheckout.disabled = true;
-        } else {
-            el.btnCheckout.disabled = false;
         }
+
+        if (el.btnGoFulfillment) el.btnGoFulfillment.disabled = !hasItems;
+        if (el.btnCheckout) el.btnCheckout.disabled = !hasItems;
 
         cart.forEach(c => {
             const row = document.createElement('div');
@@ -643,58 +720,90 @@ const UI = (() => {
             currentDiscount = res;
         }
 
-        const total = subtotal - currentDiscount.discount;
+        const totals = getCartTotals();
 
-        if (el.subSpan) el.subSpan.textContent = `\u20B9${subtotal.toFixed(2)}`;
-        if (el.discSpan) el.discSpan.textContent = `- \u20B9${currentDiscount.discount.toFixed(2)}`;
-        if (el.totSpan) el.totSpan.textContent = `\u20B9${total.toFixed(2)}`;
+        if (el.subSpan) el.subSpan.textContent = `\u20B9${totals.subtotal.toFixed(2)}`;
+        if (el.discSpan) el.discSpan.textContent = `- \u20B9${totals.discount.toFixed(2)}`;
+        if (el.totSpan) el.totSpan.textContent = `\u20B9${totals.itemTotal.toFixed(2)}`;
+
+        if (el.fulfillmentSubSpan) el.fulfillmentSubSpan.textContent = `\u20B9${totals.subtotal.toFixed(2)}`;
+        if (el.fulfillmentDiscSpan) el.fulfillmentDiscSpan.textContent = `- \u20B9${totals.discount.toFixed(2)}`;
+        if (el.fulfillmentDeliverySpan) el.fulfillmentDeliverySpan.textContent = `\u20B9${totals.deliveryCharge.toFixed(2)}`;
+        if (el.fulfillmentTotSpan) el.fulfillmentTotSpan.textContent = `\u20B9${totals.payableTotal.toFixed(2)}`;
+    }
+
+    function bindFulfillmentNavigation() {
+        if (el.btnGoFulfillment) {
+            el.btnGoFulfillment.addEventListener('click', () => {
+                if (!cart.length) return;
+                if (el.checkoutModeError) el.checkoutModeError.textContent = '';
+                updateCartTotal();
+                showStep(3);
+            });
+        }
+
+        if (el.btnBackToCart) {
+            el.btnBackToCart.addEventListener('click', () => {
+                if (el.checkoutModeError) el.checkoutModeError.textContent = '';
+                showStep(2);
+            });
+        }
     }
 
     function bindCheckout() {
-        if (!el.btnCheckout || !el.btnReset) return;
-
-        el.btnCheckout.addEventListener('click', () => {
-            if (cart.length === 0) return;
-
-            const customerPayload = buildCheckoutCustomerPayload();
-            const validation = Validator.validateCustomerStep(customerPayload);
-            if (!validation.isValid) {
-                if (el.errName) el.errName.textContent = validation.errors.name || '';
-                if (el.errPhone) el.errPhone.textContent = validation.errors.phone || '';
-                if (el.errEmail) el.errEmail.textContent = validation.errors.email || '';
-                if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
-
-                const hasCustomerFieldErrors = Boolean(validation.errors.name || validation.errors.phone || validation.errors.email);
-                if (el.checkoutModeError) {
-                    el.checkoutModeError.textContent = validation.errors.address
-                        ? 'Delivery needs a valid address before confirmation.'
-                        : 'Please complete the customer details before checkout.';
+        if (el.btnCheckout) {
+            el.btnCheckout.addEventListener('click', () => {
+                if (cart.length === 0) {
+                    showStep(2);
+                    return;
                 }
-                showStep(hasCustomerFieldErrors ? 1 : 2);
-                return;
-            }
 
-            let createdOrder = null;
-            if (callbacks.onCheckout) {
-                createdOrder = callbacks.onCheckout({
-                    customer: customerPayload,
-                    cart,
-                    discount: currentDiscount
-                }) || null;
-            }
+                const customerPayload = buildCheckoutCustomerPayload();
+                const validation = Validator.validateCustomerStep(customerPayload);
+                if (!validation.isValid) {
+                    if (el.errName) el.errName.textContent = validation.errors.name || '';
+                    if (el.errPhone) el.errPhone.textContent = validation.errors.phone || '';
+                    if (el.errEmail) el.errEmail.textContent = validation.errors.email || '';
+                    if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
 
-            if (createdOrder) renderCheckoutSummary(createdOrder, customerPayload);
-            showStep(3);
-        });
+                    const hasCustomerFieldErrors = Boolean(validation.errors.name || validation.errors.phone || validation.errors.email);
+                    if (el.checkoutModeError) {
+                        el.checkoutModeError.textContent = validation.errors.address
+                            ? 'Delivery needs a valid address before payment.'
+                            : 'Please complete customer details before payment.';
+                    }
+                    showStep(hasCustomerFieldErrors ? 1 : 3);
+                    return;
+                }
 
-        el.btnReset.addEventListener('click', () => {
-            resetPOS();
-        });
+                if (el.checkoutModeError) el.checkoutModeError.textContent = '';
+
+                let createdOrder = null;
+                if (callbacks.onCheckout) {
+                    createdOrder = callbacks.onCheckout({
+                        customer: customerPayload,
+                        cart,
+                        discount: currentDiscount
+                    }) || null;
+                }
+
+                if (createdOrder) renderCheckoutSummary(createdOrder, customerPayload);
+                showStep(4);
+            });
+        }
+
+        if (el.btnReset) {
+            el.btnReset.addEventListener('click', () => {
+                resetPOS();
+            });
+        }
     }
 
     function init() {
         cacheElements();
+        checkoutSettings = DataStore.getCheckoutSettings ? DataStore.getCheckoutSettings() : { deliveryCharge: 0 };
         bindStep1();
+        bindFulfillmentNavigation();
         bindCheckoutModes();
         bindSearch();
         bindPromo();

@@ -7,6 +7,13 @@
 /* ── Full-width layout when no sidebar ───── */
 body.no-sidebar .main-content {
     margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+}
+
+body.no-sidebar .content-area {
+    width: 100%;
+    max-width: 100%;
 }
 
 /* ── Header logo (replaces sidebar brand) ─── */
@@ -27,7 +34,8 @@ body.no-sidebar .main-content {
 .step-container.active { display: block; animation: fadeIn 0.3s ease; }
 
 #step-1-customer.active,
-#step-3-payment.active {
+#step-3-fulfillment.active,
+#step-4-payment.active {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -49,6 +57,9 @@ body.no-sidebar .main-content {
     padding: 30px;
 }
 .wizard-centered h3 { margin-bottom: 20px; color: var(--accent); }
+.fulfillment-centered {
+    max-width: 640px;
+}
 .wizard-centered .form-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -299,6 +310,13 @@ body.no-sidebar .main-content {
     line-height: 1.4;
 }
 
+.fulfillment-actions {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
 .promo-block { display: flex; gap: 8px; margin-bottom: 16px; }
 .promo-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.8rem; background: var(--bg-body); color: #fff; }
 
@@ -437,12 +455,17 @@ body.no-sidebar .main-content {
     }
 
     #step-1-customer.active,
-    #step-3-payment.active {
+    #step-3-fulfillment.active,
+    #step-4-payment.active {
         min-height: auto;
         align-items: flex-start;
     }
 
     .wizard-centered .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .fulfillment-actions {
         grid-template-columns: 1fr;
     }
 }

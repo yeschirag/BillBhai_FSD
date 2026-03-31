@@ -42,8 +42,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return String(role || '').toLowerCase().replace(/\s+/g, '');
     }
 
-    function routeByRole(role) {
+    function roleToKey(role) {
         const r = normalizeRole(role);
+        if (r === 'superuser' || r === 'super') return 'superuser';
+        if (r === 'admin' || r === 'opshead' || r === 'storemanager' || r === 'accountant' || r === 'supportagent') return 'admin';
+        if (r === 'cashier') return 'cashier';
+        if (r === 'returnhandler' || r === 'returns') return 'returnhandler';
+        if (r === 'inventorymanager' || r === 'inventory') return 'inventorymanager';
+        if (r === 'deliveryops' || r === 'deliverymanager' || r === 'delivery' || r === 'deliverydriver') return 'deliveryops';
+        if (r === 'customer' || r === 'user') return 'customer';
+        return 'admin';
+    }
+
+    function routeByRole(role) {
+        const r = roleToKey(role);
         if (r === 'superuser' || r === 'super') return 'superuser.html';
         if (r === 'admin') return 'dashboard.html';
         if (r === 'cashier') return 'cashier.html';
@@ -143,7 +155,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const normalized = String(input || '').trim().toLowerCase();
         if (!normalized) return '';
         if (Object.prototype.hasOwnProperty.call(authConfig.users, normalized)) return normalized;
-        return authConfig.aliases[normalized] || '';
+        const aliasMatch = authConfig.aliases[normalized];
+        if (aliasMatch) return aliasMatch;
+
+        const overrides = loadAuthOverrides();
+        if (Object.prototype.hasOwnProperty.call(overrides, normalized)) return normalized;
+
+        const dynamicMatch = Object.keys(overrides).find(key => {
+            const record = overrides[key] && typeof overrides[key] === 'object' ? overrides[key] : {};
+            const username = String(record.username || '').trim().toLowerCase();
+            const email = String(record.email || '').trim().toLowerCase();
+            return username === normalized || email === normalized;
+        });
+
+        return dynamicMatch || '';
     }
 
     function loadAuthOverrides() {
@@ -162,15 +187,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function resolveUserRecord(userKey) {
-        if (!Object.prototype.hasOwnProperty.call(authConfig.users, userKey)) return null;
-        const baseRecord = authConfig.users[userKey] || {};
         const overrides = loadAuthOverrides();
+        const hasBaseRecord = Object.prototype.hasOwnProperty.call(authConfig.users, userKey);
+        const baseRecord = hasBaseRecord ? (authConfig.users[userKey] || {}) : {};
         const overrideRecord = overrides[userKey] && typeof overrides[userKey] === 'object'
             ? overrides[userKey]
             : {};
+
+        if (!hasBaseRecord && !Object.keys(overrideRecord).length) return null;
+
+        const resolvedRole = String(overrideRecord.role || baseRecord.role || 'Customer').trim();
+        const resolvedName = String(overrideRecord.name || baseRecord.name || userKey).trim() || userKey;
+
         return {
             ...baseRecord,
             ...overrideRecord,
+            role: resolvedRole,
+            name: resolvedName,
+            status: String(overrideRecord.status || baseRecord.status || 'Active').trim() || 'Active',
+            email: String(overrideRecord.email || '').trim(),
+            username: String(overrideRecord.username || userKey).trim() || userKey,
             password: String(overrideRecord.password || baseRecord.password || '').trim()
         };
     }
@@ -218,10 +254,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const accountStatus = normalizeRole(userRecord.status || 'active');
+        if (accountStatus === 'suspended' || accountStatus === 'inactive') {
+            loginError.textContent = 'This account is currently suspended. Contact an administrator.';
+            return;
+        }
+
         // Store session state
         localStorage.setItem('userRole', userRecord.role);
         localStorage.setItem('userName', userRecord.name);
-        const normalizedRole = normalizeRole(userRecord.role);
+        const normalizedRole = roleToKey(userRecord.role);
 
         // Tenant context:
         // - Operational roles are scoped to exactly one business.

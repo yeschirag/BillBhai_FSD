@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const customerStepSubmitBtn = document.getElementById('customerStepSubmitBtn');
     const paymentStepTitleEl = document.getElementById('paymentStepTitle');
     const paymentStepSubtitleEl = document.getElementById('paymentStepSubtitle');
+    const goFulfillmentBtn = document.getElementById('btnGoFulfillment');
     const checkoutBtn = document.getElementById('btnCheckout');
     const resetBtn = document.getElementById('btnResetFlow');
     const checkoutModeHeadingEl = document.getElementById('checkoutModeHeading');
@@ -48,6 +49,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (paymentStepSubtitleEl) paymentStepSubtitleEl.textContent = isCustomerTerminal
         ? 'Your order is prepared. Complete payment to confirm the self-checkout.'
         : 'The payload has been sent successfully. The user chooses Card, UPI, etc., on their device/interface. Webhook triggers upon completion.';
+    if (goFulfillmentBtn) goFulfillmentBtn.textContent = isCustomerTerminal
+        ? 'Continue to Fulfillment'
+        : 'Continue to Fulfillment & Payment';
     if (checkoutModeHeadingEl) checkoutModeHeadingEl.textContent = isCustomerTerminal ? 'How would you like to receive this order?' : 'How should this order go out?';
     if (checkoutBtn) checkoutBtn.textContent = isCustomerTerminal ? 'Proceed to Secure Payment' : 'Proceed to Payment Gateway';
     if (resetBtn) resetBtn.textContent = isCustomerTerminal ? 'Start Another Checkout' : 'Next Customer (Reset POS)';
