@@ -491,15 +491,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const defaultOrders = [
+        { id: 'ORD-4829', customer: 'Kavya Menon', items: 6, total: 4280, payment: 'Paid Upfront', status: 'Processing', date: '17 Feb 16:42' },
+        { id: 'ORD-4828', customer: 'Rohit Saini', items: 2, total: 980, payment: 'COD', status: 'Processing', date: '17 Feb 16:05' },
+        { id: 'ORD-4827', customer: 'Megha Arora', items: 4, total: 1840, payment: 'UPI', status: 'Delivered', date: '17 Feb 15:36' },
+        { id: 'ORD-4826', customer: 'Deepak Iyer', items: 3, total: 1325, payment: 'Card', status: 'Delivered', date: '17 Feb 15:12' },
+        { id: 'ORD-4825', customer: 'Neel Shah', items: 8, total: 5620, payment: 'Counter Paid', status: 'Delivered', date: '17 Feb 14:58' },
+        { id: 'ORD-4824', customer: 'Pooja Nair', items: 5, total: 2680, payment: 'UPI', status: 'Processing', date: '17 Feb 14:44' },
+        { id: 'ORD-4823', customer: 'Vivek Dutta', items: 2, total: 760, payment: 'Cash', status: 'Pending', date: '17 Feb 14:39' },
+        { id: 'ORD-4822', customer: 'Asha Kapoor', items: 7, total: 3485, payment: 'Card', status: 'Delivered', date: '17 Feb 14:35' },
         { id: 'ORD-4821', customer: 'Rahul Sharma', items: 3, total: 1250, payment: 'UPI', status: 'Delivered', date: '17 Feb 14:32' },
         { id: 'ORD-4820', customer: 'Priya Patel', items: 1, total: 450, payment: 'Cash', status: 'Processing', date: '17 Feb 13:45' },
-        { id: 'ORD-4819', customer: 'Amit Kumar', items: 5, total: 3200, payment: 'Card', status: 'Delivered', date: '17 Feb 12:10' }
+        { id: 'ORD-4819', customer: 'Amit Kumar', items: 5, total: 3200, payment: 'Card', status: 'Delivered', date: '17 Feb 12:10' },
+        { id: 'ORD-4818', customer: 'Sonal Verma', items: 4, total: 2190, payment: 'Paid Upfront', status: 'Processing', date: '16 Feb 18:20' }
     ];
 
     const defaultInventory = [
         { sku: 'SKU-01', name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 145, price: 380, status: 'In Stock' },
         { sku: 'SKU-02', name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 230, price: 120, status: 'In Stock' },
-        { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 18, price: 155, status: 'Low Stock' }
+        { sku: 'SKU-03', name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 18, price: 155, status: 'Low Stock' },
+        { sku: 'SKU-04', name: 'Atta Flour', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 122, price: 248, status: 'In Stock' },
+        { sku: 'SKU-05', name: 'Sugar', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 64, price: 48, status: 'In Stock' },
+        { sku: 'SKU-06', name: 'Paneer', cat: 'Dairy', supplier: 'City Dairy', stock: 21, price: 78, status: 'Low Stock' },
+        { sku: 'SKU-07', name: 'Curd Cup', cat: 'Dairy', supplier: 'City Dairy', stock: 88, price: 26, status: 'In Stock' },
+        { sku: 'SKU-08', name: 'Butter', cat: 'Dairy', supplier: 'City Dairy', stock: 14, price: 60, status: 'Low Stock' },
+        { sku: 'SKU-09', name: 'Potato Chips', cat: 'Snacks', supplier: 'SnackHub Foods', stock: 172, price: 20, status: 'In Stock' },
+        { sku: 'SKU-10', name: 'Biscuits', cat: 'Snacks', supplier: 'SnackHub Foods', stock: 154, price: 12, status: 'In Stock' },
+        { sku: 'SKU-11', name: 'Orange Juice', cat: 'Beverages', supplier: 'Cool Bev', stock: 37, price: 42, status: 'In Stock' },
+        { sku: 'SKU-12', name: 'Mineral Water', cat: 'Beverages', supplier: 'Cool Bev', stock: 9, price: 20, status: 'Critical' },
+        { sku: 'SKU-13', name: 'Dishwash Liquid', cat: 'Home Care', supplier: 'HomeSpark Supplies', stock: 48, price: 58, status: 'In Stock' },
+        { sku: 'SKU-14', name: 'Detergent Powder', cat: 'Home Care', supplier: 'HomeSpark Supplies', stock: 0, price: 96, status: 'Out of Stock' }
     ];
 
     const defaultDeliveries = [
@@ -537,7 +557,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultUsers = [
         { name: 'Admin', role: 'Ops Head', status: 'Active' },
         { name: 'Ramesh Gupta', role: 'Cashier', status: 'Active' },
-        { name: 'Sunita Verma', role: 'Cashier', status: 'Active' }
+        { name: 'Sunita Verma', role: 'Cashier', status: 'Active' },
+        { name: 'Harsh Batra', role: 'Cashier', status: 'Active' },
+        { name: 'Neha Kulkarni', role: 'Inventory Manager', status: 'Active' },
+        { name: 'Sameer Khan', role: 'Delivery Ops', status: 'Active' },
+        { name: 'Ishita Rao', role: 'Return Handler', status: 'Active' },
+        { name: 'Mohit Jain', role: 'Cashier', status: 'Inactive' }
     ];
 
     const defaultBusinesses = [
@@ -724,15 +749,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const userList = Array.isArray(business.users) ? business.users : [];
         const adminName = userList.find(u => String(u.role || '').toLowerCase() === 'admin')?.name || business.adminName || 'Store Admin';
         const cashierName = userList.find(u => String(u.role || '').toLowerCase().includes('cashier'))?.name || 'POS Counter';
+        const inventoryManager = userList.find(u => String(u.role || '').toLowerCase().includes('inventory'))?.name || 'Inventory Desk';
+        const deliveryLead = userList.find(u => String(u.role || '').toLowerCase().includes('delivery'))?.name || 'Delivery Desk';
+        const returnLead = userList.find(u => String(u.role || '').toLowerCase().includes('return'))?.name || 'Returns Desk';
         const city = Array.isArray(business.stores) && business.stores[0] ? business.stores[0].city : 'Primary City';
         const seedNum = 500 + idx * 50;
 
         const seedOrders = [
-            { id: `ORD-${seedNum + 1}`, customer: `${city} Walk-in`, items: 3, total: 1540 + idx * 120, payment: 'UPI', status: 'Delivered', date: '17 Feb 11:10' },
-            { id: `ORD-${seedNum + 2}`, customer: 'Anita Verma', items: 2, total: 980 + idx * 90, payment: 'Card', status: 'Processing', date: '17 Feb 12:35' },
-            { id: `ORD-${seedNum + 3}`, customer: 'Vikram Singh', items: 1, total: 350 + idx * 70, payment: 'Cash', status: 'Pending', date: '17 Feb 13:20' },
-            { id: `ORD-${seedNum + 4}`, customer: 'Suman Rao', items: 4, total: 2250 + idx * 100, payment: 'UPI', status: 'Delivered', date: '16 Feb 18:04' },
-            { id: `ORD-${seedNum + 5}`, customer: 'Karan Joshi', items: 2, total: 1160 + idx * 85, payment: 'Card', status: 'Delivered', date: '16 Feb 16:40' }
+            { id: `ORD-${seedNum + 1}`, customer: `${city} Walk-in`, items: 6, total: 4280 + idx * 180, payment: 'Paid Upfront', status: 'Processing', date: '17 Feb 16:42' },
+            { id: `ORD-${seedNum + 2}`, customer: 'Anita Verma', items: 2, total: 980 + idx * 90, payment: 'COD', status: 'Processing', date: '17 Feb 16:05' },
+            { id: `ORD-${seedNum + 3}`, customer: 'Vikram Singh', items: 4, total: 1840 + idx * 110, payment: 'UPI', status: 'Delivered', date: '17 Feb 15:36' },
+            { id: `ORD-${seedNum + 4}`, customer: 'Suman Rao', items: 3, total: 1325 + idx * 80, payment: 'Card', status: 'Delivered', date: '17 Feb 15:12' },
+            { id: `ORD-${seedNum + 5}`, customer: 'Karan Joshi', items: 8, total: 5620 + idx * 210, payment: 'Counter Paid', status: 'Delivered', date: '17 Feb 14:58' },
+            { id: `ORD-${seedNum + 6}`, customer: 'Pooja Nair', items: 5, total: 2680 + idx * 140, payment: 'UPI', status: 'Processing', date: '17 Feb 14:44' },
+            { id: `ORD-${seedNum + 7}`, customer: 'Rohan Verma', items: 2, total: 760 + idx * 55, payment: 'Cash', status: 'Pending', date: '17 Feb 14:39' },
+            { id: `ORD-${seedNum + 8}`, customer: 'Neha Reddy', items: 7, total: 3485 + idx * 165, payment: 'Card', status: 'Delivered', date: '17 Feb 14:35' },
+            { id: `ORD-${seedNum + 9}`, customer: 'Arjun Singh', items: 3, total: 1250 + idx * 70, payment: 'UPI', status: 'Delivered', date: '17 Feb 14:32' },
+            { id: `ORD-${seedNum + 10}`, customer: 'Meera Krishnan', items: 1, total: 450 + idx * 40, payment: 'COD', status: 'Pending', date: '17 Feb 13:45' },
+            { id: `ORD-${seedNum + 11}`, customer: 'Deepak Iyer', items: 5, total: 3200 + idx * 150, payment: 'Card', status: 'Delivered', date: '17 Feb 12:10' },
+            { id: `ORD-${seedNum + 12}`, customer: 'Sonal Verma', items: 4, total: 2190 + idx * 125, payment: 'Paid Upfront', status: 'Processing', date: '16 Feb 18:20' }
         ];
 
         const addressBook = [
@@ -744,37 +779,63 @@ document.addEventListener('DOMContentLoaded', () => {
             `42, Lake View Road, ${city}`,
             `101, Sapphire Towers, ${city}`,
             `5th Cross, Jayanagar, ${city}`,
-            `B-12, Shanti Nagar, ${city}`
+            `B-12, Shanti Nagar, ${city}`,
+            `House 23, Ram Nagar, ${city}`,
+            `Flat 6A, Sunrise Apartments, ${city}`,
+            `Sector 14 Market Lane, ${city}`
         ];
 
         const seedDeliveries = [
-            { id: `DEL-${seedNum + 1}`, oid: seedOrders[0].id, customer: seedOrders[0].customer, address: addressBook[0], partner: 'Rider Team A', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 11:55' },
-            { id: `DEL-${seedNum + 2}`, oid: seedOrders[1].id, customer: seedOrders[1].customer, address: addressBook[1], partner: 'Rider Team B', status: 'In Transit', etaMin: 18, updatedAt: '17 Feb 12:55' },
-            { id: `DEL-${seedNum + 3}`, oid: seedOrders[2].id, customer: seedOrders[2].customer, address: addressBook[2], partner: 'Unassigned', status: 'Pending', etaMin: 32, updatedAt: '17 Feb 13:05' },
-            { id: `DEL-${seedNum + 4}`, oid: seedOrders[3].id, customer: seedOrders[3].customer, address: addressBook[3], partner: 'Rider Team C', status: 'Delivered', etaMin: 0, updatedAt: '16 Feb 18:45' },
-            { id: `DEL-${seedNum + 5}`, oid: seedOrders[4].id, customer: seedOrders[4].customer, address: addressBook[4], partner: 'Rider Team B', status: 'Failed', etaMin: 0, updatedAt: '16 Feb 17:05' },
-            { id: `DEL-${seedNum + 6}`, oid: `ORD-${seedNum + 6}`, customer: 'Rohan Verma', address: addressBook[5], partner: 'Rider Team A', status: 'In Transit', etaMin: 10, updatedAt: '17 Feb 10:20' },
-            { id: `DEL-${seedNum + 7}`, oid: `ORD-${seedNum + 7}`, customer: 'Neha Reddy', address: addressBook[6], partner: 'Rider Team C', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 09:40' },
-            { id: `DEL-${seedNum + 8}`, oid: `ORD-${seedNum + 8}`, customer: 'Arjun Singh', address: addressBook[7], partner: 'Unassigned', status: 'Pending', etaMin: 40, updatedAt: '17 Feb 09:15' },
-            { id: `DEL-${seedNum + 9}`, oid: `ORD-${seedNum + 9}`, customer: 'Meera Krishnan', address: addressBook[8], partner: 'Rider Team B', status: 'In Transit', etaMin: 22, updatedAt: '17 Feb 08:55' }
+            { id: `DEL-${seedNum + 1}`, oid: seedOrders[0].id, customer: seedOrders[0].customer, address: addressBook[0], partner: 'Rider Team A', partnerPhone: '+91 80109 42021', partnerAgency: 'Fleet Hub A', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 16:58' },
+            { id: `DEL-${seedNum + 2}`, oid: seedOrders[1].id, customer: seedOrders[1].customer, address: addressBook[1], partner: 'Rider Team B', partnerPhone: '+91 80109 42022', partnerAgency: 'Fleet Hub B', status: 'In Transit', etaMin: 18, updatedAt: '17 Feb 16:20' },
+            { id: `DEL-${seedNum + 3}`, oid: seedOrders[2].id, customer: seedOrders[2].customer, address: addressBook[2], partner: 'Rajesh K.', partnerPhone: '+91 98214 44770', partnerAgency: 'SwiftDrop Logistics', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 15:58' },
+            { id: `DEL-${seedNum + 4}`, oid: seedOrders[3].id, customer: seedOrders[3].customer, address: addressBook[3], partner: 'Deepak R.', partnerPhone: '+91 98214 44772', partnerAgency: 'SwiftDrop Logistics', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 15:24' },
+            { id: `DEL-${seedNum + 5}`, oid: seedOrders[5].id, customer: seedOrders[5].customer, address: addressBook[4], partner: 'Rider Team C', partnerPhone: '+91 80109 42023', partnerAgency: 'Fleet Hub C', status: 'In Transit', etaMin: 26, updatedAt: '17 Feb 14:52' },
+            { id: `DEL-${seedNum + 6}`, oid: seedOrders[6].id, customer: seedOrders[6].customer, address: addressBook[5], partner: 'Unassigned', partnerPhone: '', partnerAgency: '', status: 'Pending', etaMin: 34, updatedAt: '17 Feb 14:48' },
+            { id: `DEL-${seedNum + 7}`, oid: seedOrders[7].id, customer: seedOrders[7].customer, address: addressBook[6], partner: 'Sunil M.', partnerPhone: '+91 98214 44771', partnerAgency: 'SwiftDrop Logistics', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 14:46' },
+            { id: `DEL-${seedNum + 8}`, oid: seedOrders[8].id, customer: seedOrders[8].customer, address: addressBook[7], partner: 'Rider Team A', partnerPhone: '+91 80109 42021', partnerAgency: 'Fleet Hub A', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 14:40' },
+            { id: `DEL-${seedNum + 9}`, oid: seedOrders[9].id, customer: seedOrders[9].customer, address: addressBook[8], partner: 'Unassigned', partnerPhone: '', partnerAgency: '', status: 'Pending', etaMin: 40, updatedAt: '17 Feb 13:52' },
+            { id: `DEL-${seedNum + 10}`, oid: seedOrders[10].id, customer: seedOrders[10].customer, address: addressBook[9], partner: 'Deepak R.', partnerPhone: '+91 98214 44772', partnerAgency: 'SwiftDrop Logistics', status: 'Delivered', etaMin: 0, updatedAt: '17 Feb 12:38' },
+            { id: `DEL-${seedNum + 11}`, oid: seedOrders[11].id, customer: seedOrders[11].customer, address: addressBook[10], partner: 'Rider Team B', partnerPhone: '+91 80109 42022', partnerAgency: 'Fleet Hub B', status: 'Failed', etaMin: 0, updatedAt: '16 Feb 18:58' },
+            { id: `DEL-${seedNum + 12}`, oid: `ORD-${seedNum + 13}`, customer: 'Asha Kapoor', address: addressBook[11], partner: 'Rider Team C', partnerPhone: '+91 80109 42023', partnerAgency: 'Fleet Hub C', status: 'In Transit', etaMin: 14, updatedAt: '17 Feb 11:55' }
         ];
 
         const seedInventory = [
-            { sku: `SKU-${seedNum + 1}`, name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', stock: 160 - idx * 3, price: 390 + idx * 5, status: 'In Stock' },
-            { sku: `SKU-${seedNum + 2}`, name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', stock: 92 - idx * 4, price: 130 + idx * 4, status: 'In Stock' },
-            { sku: `SKU-${seedNum + 3}`, name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', stock: 24 - idx * 2, price: 170 + idx * 3, status: 'Low Stock' },
-            { sku: `SKU-${seedNum + 4}`, name: 'Milk Pack', cat: 'Dairy', supplier: 'City Dairy', stock: 12 + idx, price: 58, status: 'Low Stock' },
-            { sku: `SKU-${seedNum + 5}`, name: 'Soft Drink', cat: 'Beverages', supplier: 'Cool Bev', stock: 84 + idx * 3, price: 42, status: 'In Stock' }
+            { sku: `SKU-${seedNum + 1}`, name: 'Basmati Rice', cat: 'Grocery', supplier: 'Agarwal Traders', supplierPhone: '+91 98115 44101', supplierEmail: 'sanjay@agarwaltraders.in', leadTimeDays: 2, stock: 145 - idx * 3, price: 380 + idx * 5, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 2}`, name: 'Toor Dal', cat: 'Grocery', supplier: 'Sharma Wholesale', supplierPhone: '+91 98917 22055', supplierEmail: 'orders@sharmawholesale.in', leadTimeDays: 3, stock: 230 - idx * 5, price: 120 + idx * 4, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 3}`, name: 'Refined Oil', cat: 'Grocery', supplier: 'Fortune Dist.', supplierPhone: '+91 99004 11233', supplierEmail: 'north@fortunedist.in', leadTimeDays: 4, stock: 18 + idx, price: 155 + idx * 3, status: 'Low Stock' },
+            { sku: `SKU-${seedNum + 4}`, name: 'Atta Flour', cat: 'Grocery', supplier: 'Agarwal Traders', supplierPhone: '+91 98115 44101', supplierEmail: 'sanjay@agarwaltraders.in', leadTimeDays: 2, stock: 122 - idx * 2, price: 248 + idx * 3, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 5}`, name: 'Sugar', cat: 'Grocery', supplier: 'Sharma Wholesale', supplierPhone: '+91 98917 22055', supplierEmail: 'orders@sharmawholesale.in', leadTimeDays: 3, stock: 64 - idx * 3, price: 48 + idx * 2, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 6}`, name: 'Paneer', cat: 'Dairy', supplier: 'City Dairy', supplierPhone: '+91 97170 55544', supplierEmail: 'supply@citydairy.in', leadTimeDays: 1, stock: 21 + idx, price: 78, status: 'Low Stock' },
+            { sku: `SKU-${seedNum + 7}`, name: 'Curd Cup', cat: 'Dairy', supplier: 'City Dairy', supplierPhone: '+91 97170 55544', supplierEmail: 'supply@citydairy.in', leadTimeDays: 1, stock: 88 + idx * 2, price: 26, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 8}`, name: 'Butter', cat: 'Dairy', supplier: 'City Dairy', supplierPhone: '+91 97170 55544', supplierEmail: 'supply@citydairy.in', leadTimeDays: 1, stock: 14 + idx, price: 60, status: 'Low Stock' },
+            { sku: `SKU-${seedNum + 9}`, name: 'Potato Chips', cat: 'Snacks', supplier: 'SnackHub Foods', supplierPhone: '+91 99100 77442', supplierEmail: 'supply@snackhubfoods.in', leadTimeDays: 2, stock: 172 + idx * 6, price: 20, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 10}`, name: 'Biscuits', cat: 'Snacks', supplier: 'SnackHub Foods', supplierPhone: '+91 99100 77442', supplierEmail: 'supply@snackhubfoods.in', leadTimeDays: 2, stock: 154 + idx * 5, price: 12, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 11}`, name: 'Orange Juice', cat: 'Beverages', supplier: 'Cool Bev', supplierPhone: '+91 98180 33021', supplierEmail: 'ops@coolbev.in', leadTimeDays: 2, stock: 37 - idx, price: 42, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 12}`, name: 'Mineral Water', cat: 'Beverages', supplier: 'Cool Bev', supplierPhone: '+91 98180 33021', supplierEmail: 'ops@coolbev.in', leadTimeDays: 2, stock: 9 + idx, price: 20, status: 'Critical' },
+            { sku: `SKU-${seedNum + 13}`, name: 'Dishwash Liquid', cat: 'Home Care', supplier: 'HomeSpark Supplies', supplierPhone: '+91 98101 56512', supplierEmail: 'care@homespark.in', leadTimeDays: 3, stock: 48 + idx * 2, price: 58, status: 'In Stock' },
+            { sku: `SKU-${seedNum + 14}`, name: 'Detergent Powder', cat: 'Home Care', supplier: 'HomeSpark Supplies', supplierPhone: '+91 98101 56512', supplierEmail: 'care@homespark.in', leadTimeDays: 3, stock: Math.max(0, idx - 1), price: 96, status: idx > 0 ? 'Critical' : 'Out of Stock' }
         ];
 
         const seedReturns = [
-            { id: `RET-${seedNum + 1}`, oid: seedOrders[1].id, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Damaged', amount: seedInventory[2].price, qty: 1, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 13:50' },
-            { id: `RET-${seedNum + 2}`, oid: seedOrders[2].id, product: seedInventory[3].name, sku: seedInventory[3].sku, cat: seedInventory[3].cat, reason: 'Expired', amount: seedInventory[3].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 13:15' },
-            { id: `RET-${seedNum + 3}`, oid: seedOrders[4].id, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Wrong Item', amount: seedInventory[2].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 12:40' },
-            { id: `RET-${seedNum + 4}`, oid: seedOrders[0].id, product: seedInventory[4].name, sku: seedInventory[4].sku, cat: seedInventory[4].cat, reason: 'Stale', amount: seedInventory[4].price * 2, qty: 2, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 12:05' },
-            { id: `RET-${seedNum + 5}`, oid: `ORD-${seedNum + 9}`, product: seedInventory[1].name, sku: seedInventory[1].sku, cat: seedInventory[1].cat, reason: 'Wrong Item', amount: seedInventory[1].price, qty: 1, status: 'Rejected', requestedBy: 'Walk-in', updatedAt: '17 Feb 11:35' },
-            { id: `RET-${seedNum + 6}`, oid: `ORD-${seedNum + 10}`, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Damaged', amount: seedInventory[2].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 10:55' },
-            { id: `RET-${seedNum + 7}`, oid: `ORD-${seedNum + 11}`, product: seedInventory[3].name, sku: seedInventory[3].sku, cat: seedInventory[3].cat, reason: 'Stale', amount: seedInventory[3].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 10:25' }
+            { id: `RET-${seedNum + 1}`, oid: seedOrders[1].id, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Damaged', amount: seedInventory[2].price, qty: 1, status: 'Pending', requestedBy: cashierName, updatedAt: '17 Feb 16:18' },
+            { id: `RET-${seedNum + 2}`, oid: seedOrders[2].id, product: seedInventory[5].name, sku: seedInventory[5].sku, cat: seedInventory[5].cat, reason: 'Expired', amount: seedInventory[5].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 15:42' },
+            { id: `RET-${seedNum + 3}`, oid: seedOrders[4].id, product: seedInventory[2].name, sku: seedInventory[2].sku, cat: seedInventory[2].cat, reason: 'Wrong Item', amount: seedInventory[2].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 15:10' },
+            { id: `RET-${seedNum + 4}`, oid: seedOrders[5].id, product: seedInventory[11].name, sku: seedInventory[11].sku, cat: seedInventory[11].cat, reason: 'Leaking Bottle', amount: seedInventory[11].price * 2, qty: 2, status: 'Pending', requestedBy: returnLead, updatedAt: '17 Feb 14:58' },
+            { id: `RET-${seedNum + 5}`, oid: seedOrders[6].id, product: seedInventory[1].name, sku: seedInventory[1].sku, cat: seedInventory[1].cat, reason: 'Wrong Item', amount: seedInventory[1].price, qty: 1, status: 'Rejected', requestedBy: 'Walk-in', updatedAt: '17 Feb 14:26' },
+            { id: `RET-${seedNum + 6}`, oid: seedOrders[7].id, product: seedInventory[3].name, sku: seedInventory[3].sku, cat: seedInventory[3].cat, reason: 'Damaged', amount: seedInventory[3].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 14:02' },
+            { id: `RET-${seedNum + 7}`, oid: seedOrders[8].id, product: seedInventory[7].name, sku: seedInventory[7].sku, cat: seedInventory[7].cat, reason: 'Stale', amount: seedInventory[7].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '17 Feb 13:44' },
+            { id: `RET-${seedNum + 8}`, oid: seedOrders[9].id, product: seedInventory[8].name, sku: seedInventory[8].sku, cat: seedInventory[8].cat, reason: 'Crushed Pack', amount: seedInventory[8].price * 3, qty: 3, status: 'Pending', requestedBy: returnLead, updatedAt: '17 Feb 13:18' },
+            { id: `RET-${seedNum + 9}`, oid: seedOrders[10].id, product: seedInventory[13].name, sku: seedInventory[13].sku, cat: seedInventory[13].cat, reason: 'Torn Pack', amount: seedInventory[13].price, qty: 1, status: 'Approved', requestedBy: cashierName, updatedAt: '17 Feb 12:34' },
+            { id: `RET-${seedNum + 10}`, oid: seedOrders[11].id, product: seedInventory[10].name, sku: seedInventory[10].sku, cat: seedInventory[10].cat, reason: 'Expired', amount: seedInventory[10].price, qty: 1, status: 'Refunded', requestedBy: 'Walk-in', updatedAt: '16 Feb 18:48' }
+        ];
+
+        const fallbackUsers = [
+            { name: adminName, role: 'Admin', status: 'Active' },
+            { name: cashierName, role: 'Cashier', status: 'Active' },
+            { name: inventoryManager, role: 'Inventory Manager', status: 'Active' },
+            { name: deliveryLead, role: 'Delivery Ops', status: 'Active' },
+            { name: returnLead, role: 'Return Handler', status: 'Active' }
         ];
 
         return {
@@ -782,12 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inventory: seedInventory,
             deliveries: seedDeliveries,
             returns: seedReturns,
-            users: userList.length
-                ? cloneRows(userList)
-                : [
-                    { name: adminName, role: 'Admin', status: 'Active' },
-                    { name: cashierName, role: 'Cashier', status: 'Active' }
-                ]
+            users: userList.length ? mergeSeedRecords(userList, fallbackUsers, 'name') : fallbackUsers
         };
     }
 
@@ -801,11 +857,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         businessDataStore[business.id] = {
-            orders: Array.isArray(existing.orders) ? existing.orders : seed.orders,
-            inventory: Array.isArray(existing.inventory) ? existing.inventory : seed.inventory,
+            orders: Array.isArray(existing.orders) ? mergeSeedRecords(existing.orders, seed.orders, 'id') : seed.orders,
+            inventory: Array.isArray(existing.inventory) ? mergeSeedRecords(existing.inventory, seed.inventory, 'sku') : seed.inventory,
             deliveries: Array.isArray(existing.deliveries) ? mergeSeedRecords(existing.deliveries, seed.deliveries, 'id') : seed.deliveries,
             returns: Array.isArray(existing.returns) ? mergeSeedRecords(existing.returns, seed.returns, 'id') : seed.returns,
-            users: Array.isArray(existing.users) ? existing.users : seed.users
+            users: Array.isArray(existing.users) ? mergeSeedRecords(existing.users, seed.users, 'name') : seed.users
         };
     });
     saveObject('bb_business_data', businessDataStore);
@@ -846,10 +902,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enrich small/global datasets with the latest seed records so charts/tables have enough data.
     if (!isBusinessScoped) {
+        orders = mergeSeedRecords(orders, defaultOrders, 'id');
+        inventory = mergeSeedRecords(inventory, defaultInventory, 'sku');
         deliveries = mergeSeedRecords(deliveries, defaultDeliveries, 'id');
         returns = mergeSeedRecords(returns, defaultReturns, 'id');
+        users = mergeSeedRecords(users, defaultUsers, 'name');
+        saveList('bb_orders', orders);
+        saveList('bb_inventory', inventory);
         saveList('bb_deliveries', deliveries);
         saveList('bb_returns', returns);
+        saveList('bb_users', users);
     }
 
     function publishDataSync(domains) {
@@ -877,19 +939,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!scoped || typeof scoped !== 'object') return;
 
             businessDataStore[selectedBusiness.id] = scoped;
-            if (Array.isArray(scoped.orders)) orders = cloneRows(scoped.orders);
-            if (Array.isArray(scoped.inventory)) inventory = cloneRows(scoped.inventory);
+            if (Array.isArray(scoped.orders)) orders = mergeSeedRecords(scoped.orders, defaultOrders, 'id');
+            if (Array.isArray(scoped.inventory)) inventory = mergeSeedRecords(scoped.inventory, defaultInventory, 'sku');
             if (Array.isArray(scoped.deliveries)) deliveries = cloneRows(scoped.deliveries);
             if (Array.isArray(scoped.returns)) returns = cloneRows(scoped.returns);
-            if (Array.isArray(scoped.users)) users = cloneRows(scoped.users);
+            if (Array.isArray(scoped.users)) users = mergeSeedRecords(scoped.users, defaultUsers, 'name');
             return;
         }
 
-        orders = loadList('bb_orders', orders);
-        inventory = loadList('bb_inventory', inventory);
-        deliveries = loadList('bb_deliveries', deliveries);
-        returns = loadList('bb_returns', returns);
-        users = loadList('bb_users', users);
+        orders = mergeSeedRecords(loadList('bb_orders', orders), defaultOrders, 'id');
+        inventory = mergeSeedRecords(loadList('bb_inventory', inventory), defaultInventory, 'sku');
+        deliveries = mergeSeedRecords(loadList('bb_deliveries', deliveries), defaultDeliveries, 'id');
+        returns = mergeSeedRecords(loadList('bb_returns', returns), defaultReturns, 'id');
+        users = mergeSeedRecords(loadList('bb_users', users), defaultUsers, 'name');
     }
 
     function shouldApplyIncomingSync(payload) {
@@ -984,11 +1046,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function hydrateDataFromJsonFiles() {
-        const jsonOrders = await loadJsonArray('data/orders.json', defaultOrders);
-        const jsonInventory = await loadJsonArray('data/inventory.json', defaultInventory);
-        const jsonDeliveries = await loadJsonArray('data/deliveries.json', defaultDeliveries);
-        const jsonReturns = await loadJsonArray('data/returns.json', defaultReturns);
-        const jsonUsers = await loadJsonArray('data/users.json', defaultUsers);
+        const jsonOrders = mergeSeedRecords(await loadJsonArray('data/orders.json', defaultOrders), defaultOrders, 'id');
+        const jsonInventory = mergeSeedRecords(await loadJsonArray('data/inventory.json', defaultInventory), defaultInventory, 'sku');
+        const jsonDeliveries = mergeSeedRecords(await loadJsonArray('data/deliveries.json', defaultDeliveries), defaultDeliveries, 'id');
+        const jsonReturns = mergeSeedRecords(await loadJsonArray('data/returns.json', defaultReturns), defaultReturns, 'id');
+        const jsonUsers = mergeSeedRecords(await loadJsonArray('data/users.json', defaultUsers), defaultUsers, 'name');
         const jsonBusinessesRaw = await loadJsonArray('data/businesses.json', defaultBusinesses);
         const jsonBusinessData = await loadJsonObject('data/business_data.json', {});
         const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(
@@ -1014,12 +1076,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 : (jsonEntry && typeof jsonEntry === 'object' ? jsonEntry : seed);
 
             rebuiltBusinessData[business.id] = {
-                orders: Array.isArray(source.orders) ? cloneRows(source.orders) : seed.orders,
-                inventory: Array.isArray(source.inventory) ? cloneRows(source.inventory) : seed.inventory,
+                orders: Array.isArray(source.orders) ? mergeSeedRecords(source.orders, seed.orders, 'id') : seed.orders,
+                inventory: Array.isArray(source.inventory) ? mergeSeedRecords(source.inventory, seed.inventory, 'sku') : seed.inventory,
                 deliveries: Array.isArray(source.deliveries) ? mergeSeedRecords(source.deliveries, seed.deliveries, 'id') : seed.deliveries,
                 returns: Array.isArray(source.returns) ? mergeSeedRecords(source.returns, seed.returns, 'id') : seed.returns,
                 users: Array.isArray(source.users)
-                    ? cloneRows(source.users)
+                    ? mergeSeedRecords(source.users, Array.isArray(business.users) && business.users.length ? business.users : seed.users, 'name')
                     : (Array.isArray(business.users) && business.users.length ? cloneRows(business.users) : seed.users)
             };
         });
@@ -1064,11 +1126,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const useStoredReturns = !!localStorage.getItem('bb_returns');
         const useStoredUsers = !!localStorage.getItem('bb_users');
 
-        orders = useStoredOrders ? loadList('bb_orders', jsonOrders) : cloneRows(jsonOrders);
-        inventory = useStoredInventory ? loadList('bb_inventory', jsonInventory) : cloneRows(jsonInventory);
-        deliveries = useStoredDeliveries ? loadList('bb_deliveries', jsonDeliveries) : cloneRows(jsonDeliveries);
-        returns = useStoredReturns ? loadList('bb_returns', jsonReturns) : cloneRows(jsonReturns);
-        users = useStoredUsers ? loadList('bb_users', jsonUsers) : cloneRows(jsonUsers);
+        orders = useStoredOrders ? mergeSeedRecords(loadList('bb_orders', jsonOrders), jsonOrders, 'id') : cloneRows(jsonOrders);
+        inventory = useStoredInventory ? mergeSeedRecords(loadList('bb_inventory', jsonInventory), jsonInventory, 'sku') : cloneRows(jsonInventory);
+        deliveries = useStoredDeliveries ? mergeSeedRecords(loadList('bb_deliveries', jsonDeliveries), jsonDeliveries, 'id') : cloneRows(jsonDeliveries);
+        returns = useStoredReturns ? mergeSeedRecords(loadList('bb_returns', jsonReturns), jsonReturns, 'id') : cloneRows(jsonReturns);
+        users = useStoredUsers ? mergeSeedRecords(loadList('bb_users', jsonUsers), jsonUsers, 'name') : cloneRows(jsonUsers);
 
         persistOperationalData({ silentSync: true });
     }
@@ -2300,7 +2362,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'Sharma Wholesale': { contact: 'Neha Sharma', phone: '+91 98917 22055', email: 'orders@sharmawholesale.in', leadTimeDays: 3, moq: 30, rating: 4.6 },
         'Fortune Dist.': { contact: 'Ritesh Jain', phone: '+91 99004 11233', email: 'north@fortunedist.in', leadTimeDays: 4, moq: 20, rating: 4.5 },
         'City Dairy': { contact: 'Mehul Shah', phone: '+91 97170 55544', email: 'supply@citydairy.in', leadTimeDays: 1, moq: 40, rating: 4.7 },
-        'Cool Bev': { contact: 'Ankita Roy', phone: '+91 98180 33021', email: 'ops@coolbev.in', leadTimeDays: 2, moq: 36, rating: 4.4 }
+        'Cool Bev': { contact: 'Ankita Roy', phone: '+91 98180 33021', email: 'ops@coolbev.in', leadTimeDays: 2, moq: 36, rating: 4.4 },
+        'SnackHub Foods': { contact: 'Varun Sethi', phone: '+91 99100 77442', email: 'supply@snackhubfoods.in', leadTimeDays: 2, moq: 48, rating: 4.3 },
+        'HomeSpark Supplies': { contact: 'Pallavi Jain', phone: '+91 98101 56512', email: 'care@homespark.in', leadTimeDays: 3, moq: 18, rating: 4.5 }
     };
 
     function getSupplierDetails(item) {
