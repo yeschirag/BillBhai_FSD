@@ -21,13 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const ROLE_ALLOWED_PAGES = {
-        superuser: ['superuser', 'businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'profile', 'settings', 'notifications'],
-        admin: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'profile', 'settings', 'notifications'],
-        cashier: ['dashboard', 'orders', 'reports', 'profile', 'settings', 'notifications'],
-        returnhandler: ['dashboard', 'returns', 'orders', 'reports', 'profile', 'settings', 'notifications'],
-        inventorymanager: ['dashboard', 'inventory', 'reports', 'profile', 'settings', 'notifications'],
-        deliveryops: ['dashboard', 'delivery', 'reports', 'profile', 'settings', 'notifications'],
-        customer: ['profile', 'settings', 'reports', 'notifications']
+        superuser: ['superuser', 'businesses', 'dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'profile', 'notifications'],
+        admin: ['dashboard', 'orders', 'inventory', 'delivery', 'returns', 'reports', 'users', 'profile', 'notifications'],
+        cashier: ['dashboard', 'orders', 'reports', 'profile', 'notifications'],
+        returnhandler: ['dashboard', 'returns', 'orders', 'reports', 'profile', 'notifications'],
+        inventorymanager: ['dashboard', 'inventory', 'reports', 'profile', 'notifications'],
+        deliveryops: ['dashboard', 'delivery', 'reports', 'profile', 'notifications'],
+        customer: ['profile', 'reports', 'notifications']
     };
 
     const ROLE_ACTIONS = {
@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('activeBusinessId');
         localStorage.removeItem('activeBusinessName');
+        sessionStorage.removeItem('bb_customer_session_id');
+        sessionStorage.removeItem('bb_customer_session_notifications');
     }
 
     function goToLogin() {
@@ -245,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const notifDropdown = document.getElementById('notifDropdown');
     const userMenuBtn = document.getElementById('userMenuBtn');
     const userDropdown = document.getElementById('userDropdown');
-    const globalSearch = document.getElementById('globalSearch');
 
     function closeDropdowns() {
         if (notifDropdown) notifDropdown.classList.remove('show');
@@ -274,15 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDropdowns();
     });
 
-    if (globalSearch) {
-        globalSearch.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && globalSearch.value.trim() !== '') {
-                alert(`Search functionality for "${globalSearch.value.trim()}" is not implemented yet.`);
-                globalSearch.value = '';
-            }
-        });
-    }
-
     // Navigation & Sidebar
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.getElementById('menuToggle');
@@ -304,9 +296,64 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = document.body.getAttribute('data-page') || 'dashboard';
     const LIVE_SYNC_KEY = 'bb_live_sync_event';
     const LIVE_SYNC_CHANNEL = 'bb_live_sync';
+    const NOTIFICATION_STATE_STORAGE_KEY = 'bb_notification_state';
     const NOTIFICATIONS_STORAGE_KEY = 'bb_notifications';
     const PROFILE_SETTINGS_STORAGE_KEY = 'bb_profile_settings';
     const AUTH_OVERRIDE_STORAGE_KEY = 'bb_auth_overrides';
+    const CUSTOMER_SESSION_NOTIFICATION_KEY = 'bb_customer_session_notifications';
+    const NOTIFICATION_CATEGORY_LABELS = {
+        orders: 'Order Alerts',
+        payments: 'Payment Alerts',
+        inventory: 'Inventory Alerts',
+        delivery: 'Delivery Alerts',
+        returns: 'Return Alerts',
+        users: 'User Alerts',
+        businesses: 'Business Alerts',
+        summary: 'Summary Alerts'
+    };
+    const ROLE_NOTIFICATION_CONFIG = {
+        superuser: [
+            { key: 'businesses', label: 'Business Alerts', defaultEnabled: true },
+            { key: 'payments', label: 'Payment Alerts', defaultEnabled: true },
+            { key: 'users', label: 'User Alerts', defaultEnabled: true },
+            { key: 'orders', label: 'Order Alerts', defaultEnabled: true },
+            { key: 'inventory', label: 'Inventory Alerts', defaultEnabled: true },
+            { key: 'delivery', label: 'Delivery Alerts', defaultEnabled: true },
+            { key: 'returns', label: 'Return Alerts', defaultEnabled: true },
+            { key: 'summary', label: 'Summary Digest', defaultEnabled: false }
+        ],
+        admin: [
+            { key: 'orders', label: 'Order Alerts', defaultEnabled: true },
+            { key: 'payments', label: 'Payment Alerts', defaultEnabled: true },
+            { key: 'inventory', label: 'Inventory Alerts', defaultEnabled: true },
+            { key: 'delivery', label: 'Delivery Alerts', defaultEnabled: true },
+            { key: 'returns', label: 'Return Alerts', defaultEnabled: true },
+            { key: 'users', label: 'User Alerts', defaultEnabled: true },
+            { key: 'summary', label: 'Summary Digest', defaultEnabled: false }
+        ],
+        cashier: [
+            { key: 'orders', label: 'Order Alerts', defaultEnabled: true },
+            { key: 'payments', label: 'Payment Alerts', defaultEnabled: true },
+            { key: 'returns', label: 'Return Updates', defaultEnabled: true }
+        ],
+        inventorymanager: [
+            { key: 'inventory', label: 'Inventory Alerts', defaultEnabled: true },
+            { key: 'summary', label: 'Daily Summary', defaultEnabled: false }
+        ],
+        deliveryops: [
+            { key: 'delivery', label: 'Delivery Alerts', defaultEnabled: true },
+            { key: 'summary', label: 'Queue Summary', defaultEnabled: false }
+        ],
+        returnhandler: [
+            { key: 'returns', label: 'Return Alerts', defaultEnabled: true },
+            { key: 'summary', label: 'Desk Summary', defaultEnabled: false }
+        ],
+        customer: [
+            { key: 'orders', label: 'Order Alerts', defaultEnabled: true },
+            { key: 'payments', label: 'Payment Alerts', defaultEnabled: true },
+            { key: 'delivery', label: 'Delivery Alerts', defaultEnabled: true }
+        ]
+    };
     const syncSourceId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let syncDebounceTimer = null;
     let syncChannel = null;
@@ -916,6 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveList('bb_users', users);
         }
 
+        renderNotificationDropdown();
         if (!opts.silentSync) publishDataSync(opts.domains);
     }
 
@@ -943,17 +991,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const jsonUsers = await loadJsonArray('data/users.json', defaultUsers);
         const jsonBusinessesRaw = await loadJsonArray('data/businesses.json', defaultBusinesses);
         const jsonBusinessData = await loadJsonObject('data/business_data.json', {});
-        const jsonNotifications = await loadJsonArray('data/notifications.json', DEFAULT_NOTIFICATIONS);
         const jsonBusinesses = jsonBusinessesRaw.map((b, idx) => normalizeBusinessRecord(
             b,
             defaultBusinesses[idx] && defaultBusinesses[idx].id,
             defaultBusinesses[idx] && defaultBusinesses[idx].name
         ));
-
-        const storedNotifications = loadList(NOTIFICATIONS_STORAGE_KEY, []);
-        const hasStoredNotifications = Array.isArray(storedNotifications) && storedNotifications.length > 0;
-        notificationsList = normalizeNotificationsList(hasStoredNotifications ? storedNotifications : jsonNotifications, DEFAULT_NOTIFICATIONS);
-        persistNotifications();
 
         const storedBusinesses = loadList('bb_businesses', []);
         const hasStoredBusinesses = Array.isArray(storedBusinesses) && storedBusinesses.length > 0;
@@ -1127,8 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : DEFAULT_NOTIFICATIONS.map((item, idx) => normalizeNotificationRecord(item, idx));
     }
 
-    let notificationsList = normalizeNotificationsList(loadList(NOTIFICATIONS_STORAGE_KEY, DEFAULT_NOTIFICATIONS), DEFAULT_NOTIFICATIONS);
-    saveList(NOTIFICATIONS_STORAGE_KEY, notificationsList);
+    let notificationsList = [];
 
     function getNotificationIcon(notification) {
         const iconKey = String(notification && notification.iconKey || '').trim().toLowerCase();
@@ -1180,8 +1221,792 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderNotificationDropdown();
 
+    function getNotificationPreferenceConfig(roleKey) {
+        return ROLE_NOTIFICATION_CONFIG[roleKey] || ROLE_NOTIFICATION_CONFIG.customer;
+    }
+
+    function normalizeNotificationPreferences(savedPreferences, roleKey) {
+        const config = getNotificationPreferenceConfig(roleKey);
+        const safe = savedPreferences && typeof savedPreferences === 'object' ? savedPreferences : {};
+        const next = {};
+        config.forEach(item => {
+            next[item.key] = typeof safe[item.key] === 'boolean'
+                ? safe[item.key]
+                : item.defaultEnabled !== false;
+        });
+        return next;
+    }
+
+    function getNotificationCategoryLabel(category) {
+        return NOTIFICATION_CATEGORY_LABELS[category] || 'Notification';
+    }
+
+    function getNotificationPriorityRank(priority) {
+        const value = String(priority || 'medium').trim().toLowerCase();
+        if (value === 'critical') return 4;
+        if (value === 'high') return 3;
+        if (value === 'medium') return 2;
+        return 1;
+    }
+
+    function formatRelativeTime(timestamp) {
+        const numeric = Number(timestamp);
+        if (!Number.isFinite(numeric) || numeric <= 0) return 'Current snapshot';
+        const diffMs = Math.max(0, Date.now() - numeric);
+        const diffMins = Math.round(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} min ago`;
+        const diffHours = Math.round(diffMins / 60);
+        if (diffHours < 24) return `${diffHours} hr ago`;
+        const diffDays = Math.round(diffHours / 24);
+        return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+    }
+
+    function getNotificationColor(category, priority) {
+        const normalizedCategory = String(category || '').trim().toLowerCase();
+        const normalizedPriority = String(priority || '').trim().toLowerCase();
+        if (normalizedPriority === 'critical') return 'red';
+        if (normalizedCategory === 'payments') return 'green';
+        if (normalizedCategory === 'inventory') return 'amber';
+        if (normalizedCategory === 'delivery') return 'blue';
+        if (normalizedCategory === 'returns') return 'amber';
+        if (normalizedCategory === 'users' || normalizedCategory === 'businesses') return 'purple';
+        return 'blue';
+    }
+
+    function getNotificationIconKeyForCategory(category) {
+        const normalized = String(category || '').trim().toLowerCase();
+        if (normalized === 'payments') return 'payment';
+        if (normalized === 'inventory') return 'alert';
+        if (normalized === 'delivery') return 'delivery';
+        if (normalized === 'returns') return 'return';
+        if (normalized === 'users' || normalized === 'businesses') return 'user';
+        return 'order';
+    }
+
+    function makeNotificationRecord(record) {
+        const safe = record && typeof record === 'object' ? record : {};
+        const category = String(safe.category || 'orders').trim().toLowerCase();
+        const priority = String(safe.priority || 'medium').trim().toLowerCase();
+        const sortTimeMs = Number(safe.sortTimeMs) || Date.now();
+        const detailRows = Array.isArray(safe.detailRows)
+            ? safe.detailRows
+                .map(row => ({
+                    label: String(row && row.label || '').trim(),
+                    value: String(row && row.value || '-').trim() || '-'
+                }))
+                .filter(row => row.label)
+            : [];
+
+        return {
+            id: String(safe.id || `notif-${Math.random().toString(36).slice(2)}`).trim(),
+            title: String(safe.title || 'Notification').trim(),
+            desc: String(safe.desc || '').trim(),
+            category,
+            color: String(safe.color || getNotificationColor(category, priority)).trim().toLowerCase(),
+            iconKey: String(safe.iconKey || getNotificationIconKeyForCategory(category)).trim().toLowerCase(),
+            priority,
+            priorityRank: getNotificationPriorityRank(priority),
+            sortTimeMs,
+            time: String(safe.time || formatRelativeTime(sortTimeMs)).trim(),
+            detailRows,
+            defaultUnread: safe.defaultUnread !== false
+        };
+    }
+
+    function parseMonthEntry(monthLabel, fallbackIndex) {
+        const raw = String(monthLabel || '').trim();
+        if (!raw) return Date.now() - (Number(fallbackIndex) || 0) * 86400000;
+        const parsed = new Date(`01 ${raw}`);
+        if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+        return Date.now() - (Number(fallbackIndex) || 0) * 86400000;
+    }
+
+    function getActiveBusinessRecord() {
+        if (selectedBusiness) return selectedBusiness;
+        const scopedId = String(localStorage.getItem('activeBusinessId') || '').trim();
+        return businesses.find(item => item.id === scopedId) || businesses[0] || null;
+    }
+
+    function getNotificationAudienceKey() {
+        const currentUser = loadObject('currentUser', {});
+        const username = String(currentUser.username || localStorage.getItem('userName') || activeRoleKey || 'user')
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+
+        if (activeRoleKey === 'customer') {
+            const sessionId = String(sessionStorage.getItem('bb_customer_session_id') || 'customer-session').trim();
+            return `${activeRoleKey}::${username}::${sessionId}`;
+        }
+
+        const businessScope = activeRoleKey === 'superuser'
+            ? 'all-businesses'
+            : String((getActiveBusinessRecord() && getActiveBusinessRecord().id) || localStorage.getItem('activeBusinessId') || 'global').trim();
+
+        return `${activeRoleKey}::${username}::${businessScope}`;
+    }
+
+    function loadNotificationState() {
+        const store = loadObject(NOTIFICATION_STATE_STORAGE_KEY, {});
+        const key = getNotificationAudienceKey();
+        const saved = store[key] && typeof store[key] === 'object' ? store[key] : {};
+        const readMap = saved.readMap && typeof saved.readMap === 'object' && !Array.isArray(saved.readMap)
+            ? saved.readMap
+            : {};
+        return { key, readMap };
+    }
+
+    function saveNotificationState(state) {
+        const safe = state && typeof state === 'object' ? state : {};
+        const store = loadObject(NOTIFICATION_STATE_STORAGE_KEY, {});
+        const key = String(safe.key || getNotificationAudienceKey()).trim() || getNotificationAudienceKey();
+        store[key] = {
+            readMap: safe.readMap && typeof safe.readMap === 'object' ? safe.readMap : {}
+        };
+        saveObject(NOTIFICATION_STATE_STORAGE_KEY, store);
+    }
+
+    function setNotificationReadState(notificationId, isRead) {
+        const id = String(notificationId || '').trim();
+        if (!id) return;
+        const state = loadNotificationState();
+        state.readMap[id] = Boolean(isRead);
+        saveNotificationState(state);
+    }
+
+    function markNotificationsRead(ids, isRead) {
+        const state = loadNotificationState();
+        (Array.isArray(ids) ? ids : []).forEach(id => {
+            const safeId = String(id || '').trim();
+            if (!safeId) return;
+            state.readMap[safeId] = Boolean(isRead);
+        });
+        saveNotificationState(state);
+    }
+
+    function loadCustomerSessionNotifications() {
+        try {
+            const raw = sessionStorage.getItem(CUSTOMER_SESSION_NOTIFICATION_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function getBusinessDataForNotifications(business, fallbackIndex) {
+        const idx = Number(fallbackIndex) || 0;
+        const seed = buildBusinessSeedData(business, idx);
+        const source = businessDataStore[business.id] && typeof businessDataStore[business.id] === 'object'
+            ? businessDataStore[business.id]
+            : seed;
+
+        return {
+            orders: Array.isArray(source.orders) ? source.orders : seed.orders,
+            inventory: Array.isArray(source.inventory) ? source.inventory : seed.inventory,
+            deliveries: Array.isArray(source.deliveries) ? source.deliveries : seed.deliveries,
+            returns: Array.isArray(source.returns) ? source.returns : seed.returns,
+            users: Array.isArray(source.users) ? source.users : seed.users
+        };
+    }
+
+    function getNotificationContexts() {
+        if (activeRoleKey === 'superuser') {
+            return businesses.map((business, index) => ({
+                business,
+                data: getBusinessDataForNotifications(business, index)
+            }));
+        }
+
+        const business = getActiveBusinessRecord();
+        if (!business) return [];
+
+        return [{
+            business,
+            data: {
+                orders,
+                inventory,
+                deliveries,
+                returns,
+                users
+            }
+        }];
+    }
+
+    function createOrderNotification(order, business, category, priority) {
+        const parsed = parseOrderDate(order && order.date);
+        const status = normalizeOrderStatus(order && order.status);
+        return makeNotificationRecord({
+            id: `order:${business ? business.id : 'global'}:${order.id}:${status}`,
+            category: category || 'orders',
+            priority: priority || (status === 'Cancelled' ? 'high' : (status === 'Pending' ? 'medium' : 'low')),
+            title: `${order.id} is ${status.toLowerCase()}`,
+            desc: `${order.customer} • Rs ${Math.max(0, Number(order.total || 0)).toLocaleString()} • ${order.payment || 'Pending payment'}`,
+            sortTimeMs: parsed ? parsed.getTime() : Date.now(),
+            detailRows: [
+                { label: 'Business', value: business ? business.name : '-' },
+                { label: 'Order', value: String(order.id || '-') },
+                { label: 'Customer', value: String(order.customer || '-') },
+                { label: 'Status', value: status },
+                { label: 'Payment', value: String(order.payment || 'Pending') },
+                { label: 'Total', value: `Rs ${Math.max(0, Number(order.total || 0)).toLocaleString()}` }
+            ]
+        });
+    }
+
+    function createPaymentNotification(source, business, fallbackIndex) {
+        if (source && source.id && source.customer) {
+            const parsed = parseOrderDate(source && source.date);
+            return makeNotificationRecord({
+                id: `payment:${business ? business.id : 'global'}:${source.id}:${source.payment || 'pending'}`,
+                category: 'payments',
+                priority: String(source.payment || '').trim().toLowerCase() === 'pending' ? 'high' : 'low',
+                title: `Payment update for ${source.id}`,
+                desc: `${source.customer} paid via ${source.payment || 'Pending'} for Rs ${Math.max(0, Number(source.total || 0)).toLocaleString()}.`,
+                sortTimeMs: parsed ? parsed.getTime() : Date.now() - (Number(fallbackIndex) || 0) * 1000,
+                detailRows: [
+                    { label: 'Business', value: business ? business.name : '-' },
+                    { label: 'Order', value: String(source.id || '-') },
+                    { label: 'Customer', value: String(source.customer || '-') },
+                    { label: 'Mode', value: String(source.payment || 'Pending') },
+                    { label: 'Amount', value: `Rs ${Math.max(0, Number(source.total || 0)).toLocaleString()}` }
+                ]
+            });
+        }
+
+        const monthLabel = String(source && source.month || 'Current cycle').trim();
+        const status = String(source && source.status || 'Due').trim();
+        const amount = Math.max(0, Number(source && source.amount || business && business.paymentDue || 0));
+        return makeNotificationRecord({
+            id: `payment:${business ? business.id : 'global'}:${monthLabel}:${status}:${amount}`,
+            category: 'payments',
+            priority: status.toLowerCase() === 'paid' ? 'low' : 'high',
+            title: `${business ? business.name : 'Business'} billing is ${status.toLowerCase()}`,
+            desc: `${monthLabel} billing cycle shows Rs ${amount.toLocaleString()} as ${status.toLowerCase()}.`,
+            sortTimeMs: parseMonthEntry(monthLabel, fallbackIndex),
+            detailRows: [
+                { label: 'Business', value: business ? business.name : '-' },
+                { label: 'Billing Cycle', value: monthLabel },
+                { label: 'Amount', value: `Rs ${amount.toLocaleString()}` },
+                { label: 'Status', value: status },
+                { label: 'Plan', value: String(business && business.productsPlan || '-') }
+            ]
+        });
+    }
+
+    function createInventoryNotification(item, business, fallbackIndex) {
+        const status = normalizeInventoryStatus(item && item.status, item && item.stock);
+        const supplier = getSupplierDetails(item);
+        const stock = Math.max(0, Number(item && item.stock) || 0);
+        const priority = status === 'Out of Stock' || status === 'Critical'
+            ? 'critical'
+            : (status === 'Low Stock' ? 'high' : 'low');
+
+        return makeNotificationRecord({
+            id: `inventory:${business ? business.id : 'global'}:${item.sku}:${status}:${stock}`,
+            category: 'inventory',
+            priority,
+            title: `${status}: ${item.name}`,
+            desc: `${item.sku} is at ${stock} units. Supplier ${supplier.name} needs ${supplier.leadTimeDays} day${supplier.leadTimeDays === 1 ? '' : 's'} lead time.`,
+            sortTimeMs: Date.now() - (Number(fallbackIndex) || 0) * 60000,
+            detailRows: [
+                { label: 'Business', value: business ? business.name : '-' },
+                { label: 'SKU', value: String(item.sku || '-') },
+                { label: 'Product', value: String(item.name || '-') },
+                { label: 'Category', value: String(item.cat || '-') },
+                { label: 'Stock', value: String(stock) },
+                { label: 'Status', value: status },
+                { label: 'Supplier', value: supplier.name },
+                { label: 'Lead Time', value: `${supplier.leadTimeDays} days` }
+            ]
+        });
+    }
+
+    function createDeliveryNotification(item, business, fallbackIndex) {
+        const partner = getDeliveryPartnerDetails(item);
+        const status = normalizeDeliveryStatus(item && item.status);
+        const parsed = parseOrderDate(item && (item.updatedAt || item.time));
+        const priority = status === 'Failed' || partner.name === 'Unassigned'
+            ? 'critical'
+            : (status === 'Pending' ? 'high' : (status === 'In Transit' ? 'medium' : 'low'));
+
+        return makeNotificationRecord({
+            id: `delivery:${business ? business.id : 'global'}:${item.id}:${status}:${partner.name}`,
+            category: 'delivery',
+            priority,
+            title: `${item.id} is ${status.toLowerCase()}`,
+            desc: `${item.customer} • ${partner.name} • ${item.address || 'Address pending'}`,
+            sortTimeMs: parsed ? parsed.getTime() : Date.now() - (Number(fallbackIndex) || 0) * 1000,
+            detailRows: [
+                { label: 'Business', value: business ? business.name : '-' },
+                { label: 'Delivery', value: String(item.id || '-') },
+                { label: 'Order', value: String(item.oid || '-') },
+                { label: 'Customer', value: String(item.customer || '-') },
+                { label: 'Status', value: status },
+                { label: 'Partner', value: partner.name },
+                { label: 'Partner Phone', value: partner.phone },
+                { label: 'ETA', value: item.etaMin === null ? '-' : `${Math.max(0, Math.round(item.etaMin))} min` },
+                { label: 'Address', value: String(item.address || '-') }
+            ]
+        });
+    }
+
+    function createReturnNotification(item, business, fallbackIndex) {
+        const parsed = parseOrderDate(item && item.updatedAt);
+        const status = String(item && item.status || 'Pending').trim() || 'Pending';
+        const priority = status.toLowerCase().includes('pending')
+            ? 'high'
+            : (status.toLowerCase().includes('approve') ? 'medium' : 'low');
+
+        return makeNotificationRecord({
+            id: `return:${business ? business.id : 'global'}:${item.id}:${status}`,
+            category: 'returns',
+            priority,
+            title: `${item.id} is ${status.toLowerCase()}`,
+            desc: `${item.product} for ${item.customer} • ${item.reason} • Rs ${Math.max(0, Number(item.amount || 0)).toLocaleString()}`,
+            sortTimeMs: parsed ? parsed.getTime() : Date.now() - (Number(fallbackIndex) || 0) * 1000,
+            detailRows: [
+                { label: 'Business', value: business ? business.name : '-' },
+                { label: 'Return', value: String(item.id || '-') },
+                { label: 'Order', value: String(item.oid || '-') },
+                { label: 'Customer', value: String(item.customer || '-') },
+                { label: 'Product', value: String(item.product || '-') },
+                { label: 'Reason', value: String(item.reason || '-') },
+                { label: 'Status', value: status },
+                { label: 'Requested By', value: String(item.requestedBy || '-') },
+                { label: 'Amount', value: `Rs ${Math.max(0, Number(item.amount || 0)).toLocaleString()}` }
+            ]
+        });
+    }
+
+    function createBusinessNotification(business, fallbackIndex) {
+        return makeNotificationRecord({
+            id: `business:${business.id}:${business.status}:${business.paymentDue || 0}`,
+            category: 'businesses',
+            priority: String(business.status || '').toLowerCase() === 'active' ? 'low' : 'high',
+            title: `${business.name} is ${String(business.status || 'Active').toLowerCase()}`,
+            desc: `${business.productsPlan || 'Plan pending'} • ${business.storesCount || 0} stores • Rs ${Math.max(0, Number(business.paymentDue || 0)).toLocaleString()} due`,
+            sortTimeMs: Date.now() - (Number(fallbackIndex) || 0) * 120000,
+            detailRows: [
+                { label: 'Business', value: business.name },
+                { label: 'Owner', value: String(business.owner || '-') },
+                { label: 'Status', value: String(business.status || '-') },
+                { label: 'Plan', value: String(business.productsPlan || '-') },
+                { label: 'Stores', value: String(business.storesCount || 0) },
+                { label: 'Payment Due', value: `Rs ${Math.max(0, Number(business.paymentDue || 0)).toLocaleString()}` }
+            ]
+        });
+    }
+
+    function createUserSummaryNotification(business, userRows, fallbackIndex) {
+        const rows = Array.isArray(userRows) ? userRows : [];
+        const activeCount = rows.filter(item => String(item && item.status || '').trim().toLowerCase() === 'active').length;
+        const inactiveCount = Math.max(0, rows.length - activeCount);
+        return makeNotificationRecord({
+            id: `users:${business ? business.id : 'global'}:${activeCount}:${inactiveCount}`,
+            category: 'users',
+            priority: inactiveCount ? 'high' : 'low',
+            title: `${business ? business.name : 'Team'} roster snapshot`,
+            desc: `${activeCount} active staff${inactiveCount ? `, ${inactiveCount} inactive` : ''}.`,
+            sortTimeMs: Date.now() - (Number(fallbackIndex) || 0) * 240000,
+            detailRows: [
+                { label: 'Business', value: business ? business.name : '-' },
+                { label: 'Total Team Members', value: String(rows.length) },
+                { label: 'Active', value: String(activeCount) },
+                { label: 'Inactive', value: String(inactiveCount) }
+            ]
+        });
+    }
+
+    function createSummaryNotification(title, desc, detailRows, priority, fallbackIndex) {
+        return makeNotificationRecord({
+            id: `summary:${title.replace(/\s+/g, '-').toLowerCase()}`,
+            category: 'summary',
+            priority: priority || 'low',
+            title,
+            desc,
+            sortTimeMs: Date.now() - (Number(fallbackIndex) || 0) * 300000,
+            detailRows: Array.isArray(detailRows) ? detailRows : []
+        });
+    }
+
+    function generateSuperuserNotifications() {
+        const contexts = getNotificationContexts();
+        const list = [];
+        let activeBusinesses = 0;
+        let dueAmountTotal = 0;
+
+        contexts.forEach((context, index) => {
+            const business = context.business;
+            const data = context.data;
+            if (String(business.status || '').trim().toLowerCase() === 'active') activeBusinesses += 1;
+            dueAmountTotal += Math.max(0, Number(business.paymentDue || 0));
+
+            list.push(createBusinessNotification(business, index));
+            if (Number(business.paymentDue || 0) > 0) {
+                list.push(createPaymentNotification({
+                    month: 'Current billing cycle',
+                    amount: business.paymentDue,
+                    status: 'Due'
+                }, business, index));
+            }
+
+            if (Array.isArray(business.payments)) {
+                business.payments
+                    .filter(payment => String(payment.status || '').trim().toLowerCase() !== 'paid')
+                    .slice(0, 2)
+                    .forEach((payment, paymentIndex) => {
+                        list.push(createPaymentNotification(payment, business, (index * 5) + paymentIndex));
+                    });
+            }
+
+            list.push(createUserSummaryNotification(business, data.users, index));
+
+            data.orders
+                .slice()
+                .sort((a, b) => (parseOrderDate(b && b.date)?.getTime() || 0) - (parseOrderDate(a && a.date)?.getTime() || 0))
+                .slice(0, 2)
+                .forEach(order => list.push(createOrderNotification(order, business, 'orders', 'medium')));
+
+            data.inventory
+                .filter(item => normalizeInventoryStatus(item && item.status, item && item.stock) !== 'In Stock')
+                .sort((a, b) => Math.max(0, Number(a && a.stock || 0)) - Math.max(0, Number(b && b.stock || 0)))
+                .slice(0, 2)
+                .forEach((item, itemIndex) => list.push(createInventoryNotification(item, business, (index * 2) + itemIndex)));
+
+            const deliveryRows = (Array.isArray(data.deliveries) ? data.deliveries : [])
+                .map(item => {
+                    const order = (Array.isArray(data.orders) ? data.orders : []).find(orderRow => orderRow.id === item.oid);
+                    return {
+                        ...item,
+                        customer: String(item.customer || (order && order.customer) || '').trim() || '-'
+                    };
+                })
+                .filter(item => {
+                    const status = normalizeDeliveryStatus(item && item.status);
+                    const partner = String(item && item.partner || '').trim() || 'Unassigned';
+                    return status !== 'Delivered' || partner === 'Unassigned';
+                })
+                .slice(0, 2);
+            deliveryRows.forEach((item, itemIndex) => list.push(createDeliveryNotification(item, business, (index * 2) + itemIndex)));
+
+            const returnRows = (Array.isArray(data.returns) ? data.returns : [])
+                .map(item => {
+                    const order = (Array.isArray(data.orders) ? data.orders : []).find(orderRow => orderRow.id === item.oid);
+                    return {
+                        ...item,
+                        customer: String((order && order.customer) || '').trim() || '-'
+                    };
+                })
+                .filter(item => String(item.status || '').trim().toLowerCase().includes('pending'))
+                .slice(0, 2);
+            returnRows.forEach((item, itemIndex) => list.push(createReturnNotification(item, business, (index * 2) + itemIndex)));
+        });
+
+        list.push(createSummaryNotification(
+            'Portfolio snapshot',
+            `${contexts.length} businesses tracked, ${activeBusinesses} active, Rs ${dueAmountTotal.toLocaleString()} due.`,
+            [
+                { label: 'Total Businesses', value: String(contexts.length) },
+                { label: 'Active Businesses', value: String(activeBusinesses) },
+                { label: 'Outstanding Due', value: `Rs ${dueAmountTotal.toLocaleString()}` }
+            ],
+            dueAmountTotal > 0 ? 'high' : 'low',
+            0
+        ));
+
+        return list;
+    }
+
+    function generateAdminNotifications() {
+        const context = getNotificationContexts()[0];
+        if (!context) return [];
+
+        const business = context.business;
+        const data = context.data;
+        const list = [];
+        const inventoryAlerts = data.inventory.filter(item => normalizeInventoryStatus(item && item.status, item && item.stock) !== 'In Stock');
+        const activeDeliveries = data.deliveries.filter(item => {
+            const status = normalizeDeliveryStatus(item && item.status);
+            return status === 'Pending' || status === 'In Transit' || status === 'Failed';
+        });
+        const pendingReturns = data.returns.filter(item => String(item && item.status || '').trim().toLowerCase().includes('pending')).length;
+
+        list.push(createSummaryNotification(
+            `${business.name} operations snapshot`,
+            `${data.orders.length} orders, ${inventoryAlerts.length} stock alerts, ${activeDeliveries.length} active deliveries, ${pendingReturns} pending returns.`,
+            [
+                { label: 'Business', value: business.name },
+                { label: 'Orders', value: String(data.orders.length) },
+                { label: 'Inventory Alerts', value: String(inventoryAlerts.length) },
+                { label: 'Active Deliveries', value: String(activeDeliveries.length) },
+                { label: 'Pending Returns', value: String(pendingReturns) }
+            ],
+            (inventoryAlerts.length || activeDeliveries.length || pendingReturns) ? 'high' : 'low',
+            0
+        ));
+
+        if (Number(business.paymentDue || 0) > 0) {
+            list.push(createPaymentNotification({
+                month: 'Current billing cycle',
+                amount: business.paymentDue,
+                status: 'Due'
+            }, business, 0));
+        }
+
+        data.orders
+            .slice()
+            .sort((a, b) => (parseOrderDate(b && b.date)?.getTime() || 0) - (parseOrderDate(a && a.date)?.getTime() || 0))
+            .slice(0, 8)
+            .forEach((order, index) => list.push(createOrderNotification(order, business, 'orders', index < 3 ? 'medium' : 'low')));
+
+        data.orders
+            .slice()
+            .sort((a, b) => (parseOrderDate(b && b.date)?.getTime() || 0) - (parseOrderDate(a && a.date)?.getTime() || 0))
+            .slice(0, 4)
+            .forEach((order, index) => list.push(createPaymentNotification(order, business, index)));
+
+        inventoryAlerts
+            .sort((a, b) => Math.max(0, Number(a && a.stock || 0)) - Math.max(0, Number(b && b.stock || 0)))
+            .slice(0, 8)
+            .forEach((item, index) => list.push(createInventoryNotification(item, business, index)));
+
+        activeDeliveries
+            .slice(0, 8)
+            .forEach((item, index) => {
+                const order = data.orders.find(orderRow => orderRow.id === item.oid);
+                list.push(createDeliveryNotification({
+                    ...item,
+                    customer: String(item.customer || (order && order.customer) || '').trim() || '-'
+                }, business, index));
+            });
+
+        data.returns
+            .slice()
+            .sort((a, b) => (parseOrderDate(b && b.updatedAt)?.getTime() || 0) - (parseOrderDate(a && a.updatedAt)?.getTime() || 0))
+            .slice(0, 8)
+            .forEach((item, index) => {
+                const order = data.orders.find(orderRow => orderRow.id === item.oid);
+                list.push(createReturnNotification({
+                    ...item,
+                    customer: String((order && order.customer) || '').trim() || '-'
+                }, business, index));
+            });
+
+        list.push(createUserSummaryNotification(business, data.users, 0));
+        return list;
+    }
+
+    function generateCashierNotifications() {
+        const context = getNotificationContexts()[0];
+        if (!context) return [];
+        const business = context.business;
+        const data = context.data;
+        const list = [];
+
+        data.orders
+            .slice()
+            .sort((a, b) => (parseOrderDate(b && b.date)?.getTime() || 0) - (parseOrderDate(a && a.date)?.getTime() || 0))
+            .slice(0, 6)
+            .forEach((order, index) => list.push(createOrderNotification(order, business, 'orders', index < 2 ? 'medium' : 'low')));
+
+        data.orders
+            .slice()
+            .sort((a, b) => (parseOrderDate(b && b.date)?.getTime() || 0) - (parseOrderDate(a && a.date)?.getTime() || 0))
+            .slice(0, 4)
+            .forEach((order, index) => list.push(createPaymentNotification(order, business, index)));
+
+        data.returns
+            .filter(item => {
+                const status = String(item && item.status || '').trim().toLowerCase();
+                return status.includes('approve') || status.includes('refund') || status.includes('reject');
+            })
+            .slice(0, 6)
+            .forEach((item, index) => {
+                const order = data.orders.find(orderRow => orderRow.id === item.oid);
+                list.push(createReturnNotification({
+                    ...item,
+                    customer: String((order && order.customer) || '').trim() || '-'
+                }, business, index));
+            });
+
+        return list;
+    }
+
+    function generateInventoryManagerNotifications() {
+        const context = getNotificationContexts()[0];
+        if (!context) return [];
+        const business = context.business;
+        const alerts = context.data.inventory
+            .filter(item => normalizeInventoryStatus(item && item.status, item && item.stock) !== 'In Stock')
+            .sort((a, b) => Math.max(0, Number(a && a.stock || 0)) - Math.max(0, Number(b && b.stock || 0)));
+
+        const list = [
+            createSummaryNotification(
+                `${business.name} stock snapshot`,
+                `${alerts.length} SKUs need attention in inventory.`,
+                [
+                    { label: 'Business', value: business.name },
+                    { label: 'SKUs needing action', value: String(alerts.length) }
+                ],
+                alerts.length ? 'high' : 'low',
+                0
+            )
+        ];
+
+        alerts.slice(0, 10).forEach((item, index) => list.push(createInventoryNotification(item, business, index)));
+        return list;
+    }
+
+    function generateDeliveryOpsNotifications() {
+        const context = getNotificationContexts()[0];
+        if (!context) return [];
+        const business = context.business;
+        const activeRows = context.data.deliveries
+            .map(item => {
+                const order = context.data.orders.find(orderRow => orderRow.id === item.oid);
+                return {
+                    ...item,
+                    customer: String(item.customer || (order && order.customer) || '').trim() || '-'
+                };
+            })
+            .sort((a, b) => (parseOrderDate(b && (b.updatedAt || b.time))?.getTime() || 0) - (parseOrderDate(a && (a.updatedAt || a.time))?.getTime() || 0));
+
+        const actionable = activeRows.filter(item => {
+            const status = normalizeDeliveryStatus(item && item.status);
+            const partner = String(item && item.partner || '').trim() || 'Unassigned';
+            return status !== 'Delivered' || partner === 'Unassigned';
+        });
+
+        const list = [
+            createSummaryNotification(
+                `${business.name} delivery queue`,
+                `${actionable.length} deliveries still need active attention.`,
+                [
+                    { label: 'Business', value: business.name },
+                    { label: 'Actionable Deliveries', value: String(actionable.length) }
+                ],
+                actionable.length ? 'high' : 'low',
+                0
+            )
+        ];
+
+        actionable.slice(0, 10).forEach((item, index) => list.push(createDeliveryNotification(item, business, index)));
+        return list;
+    }
+
+    function generateReturnHandlerNotifications() {
+        const context = getNotificationContexts()[0];
+        if (!context) return [];
+        const business = context.business;
+        const rows = context.data.returns
+            .map(item => {
+                const order = context.data.orders.find(orderRow => orderRow.id === item.oid);
+                return {
+                    ...item,
+                    customer: String((order && order.customer) || '').trim() || '-'
+                };
+            })
+            .sort((a, b) => (parseOrderDate(b && b.updatedAt)?.getTime() || 0) - (parseOrderDate(a && a.updatedAt)?.getTime() || 0));
+
+        const pendingCount = rows.filter(item => String(item.status || '').trim().toLowerCase().includes('pending')).length;
+        const list = [
+            createSummaryNotification(
+                `${business.name} returns desk`,
+                `${pendingCount} returns are still pending review.`,
+                [
+                    { label: 'Business', value: business.name },
+                    { label: 'Pending Returns', value: String(pendingCount) },
+                    { label: 'Total Returns', value: String(rows.length) }
+                ],
+                pendingCount ? 'high' : 'low',
+                0
+            )
+        ];
+
+        rows.slice(0, 10).forEach((item, index) => list.push(createReturnNotification(item, business, index)));
+        return list;
+    }
+
+    function generateCustomerNotifications() {
+        return loadCustomerSessionNotifications()
+            .map((item, index) => makeNotificationRecord({
+                ...item,
+                id: String(item && item.id || `customer-session-${index + 1}`).trim(),
+                category: String(item && item.category || 'orders').trim().toLowerCase(),
+                priority: String(item && item.priority || 'medium').trim().toLowerCase(),
+                sortTimeMs: Number(item && item.sortTimeMs) || Date.now() - index * 1000,
+                detailRows: Array.isArray(item && item.detailRows) ? item.detailRows : []
+            }));
+    }
+
+    function getDerivedNotifications() {
+        if (activeRoleKey === 'superuser') return generateSuperuserNotifications();
+        if (activeRoleKey === 'admin') return generateAdminNotifications();
+        if (activeRoleKey === 'cashier') return generateCashierNotifications();
+        if (activeRoleKey === 'inventorymanager') return generateInventoryManagerNotifications();
+        if (activeRoleKey === 'deliveryops') return generateDeliveryOpsNotifications();
+        if (activeRoleKey === 'returnhandler') return generateReturnHandlerNotifications();
+        if (activeRoleKey === 'customer') return generateCustomerNotifications();
+        return [];
+    }
+
+    function getActiveNotifications() {
+        const state = loadNotificationState();
+        const preferences = loadProfileSettingsRecord().notifications;
+        return getDerivedNotifications()
+            .filter(item => preferences[item.category] !== false)
+            .map(item => {
+                const hasSavedState = Object.prototype.hasOwnProperty.call(state.readMap, item.id);
+                return {
+                    ...item,
+                    unread: hasSavedState ? !Boolean(state.readMap[item.id]) : Boolean(item.defaultUnread)
+                };
+            })
+            .sort((a, b) => {
+                if (b.priorityRank !== a.priorityRank) return b.priorityRank - a.priorityRank;
+                return (b.sortTimeMs || 0) - (a.sortTimeMs || 0);
+            });
+    }
+
+    function renderNotificationDropdown() {
+        if (!notifDropdown) return;
+        const notifications = getActiveNotifications();
+        const unreadCount = notifications.filter(item => item.unread).length;
+        const previewItems = notifications.slice(0, 3);
+
+        notifDropdown.innerHTML = `
+            <div class="dropdown-header">
+                <strong>Notifications</strong>
+                <div class="text-sm text-muted">${unreadCount ? `You have ${unreadCount} new notifications` : 'All caught up'}</div>
+            </div>
+            ${previewItems.length ? previewItems.map(item => `
+                <div class="dropdown-item" style="align-items:flex-start; cursor:default;">
+                    <div style="background: var(--${item.color || 'blue'}-bg); color: var(--${item.color || 'blue'}); padding: 6px; border-radius: 6px; margin-right: 4px;">
+                        ${getNotificationIcon(item)}
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-primary);">${item.title}</div>
+                        <div class="text-sm text-muted">${item.time}</div>
+                    </div>
+                </div>
+            `).join('') : '<div class="dropdown-item text-muted" style="cursor:default;">No notifications for this role right now.</div>'}
+            <div class="dropdown-divider"></div>
+            <a href="notifications.html" class="dropdown-item nav-item" data-page="notifications" style="justify-content:center;font-weight:500;color:var(--accent);">View all notifications</a>
+        `;
+
+        document.querySelectorAll('.notif-dot').forEach(dot => {
+            dot.style.display = unreadCount ? '' : 'none';
+        });
+    }
+
     // Helpers
-    function badge(txt, type) { return `<span class="badge b-${type}">${txt}</span>`; }
+    function badge(txt, type) {
+        const safeType = String(type || txt || 'default').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        return `<span class="badge b-${safeType || 'default'}">${txt}</span>`;
+    }
     function statusBadge(s) { return badge(s, s.toLowerCase().replace(/ /g, '')); }
     function table(hdrs, rows) { return `<div class="tbl-wrap"><table class="dt"><thead><tr>${hdrs.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`; }
 
@@ -1552,6 +2377,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Page Renderers
     let activeCharts = []; // Track active charts for cleanup
+    let currentReportChartState = null;
 
     function renderPage(page) {
         content.innerHTML = '';
@@ -1564,7 +2390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderers = {
             dashboard: renderDashboard, orders: renderOrders, inventory: renderInventory,
             delivery: renderDelivery, returns: renderReturns, reports: renderReports, users: renderUsers,
-            superuser: renderBusinesses, businesses: renderBusinesses, profile: renderProfile, settings: renderSettings, notifications: renderNotifications
+            superuser: renderBusinesses, businesses: renderBusinesses, profile: renderProfile, notifications: renderNotifications
         };
         if (renderers[page]) renderers[page]();
         content.scrollTop = 0;
@@ -1926,16 +2752,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderOrders() {
+        const orderRows = orders.map(order => ({
+            ...order,
+            normalizedStatus: normalizeOrderStatus(order && order.status),
+            normalizedPayment: String(order && order.payment || 'Pending').trim() || 'Pending',
+            parsedDate: parseOrderDate(order && order.date)
+        }));
+        const statusOptions = Array.from(new Set(orderRows.map(item => item.normalizedStatus))).sort();
+        const paymentOptions = Array.from(new Set(orderRows.map(item => item.normalizedPayment))).sort();
+
         content.innerHTML = `
         <div class="page-header"><h2>Orders</h2><div class="page-header-actions"><button class="btn btn-primary" id="newOrderBtnDyn">+ New Order</button></div></div>
-        <section class="card"><div class="card-bd">${table(
-            ['ID', 'Customer', 'Items', 'Total', 'Payment', 'Status', 'Date', 'Actions'],
-            orders.map(o => `<tr><td class="cell-main">${o.id}</td><td>${o.customer}</td><td>${o.items}</td><td>₹${o.total}</td><td>${badge(o.payment, o.payment.toLowerCase())}</td><td>${statusBadge(o.status)}</td><td>${o.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${o.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${o.id}')">Delete</button></td></tr>`).join('')
-        )}</div></section>`;
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd table-toolbar">
+                <div class="toolbar-group"><label class="toolbar-label" for="ordersStatusFilter">Status</label><select id="ordersStatusFilter" class="toolbar-select"><option value="all">All statuses</option>${statusOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="ordersPaymentFilter">Payment</label><select id="ordersPaymentFilter" class="toolbar-select"><option value="all">All payments</option>${paymentOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="ordersSortSelect">Sort by</label><select id="ordersSortSelect" class="toolbar-select"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="total_high">Total high-low</option><option value="total_low">Total low-high</option></select></div>
+            </div>
+        </section>
+        <section class="card"><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody id="ordersTableBodyDyn"></tbody></table></div></div></section>`;
+
+        const tbody = document.getElementById('ordersTableBodyDyn');
+        const statusFilter = document.getElementById('ordersStatusFilter');
+        const paymentFilter = document.getElementById('ordersPaymentFilter');
+        const sortSelect = document.getElementById('ordersSortSelect');
+
+        function renderTable() {
+            if (!tbody) return;
+            const filteredRows = orderRows
+                .filter(item => {
+                    if (statusFilter && statusFilter.value !== 'all' && item.normalizedStatus !== statusFilter.value) return false;
+                    if (paymentFilter && paymentFilter.value !== 'all' && item.normalizedPayment !== paymentFilter.value) return false;
+                    return true;
+                })
+                .sort((a, b) => {
+                    const sortKey = sortSelect ? sortSelect.value : 'newest';
+                    if (sortKey === 'oldest') return (a.parsedDate?.getTime() || 0) - (b.parsedDate?.getTime() || 0);
+                    if (sortKey === 'total_high') return Math.max(0, Number(b.total || 0)) - Math.max(0, Number(a.total || 0));
+                    if (sortKey === 'total_low') return Math.max(0, Number(a.total || 0)) - Math.max(0, Number(b.total || 0));
+                    return (b.parsedDate?.getTime() || 0) - (a.parsedDate?.getTime() || 0);
+                });
+
+            tbody.innerHTML = filteredRows.length
+                ? filteredRows.map(item => `<tr><td class="cell-main">${item.id}</td><td>${item.customer}</td><td>${item.items}</td><td>Rs ${Math.max(0, Number(item.total || 0)).toLocaleString()}</td><td>${badge(item.normalizedPayment, item.normalizedPayment.toLowerCase())}</td><td>${statusBadge(item.normalizedStatus)}</td><td>${item.date}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editOrder('${item.id}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteOrder('${item.id}')">Delete</button></td></tr>`).join('')
+                : '<tr><td colspan="8" class="text-muted">No orders match the selected filters.</td></tr>';
+        }
+
+        [statusFilter, paymentFilter, sortSelect].forEach(control => {
+            if (control) control.addEventListener('change', renderTable);
+        });
+
+        renderTable();
         const dynBtn = document.getElementById('newOrderBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openNewOrderModal);
     }
-
     function renderInventory() {
         const supplierSummaryRows = Array.from(
             inventory.reduce((map, item) => {
@@ -1953,41 +2823,67 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${details.rating.toFixed(1)} / 5</td>
         </tr>`).join('');
 
+        const categoryOptions = Array.from(new Set(inventory.map(item => String(item && item.cat || 'Uncategorized').trim() || 'Uncategorized'))).sort();
+        const inventoryRows = inventory.map(item => ({
+            ...item,
+            supplierMeta: getSupplierDetails(item),
+            normalizedStatus: normalizeInventoryStatus(item.status, item.stock)
+        }));
+
         content.innerHTML = `
         <div class="page-header"><h2>Inventory</h2><div class="page-header-actions"><button class="btn btn-primary" id="addProductBtnDyn">+ Add Product</button></div></div>
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd table-toolbar">
+                <div class="toolbar-group"><label class="toolbar-label" for="inventoryCategoryFilter">Category</label><select id="inventoryCategoryFilter" class="toolbar-select"><option value="all">All categories</option>${categoryOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="inventoryStatusFilter">Stock status</label><select id="inventoryStatusFilter" class="toolbar-select"><option value="all">All stock levels</option><option value="In Stock">In Stock</option><option value="Low Stock">Low Stock</option><option value="Critical">Critical</option><option value="Out of Stock">Out of Stock</option></select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="inventorySortSelect">Sort by</label><select id="inventorySortSelect" class="toolbar-select"><option value="stock_low">Stock low-high</option><option value="stock_high">Stock high-low</option><option value="price_high">Price high-low</option><option value="price_low">Price low-high</option></select></div>
+            </div>
+        </section>
         <section class="grid-2">
              <div class="card"><div class="card-hd"><h3>Category Distribution</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invCatChart"></canvas></div></div>
              <div class="card"><div class="card-hd"><h3>Stock Levels</h3></div><div class="card-bd" style="position:relative;height:220px"><canvas id="invStockChart"></canvas></div></div>
         </section>
-        <section class="card"><div class="card-bd">${table(
-            ['SKU', 'Product', 'Category', 'Supplier', 'Supplier Contact', 'Lead Time', 'Stock', 'Unit Price', 'Status', 'Actions'],
-            inventory.map(i => {
-                const details = getSupplierDetails(i);
-                const status = normalizeInventoryStatus(i.status, i.stock);
-                return `<tr>
-                    <td class="cell-main">${i.sku}</td>
-                    <td>${i.name}</td>
-                    <td>${i.cat}</td>
-                    <td>${details.name}</td>
-                    <td>${details.contact}<div class="text-sm text-muted">${details.phone}</div></td>
-                    <td>${details.leadTimeDays} days</td>
-                    <td>${i.stock}</td>
-                    <td>₹${i.price}</td>
-                    <td>${statusBadge(status)}</td>
-                    <td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${i.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${i.sku}')">Delete</button></td>
-                </tr>`;
-            }).join('')
-        )}</div></section>
+        <section class="card"><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>SKU</th><th>Product</th><th>Category</th><th>Supplier</th><th>Supplier Contact</th><th>Lead Time</th><th>Stock</th><th>Unit Price</th><th>Status</th><th>Actions</th></tr></thead><tbody id="inventoryTableBodyDyn"></tbody></table></div></div></section>
         <section class="card"><div class="card-hd"><h3>Supplier Directory</h3></div><div class="card-bd">${table(
             ['Supplier', 'Contact Person', 'Phone', 'Email', 'Lead Time', 'MOQ', 'Rating'],
             supplierSummaryRows || '<tr><td colspan="7" class="text-muted">No supplier details available.</td></tr>'
         )}</div></section>`;
+
+        const tbody = document.getElementById('inventoryTableBodyDyn');
+        const categoryFilter = document.getElementById('inventoryCategoryFilter');
+        const statusFilter = document.getElementById('inventoryStatusFilter');
+        const sortSelect = document.getElementById('inventorySortSelect');
+
+        function renderTable() {
+            if (!tbody) return;
+            const filteredRows = inventoryRows
+                .filter(item => {
+                    if (categoryFilter && categoryFilter.value !== 'all' && String(item.cat || 'Uncategorized').trim() !== categoryFilter.value) return false;
+                    if (statusFilter && statusFilter.value !== 'all' && item.normalizedStatus !== statusFilter.value) return false;
+                    return true;
+                })
+                .sort((a, b) => {
+                    const sortKey = sortSelect ? sortSelect.value : 'stock_low';
+                    if (sortKey === 'stock_high') return Math.max(0, Number(b.stock || 0)) - Math.max(0, Number(a.stock || 0));
+                    if (sortKey === 'price_high') return Math.max(0, Number(b.price || 0)) - Math.max(0, Number(a.price || 0));
+                    if (sortKey === 'price_low') return Math.max(0, Number(a.price || 0)) - Math.max(0, Number(b.price || 0));
+                    return Math.max(0, Number(a.stock || 0)) - Math.max(0, Number(b.stock || 0));
+                });
+
+            tbody.innerHTML = filteredRows.length
+                ? filteredRows.map(item => `<tr><td class="cell-main">${item.sku}</td><td>${item.name}</td><td>${item.cat}</td><td>${item.supplierMeta.name}</td><td>${item.supplierMeta.contact}<div class="text-sm text-muted">${item.supplierMeta.phone}</div></td><td>${item.supplierMeta.leadTimeDays} days</td><td>${item.stock}</td><td>Rs ${Math.max(0, Number(item.price || 0)).toLocaleString()}</td><td>${statusBadge(item.normalizedStatus)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editProduct('${item.sku}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteProduct('${item.sku}')">Delete</button></td></tr>`).join('')
+                : '<tr><td colspan="10" class="text-muted">No inventory items match the selected filters.</td></tr>';
+        }
+
+        [categoryFilter, statusFilter, sortSelect].forEach(control => {
+            if (control) control.addEventListener('change', renderTable);
+        });
+
+        renderTable();
         setTimeout(initInventoryCharts, 0);
-        // Wire up dynamic Add Product button
         const dynBtn = document.getElementById('addProductBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openAddProductModal);
     }
-
     function renderDelivery() {
         const view = getDeliveryView();
 
@@ -2065,13 +2961,22 @@ document.addEventListener('DOMContentLoaded', () => {
         <section class="card">
             <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <h3>Delivery Queue</h3>
-                <div class="chart-tabs" id="deliveryFilters">
-                    <button class="chart-tab active" type="button" data-filter="active">Active</button>
-                    <button class="chart-tab" type="button" data-filter="pending">Pending</button>
-                    <button class="chart-tab" type="button" data-filter="intransit">In Transit</button>
-                    <button class="chart-tab" type="button" data-filter="delivered">Delivered</button>
-                    <button class="chart-tab" type="button" data-filter="failed">Failed</button>
-                    <button class="chart-tab" type="button" data-filter="all">All</button>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <div class="chart-tabs" id="deliveryFilters">
+                        <button class="chart-tab active" type="button" data-filter="active">Active</button>
+                        <button class="chart-tab" type="button" data-filter="pending">Pending</button>
+                        <button class="chart-tab" type="button" data-filter="intransit">In Transit</button>
+                        <button class="chart-tab" type="button" data-filter="delivered">Delivered</button>
+                        <button class="chart-tab" type="button" data-filter="failed">Failed</button>
+                        <button class="chart-tab" type="button" data-filter="all">All</button>
+                    </div>
+                    <select id="deliverySortSelect" class="toolbar-select">
+                        <option value="updated_new">Updated newest</option>
+                        <option value="updated_old">Updated oldest</option>
+                        <option value="eta_low">ETA low-high</option>
+                        <option value="eta_high">ETA high-low</option>
+                        <option value="partner">Partner A-Z</option>
+                    </select>
                 </div>
             </div>
             <div class="card-bd">
@@ -2101,6 +3006,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tbody = document.getElementById('deliveryTableBody');
         const filterWrap = document.getElementById('deliveryFilters');
+        const sortSelect = document.getElementById('deliverySortSelect');
 
         function matchesFilter(item, filter) {
             if (filter === 'all') return true;
@@ -2139,6 +3045,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!tbody) return;
             const rows = view
                 .filter(d => matchesFilter(d, filter))
+                .sort((a, b) => {
+                    const sortKey = sortSelect ? sortSelect.value : 'updated_new';
+                    const updatedA = parseOrderDate(a.updatedAt)?.getTime() || 0;
+                    const updatedB = parseOrderDate(b.updatedAt)?.getTime() || 0;
+                    const etaA = a.etaMin === null ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(a.etaMin || 0));
+                    const etaB = b.etaMin === null ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(b.etaMin || 0));
+                    if (sortKey === 'updated_old') return updatedA - updatedB;
+                    if (sortKey === 'eta_low') return etaA - etaB;
+                    if (sortKey === 'eta_high') return etaB - etaA;
+                    if (sortKey === 'partner') return String(a.partner || '').localeCompare(String(b.partner || ''));
+                    return updatedB - updatedA;
+                })
                 .map(d => {
                     const updated = d.updatedAt === '-' ? '&mdash;' : d.updatedAt;
                     const eta = d.etaMin === null ? '&mdash;' : `${Math.max(0, Math.round(d.etaMin))} min`;
@@ -2170,6 +3088,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.classList.add('active');
                     renderTable(filter);
                 });
+            });
+        }
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => {
+                const activeBtn = filterWrap ? filterWrap.querySelector('.chart-tab.active') : null;
+                renderTable(activeBtn ? String(activeBtn.getAttribute('data-filter') || 'active') : 'active');
             });
         }
     }
@@ -2276,12 +3200,21 @@ document.addEventListener('DOMContentLoaded', () => {
         <section class="card">
             <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <h3>Return Requests</h3>
-                <div class="chart-tabs" id="returnsFilters">
-                    <button class="chart-tab active" type="button" data-filter="all">All</button>
-                    <button class="chart-tab" type="button" data-filter="pending">Pending</button>
-                    <button class="chart-tab" type="button" data-filter="approved">Approved</button>
-                    <button class="chart-tab" type="button" data-filter="refunded">Refunded</button>
-                    <button class="chart-tab" type="button" data-filter="rejected">Rejected</button>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <div class="chart-tabs" id="returnsFilters">
+                        <button class="chart-tab active" type="button" data-filter="all">All</button>
+                        <button class="chart-tab" type="button" data-filter="pending">Pending</button>
+                        <button class="chart-tab" type="button" data-filter="approved">Approved</button>
+                        <button class="chart-tab" type="button" data-filter="refunded">Refunded</button>
+                        <button class="chart-tab" type="button" data-filter="rejected">Rejected</button>
+                    </div>
+                    <select id="returnsSortSelect" class="toolbar-select">
+                        <option value="updated_new">Updated newest</option>
+                        <option value="updated_old">Updated oldest</option>
+                        <option value="amount_high">Amount high-low</option>
+                        <option value="amount_low">Amount low-high</option>
+                        <option value="qty_high">Qty high-low</option>
+                    </select>
                 </div>
             </div>
             <div class="card-bd">
@@ -2312,6 +3245,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tbody = document.getElementById('returnsTableBody');
         const filterWrap = document.getElementById('returnsFilters');
+        const sortSelect = document.getElementById('returnsSortSelect');
 
         function matchesFilter(item, filter) {
             const s = String(item.status || '').toLowerCase();
@@ -2346,6 +3280,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!tbody) return;
             const rows = view
                 .filter(r => matchesFilter(r, filter))
+                .sort((a, b) => {
+                    const sortKey = sortSelect ? sortSelect.value : 'updated_new';
+                    const updatedA = parseOrderDate(a.updatedAt)?.getTime() || 0;
+                    const updatedB = parseOrderDate(b.updatedAt)?.getTime() || 0;
+                    if (sortKey === 'updated_old') return updatedA - updatedB;
+                    if (sortKey === 'amount_high') return Math.max(0, Number(b.amount || 0)) - Math.max(0, Number(a.amount || 0));
+                    if (sortKey === 'amount_low') return Math.max(0, Number(a.amount || 0)) - Math.max(0, Number(b.amount || 0));
+                    if (sortKey === 'qty_high') return Math.max(0, Number(b.qty || 0)) - Math.max(0, Number(a.qty || 0));
+                    return updatedB - updatedA;
+                })
                 .map(r => {
                     const qty = r.qty === null ? '&mdash;' : r.qty;
                     return `<tr>
@@ -2379,6 +3323,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         }
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => {
+                const activeBtn = filterWrap ? filterWrap.querySelector('.chart-tab.active') : null;
+                renderTable(activeBtn ? String(activeBtn.getAttribute('data-filter') || 'all') : 'all');
+            });
+        }
 
         const raiseBtn = document.getElementById('raiseReturnBtnDyn');
         if (raiseBtn) raiseBtn.addEventListener('click', window.raiseReturnRequest);
@@ -2387,48 +3337,108 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderReports() {
         const roleLabel = ROLE_LABELS[activeRoleKey] || 'Team Member';
         const scopedName = selectedBusiness ? ` - ${selectedBusiness.name}` : (activeBusinessName ? ` - ${activeBusinessName}` : '');
-        const totalRevenue = orders.reduce((sum, order) => sum + Math.max(0, Number(order && order.total) || 0), 0);
-        const totalReturnsValue = returns.reduce((sum, item) => sum + Math.max(0, Number(item && item.amount) || 0), 0);
-        const netRevenue = Math.max(0, totalRevenue - totalReturnsValue);
-        const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
-        const deliveredOrders = orders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length;
-        const completionRate = orders.length ? Math.round((deliveredOrders / orders.length) * 100) : 0;
+        const orderRows = orders.map(order => ({
+            ...order,
+            parsedDate: parseOrderDate(order && order.date)
+        }));
+        const returnRows = returns.map(item => ({
+            ...item,
+            parsedDate: parseOrderDate(item && item.updatedAt)
+        }));
+        const allDates = [...orderRows.map(item => item.parsedDate), ...returnRows.map(item => item.parsedDate)].filter(Boolean);
+        const latestDataDate = allDates.length
+            ? allDates.reduce((latest, item) => (item > latest ? item : latest), allDates[0])
+            : new Date();
 
-        const monthlyTotals = new Map();
-        getOrderTimelineEntries().forEach(entry => {
-            const monthLabel = entry.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            monthlyTotals.set(monthLabel, (monthlyTotals.get(monthLabel) || 0) + Math.max(0, Number(entry.total) || 0));
-        });
-        const monthlyRows = Array.from(monthlyTotals.entries())
-            .slice(-6)
-            .reverse()
-            .map(([label, value], idx) => `<tr>
-                <td class="cell-main">${label}</td>
-                <td>₹${Math.round(value).toLocaleString()}</td>
-                <td>${Math.max(0, orders.length - (idx * 2))}</td>
-                <td>${Math.max(0, returns.length - idx)}</td>
-            </tr>`)
-            .join('');
+        function buildRangeStart(rangeKey) {
+            if (rangeKey === 'all') return null;
+            const days = { '7d': 7, '30d': 30, '90d': 90 }[rangeKey] || 30;
+            const start = startOfDay(latestDataDate);
+            start.setDate(start.getDate() - (days - 1));
+            return start;
+        }
 
-        const supplierSpendRows = inventory
-            .map(item => ({
-                supplier: String(item.supplier || 'Unknown Supplier').trim(),
-                value: Math.max(0, Number(item.price) || 0) * Math.max(0, Number(item.stock) || 0)
-            }))
-            .reduce((acc, row) => {
-                acc.set(row.supplier, (acc.get(row.supplier) || 0) + row.value);
-                return acc;
-            }, new Map());
+        function matchesRange(dateValue, rangeKey) {
+            if (rangeKey === 'all') return true;
+            if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return false;
+            const windowStart = buildRangeStart(rangeKey);
+            const itemTime = startOfDay(dateValue).getTime();
+            const endTime = startOfDay(latestDataDate).getTime();
+            return itemTime >= windowStart.getTime() && itemTime <= endTime;
+        }
 
-        const supplierRows = Array.from(supplierSpendRows.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([supplier, value], idx) => `<tr>
-                <td class="cell-main">#${idx + 1}</td>
-                <td>${supplier}</td>
-                <td>₹${Math.round(value).toLocaleString()}</td>
-            </tr>`)
-            .join('');
+        function getBucketMeta(dateValue, rangeKey) {
+            const safeDate = dateValue instanceof Date && !Number.isNaN(dateValue.getTime())
+                ? dateValue
+                : latestDataDate;
+
+            if (rangeKey === 'all') {
+                return {
+                    key: `${safeDate.getFullYear()}-${String(safeDate.getMonth() + 1).padStart(2, '0')}`,
+                    label: safeDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                    sortTimeMs: new Date(safeDate.getFullYear(), safeDate.getMonth(), 1).getTime()
+                };
+            }
+
+            if (rangeKey === '90d') {
+                const weekStart = startOfWeek(safeDate);
+                return {
+                    key: weekStart.toISOString().slice(0, 10),
+                    label: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+                    sortTimeMs: weekStart.getTime()
+                };
+            }
+
+            const dayStart = startOfDay(safeDate);
+            return {
+                key: dayStart.toISOString().slice(0, 10),
+                label: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                sortTimeMs: dayStart.getTime()
+            };
+        }
+
+        function buildSummaryBuckets(filteredOrders, filteredReturns, rangeKey) {
+            const bucketMap = new Map();
+
+            filteredOrders.forEach(order => {
+                const meta = getBucketMeta(order.parsedDate || latestDataDate, rangeKey);
+                if (!bucketMap.has(meta.key)) {
+                    bucketMap.set(meta.key, {
+                        ...meta,
+                        revenue: 0,
+                        orders: 0,
+                        returns: 0,
+                        returnValue: 0
+                    });
+                }
+                const entry = bucketMap.get(meta.key);
+                entry.revenue += Math.max(0, Number(order.total || 0));
+                entry.orders += 1;
+            });
+
+            filteredReturns.forEach(item => {
+                const meta = getBucketMeta(item.parsedDate || latestDataDate, rangeKey);
+                if (!bucketMap.has(meta.key)) {
+                    bucketMap.set(meta.key, {
+                        ...meta,
+                        revenue: 0,
+                        orders: 0,
+                        returns: 0,
+                        returnValue: 0
+                    });
+                }
+                const entry = bucketMap.get(meta.key);
+                entry.returns += 1;
+                entry.returnValue += Math.max(0, Number(item.amount || 0));
+            });
+
+            return Array.from(bucketMap.values())
+                .map(item => ({
+                    ...item,
+                    net: Math.max(0, item.revenue - item.returnValue)
+                }))
+                .sort((a, b) => b.sortTimeMs - a.sortTimeMs);
+        }
 
         content.innerHTML = `
         <div class="page-header">
@@ -2437,12 +3447,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn btn-outline" onclick="window.print()">Print</button>
             </div>
         </div>
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd table-toolbar">
+                <div class="toolbar-group">
+                    <label class="toolbar-label" for="reportsTimeRange">Time range</label>
+                    <select id="reportsTimeRange" class="toolbar-select">
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d" selected>Last 30 days</option>
+                        <option value="90d">Last 90 days</option>
+                        <option value="all">All data</option>
+                    </select>
+                </div>
+                <div class="toolbar-group">
+                    <label class="toolbar-label" for="reportsSummarySort">Summary sort</label>
+                    <select id="reportsSummarySort" class="toolbar-select">
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                        <option value="revenue_high">Revenue high to low</option>
+                        <option value="revenue_low">Revenue low to high</option>
+                        <option value="orders_high">Most orders</option>
+                        <option value="returns_high">Most returns</option>
+                    </select>
+                </div>
+                <div class="toolbar-group">
+                    <label class="toolbar-label" for="reportsSupplierSort">Supplier sort</label>
+                    <select id="reportsSupplierSort" class="toolbar-select">
+                        <option value="value_high">Stock value high to low</option>
+                        <option value="value_low">Stock value low to high</option>
+                        <option value="name">Supplier A-Z</option>
+                        <option value="price_high">Avg price high to low</option>
+                    </select>
+                </div>
+            </div>
+        </section>
         <section class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                 <div class="stat-info">
                     <span class="stat-label">Net Revenue</span>
-                    <span class="stat-value">₹${netRevenue.toLocaleString()}</span>
+                    <span class="stat-value" id="reportNetRevenue">Rs 0</span>
                     <div class="text-sm text-muted" style="margin-top:6px;">Role view: ${roleLabel}</div>
                 </div>
             </div>
@@ -2450,23 +3493,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg></div>
                 <div class="stat-info">
                     <span class="stat-label">Orders Processed</span>
-                    <span class="stat-value">${orders.length}</span>
-                    <div class="text-sm text-muted" style="margin-top:6px;">Delivered: ${deliveredOrders}</div>
+                    <span class="stat-value" id="reportOrderCount">0</span>
+                    <div class="text-sm text-muted" id="reportDeliveredMeta" style="margin-top:6px;">Delivered: 0</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <div class="stat-info">
                     <span class="stat-label">Avg Order Value</span>
-                    <span class="stat-value">₹${avgOrderValue.toLocaleString()}</span>
-                    <div class="text-sm text-muted" style="margin-top:6px;">Completion rate: ${completionRate}%</div>
+                    <span class="stat-value" id="reportAvgOrderValue">Rs 0</span>
+                    <div class="text-sm text-muted" id="reportCompletionMeta" style="margin-top:6px;">Completion rate: 0%</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
                 <div class="stat-info">
                     <span class="stat-label">Return Value</span>
-                    <span class="stat-value">₹${totalReturnsValue.toLocaleString()}</span>
+                    <span class="stat-value" id="reportReturnValue">Rs 0</span>
+                    <div class="text-sm text-muted" id="reportPendingReturnsMeta" style="margin-top:6px;">Pending returns: 0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-purple"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M19 9l-5 5-4-4-3 3"/></svg></div>
+                <div class="stat-info">
+                    <span class="stat-label">Revenue Window</span>
+                    <span class="stat-value" id="reportRevenueWindow">0 buckets</span>
+                    <div class="text-sm text-muted" id="reportScopeMeta" style="margin-top:6px;">Inventory alerts: 0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></div>
+                <div class="stat-info">
+                    <span class="stat-label">Top Suppliers</span>
+                    <span class="stat-value" id="reportSupplierCount">0</span>
+                    <div class="text-sm text-muted" id="reportSupplierMeta" style="margin-top:6px;">Current stock snapshot</div>
                 </div>
             </div>
         </section>
@@ -2476,22 +3536,187 @@ document.addEventListener('DOMContentLoaded', () => {
         </section>
         <section class="grid-2">
             <div class="card"><div class="card-hd"><h3>Payment Method Mix</h3></div><div class="card-bd" style="position:relative;height:240px"><canvas id="repPaymentChart"></canvas></div></div>
-            <div class="card"><div class="card-hd"><h3>Top Supplier Stock Value</h3></div><div class="card-bd">${table(
-                ['Rank', 'Supplier', 'Stock Value'],
-                supplierRows || '<tr><td colspan="3" class="text-muted">No supplier records available.</td></tr>'
-            )}</div></div>
+            <div class="card"><div class="card-hd"><h3>Supplier Stock Value</h3></div><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>Rank</th><th>Supplier</th><th>SKUs</th><th>Avg Price</th><th>Stock Value</th></tr></thead><tbody id="reportsSupplierTableBody"></tbody></table></div></div></div>
         </section>
-        <section class="card"><div class="card-hd"><h3>Monthly Summary</h3></div><div class="card-bd">${table(
-            ['Month', 'Revenue', 'Orders', 'Returns'],
-            monthlyRows || '<tr><td colspan="4" class="text-muted">No report data available yet.</td></tr>'
-        )}</div></section>`;
-        setTimeout(initReportCharts, 0);
+        <section class="card"><div class="card-hd"><h3>Period Summary</h3></div><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>Period</th><th>Revenue</th><th>Orders</th><th>Returns</th><th>Net</th></tr></thead><tbody id="reportsSummaryTableBody"></tbody></table></div></div></section>`;
+
+        const timeRangeSelect = document.getElementById('reportsTimeRange');
+        const summarySortSelect = document.getElementById('reportsSummarySort');
+        const supplierSortSelect = document.getElementById('reportsSupplierSort');
+        const summaryBody = document.getElementById('reportsSummaryTableBody');
+        const supplierBody = document.getElementById('reportsSupplierTableBody');
+
+        function setText(id, value) {
+            const node = document.getElementById(id);
+            if (node) node.textContent = value;
+        }
+
+        function renderReportView() {
+            const rangeKey = timeRangeSelect ? timeRangeSelect.value : '30d';
+            const filteredOrders = orderRows.filter(item => matchesRange(item.parsedDate, rangeKey));
+            const filteredReturns = returnRows.filter(item => matchesRange(item.parsedDate, rangeKey));
+
+            const totalRevenue = filteredOrders.reduce((sum, order) => sum + Math.max(0, Number(order && order.total) || 0), 0);
+            const totalReturnsValue = filteredReturns.reduce((sum, item) => sum + Math.max(0, Number(item && item.amount) || 0), 0);
+            const netRevenue = Math.max(0, totalRevenue - totalReturnsValue);
+            const avgOrderValue = filteredOrders.length ? Math.round(totalRevenue / filteredOrders.length) : 0;
+            const deliveredOrders = filteredOrders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length;
+            const completionRate = filteredOrders.length ? Math.round((deliveredOrders / filteredOrders.length) * 100) : 0;
+            const pendingReturns = filteredReturns.filter(item => String(item && item.status || '').trim().toLowerCase().includes('pending')).length;
+            const inventoryAlerts = inventory.filter(item => normalizeInventoryStatus(item && item.status, item && item.stock) !== 'In Stock').length;
+
+            const summaryRows = buildSummaryBuckets(filteredOrders, filteredReturns, rangeKey);
+            const sortedSummaryRows = summaryRows.slice().sort((a, b) => {
+                const sortKey = summarySortSelect ? summarySortSelect.value : 'newest';
+                if (sortKey === 'oldest') return a.sortTimeMs - b.sortTimeMs;
+                if (sortKey === 'revenue_high') return b.revenue - a.revenue;
+                if (sortKey === 'revenue_low') return a.revenue - b.revenue;
+                if (sortKey === 'orders_high') return b.orders - a.orders;
+                if (sortKey === 'returns_high') return b.returns - a.returns;
+                return b.sortTimeMs - a.sortTimeMs;
+            });
+
+            if (summaryBody) {
+                summaryBody.innerHTML = sortedSummaryRows.length
+                    ? sortedSummaryRows.map(item => `<tr><td class="cell-main">${item.label}</td><td>Rs ${Math.round(item.revenue).toLocaleString()}</td><td>${item.orders}</td><td>${item.returns}</td><td>Rs ${Math.round(item.net).toLocaleString()}</td></tr>`).join('')
+                    : '<tr><td colspan="5" class="text-muted">No report data available in this range.</td></tr>';
+            }
+
+            const supplierRows = Array.from(
+                inventory.reduce((acc, item) => {
+                    const supplier = getSupplierDetails(item);
+                    const key = supplier.name || 'Unknown Supplier';
+                    if (!acc.has(key)) {
+                        acc.set(key, {
+                            supplier: key,
+                            skus: 0,
+                            totalPrice: 0,
+                            stockValue: 0
+                        });
+                    }
+                    const entry = acc.get(key);
+                    entry.skus += 1;
+                    entry.totalPrice += Math.max(0, Number(item && item.price) || 0);
+                    entry.stockValue += Math.max(0, Number(item && item.price) || 0) * Math.max(0, Number(item && item.stock) || 0);
+                    return acc;
+                }, new Map()).values()
+            ).map(item => ({
+                ...item,
+                avgPrice: item.skus ? item.totalPrice / item.skus : 0
+            }));
+
+            const sortedSupplierRows = supplierRows.slice().sort((a, b) => {
+                const sortKey = supplierSortSelect ? supplierSortSelect.value : 'value_high';
+                if (sortKey === 'value_low') return a.stockValue - b.stockValue;
+                if (sortKey === 'name') return a.supplier.localeCompare(b.supplier);
+                if (sortKey === 'price_high') return b.avgPrice - a.avgPrice;
+                return b.stockValue - a.stockValue;
+            });
+
+            if (supplierBody) {
+                supplierBody.innerHTML = sortedSupplierRows.length
+                    ? sortedSupplierRows.map((item, index) => `<tr><td class="cell-main">#${index + 1}</td><td>${item.supplier}</td><td>${item.skus}</td><td>Rs ${Math.round(item.avgPrice).toLocaleString()}</td><td>Rs ${Math.round(item.stockValue).toLocaleString()}</td></tr>`).join('')
+                    : '<tr><td colspan="5" class="text-muted">No supplier records available.</td></tr>';
+            }
+
+            const paymentBuckets = new Map();
+            filteredOrders.forEach(order => {
+                const paymentLabel = String(order && order.payment || 'Unknown').trim() || 'Unknown';
+                paymentBuckets.set(paymentLabel, (paymentBuckets.get(paymentLabel) || 0) + 1);
+            });
+
+            const trendRows = summaryRows.slice().sort((a, b) => a.sortTimeMs - b.sortTimeMs);
+            currentReportChartState = {
+                revenueTrend: {
+                    labels: trendRows.length ? trendRows.map(item => item.label) : ['No data'],
+                    values: trendRows.length ? trendRows.map(item => Math.round(item.revenue)) : [0]
+                },
+                statusCounts: {
+                    delivered: filteredOrders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length,
+                    processing: filteredOrders.filter(order => normalizeOrderStatus(order && order.status) === 'Processing').length,
+                    pending: filteredOrders.filter(order => normalizeOrderStatus(order && order.status) === 'Pending').length,
+                    cancelled: filteredOrders.filter(order => normalizeOrderStatus(order && order.status) === 'Cancelled').length
+                },
+                paymentLabels: Array.from(paymentBuckets.keys()),
+                paymentValues: Array.from(paymentBuckets.values())
+            };
+
+            setText('reportNetRevenue', `Rs ${netRevenue.toLocaleString()}`);
+            setText('reportOrderCount', filteredOrders.length.toLocaleString());
+            setText('reportAvgOrderValue', `Rs ${avgOrderValue.toLocaleString()}`);
+            setText('reportReturnValue', `Rs ${totalReturnsValue.toLocaleString()}`);
+            setText('reportDeliveredMeta', `Delivered: ${deliveredOrders}`);
+            setText('reportCompletionMeta', `Completion rate: ${completionRate}%`);
+            setText('reportPendingReturnsMeta', `Pending returns: ${pendingReturns}`);
+            setText('reportRevenueWindow', `${summaryRows.length} bucket${summaryRows.length === 1 ? '' : 's'}`);
+            setText('reportScopeMeta', `Inventory alerts: ${inventoryAlerts}`);
+            setText('reportSupplierCount', sortedSupplierRows.length.toLocaleString());
+            setText('reportSupplierMeta', sortedSupplierRows.length ? `${sortedSupplierRows[0].supplier} leads current value` : 'Current stock snapshot');
+
+            if (activeCharts.length) {
+                activeCharts.forEach(chart => chart.destroy());
+                activeCharts = [];
+            }
+            setTimeout(initReportCharts, 0);
+        }
+
+        [timeRangeSelect, summarySortSelect, supplierSortSelect].forEach(control => {
+            if (control) control.addEventListener('change', renderReportView);
+        });
+
+        renderReportView();
     }
 
     function renderUsers() {
+        const userRows = users.map(user => ({
+            ...user,
+            normalizedRole: String(user && user.role || 'Unassigned').trim() || 'Unassigned',
+            normalizedStatus: String(user && user.status || 'Inactive').trim() || 'Inactive'
+        }));
+        const roleOptions = Array.from(new Set(userRows.map(item => item.normalizedRole))).sort();
+        const statusOptions = Array.from(new Set(userRows.map(item => item.normalizedStatus))).sort();
+
         content.innerHTML = `
         <div class="page-header"><h2>Users</h2><div class="page-header-actions"><button class="btn btn-primary" id="addUserBtnDyn">+ Add User</button></div></div>
-        <section class="card"><div class="card-bd">${table(['Name', 'Email', 'Role', 'Status', 'Actions'], users.map(u => `<tr><td class="cell-main">${u.name}</td><td>${u.email || ''}</td><td>${u.role}</td><td>${statusBadge(u.status)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${u.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${u.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${u.name}')">Delete</button></td></tr>`).join(''))}</div></section>`;
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd table-toolbar">
+                <div class="toolbar-group"><label class="toolbar-label" for="usersRoleFilter">Role</label><select id="usersRoleFilter" class="toolbar-select"><option value="all">All roles</option>${roleOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="usersStatusFilter">Status</label><select id="usersStatusFilter" class="toolbar-select"><option value="all">All statuses</option>${statusOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="usersSortSelect">Sort by</label><select id="usersSortSelect" class="toolbar-select"><option value="name">Name A-Z</option><option value="role">Role A-Z</option><option value="status">Status A-Z</option></select></div>
+            </div>
+        </section>
+        <section class="card"><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="usersTableBodyDyn"></tbody></table></div></div></section>`;
+
+        const tbody = document.getElementById('usersTableBodyDyn');
+        const roleFilter = document.getElementById('usersRoleFilter');
+        const statusFilter = document.getElementById('usersStatusFilter');
+        const sortSelect = document.getElementById('usersSortSelect');
+
+        function renderTable() {
+            if (!tbody) return;
+            const filteredRows = userRows
+                .filter(item => {
+                    if (roleFilter && roleFilter.value !== 'all' && item.normalizedRole !== roleFilter.value) return false;
+                    if (statusFilter && statusFilter.value !== 'all' && item.normalizedStatus !== statusFilter.value) return false;
+                    return true;
+                })
+                .sort((a, b) => {
+                    const sortKey = sortSelect ? sortSelect.value : 'name';
+                    if (sortKey === 'role') return a.normalizedRole.localeCompare(b.normalizedRole);
+                    if (sortKey === 'status') return a.normalizedStatus.localeCompare(b.normalizedStatus);
+                    return String(a.name || '').localeCompare(String(b.name || ''));
+                });
+
+            tbody.innerHTML = filteredRows.length
+                ? filteredRows.map(item => `<tr><td class="cell-main">${item.name}</td><td>${item.email || ''}</td><td>${item.normalizedRole}</td><td>${statusBadge(item.normalizedStatus)}</td><td><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.renderUserProfile('${item.name}')">View</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editUser('${item.name}')">Edit</button><button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteUser('${item.name}')">Delete</button></td></tr>`).join('')
+                : '<tr><td colspan="5" class="text-muted">No users match the selected filters.</td></tr>';
+        }
+
+        [roleFilter, statusFilter, sortSelect].forEach(control => {
+            if (control) control.addEventListener('change', renderTable);
+        });
+
+        renderTable();
         const dynBtn = document.getElementById('addUserBtnDyn');
         if (dynBtn) dynBtn.addEventListener('click', openAddUserModal);
     }
@@ -2500,6 +3725,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const paymentDueTotal = businesses.reduce((sum, b) => sum + Number(b.paymentDue || 0), 0);
         const activeCount = businesses.filter(b => b.status === 'Active').length;
         const trialCount = businesses.filter(b => b.status === 'Trial').length;
+        const statusOptions = Array.from(new Set(businesses.map(item => String(item && item.status || 'Unknown').trim() || 'Unknown'))).sort();
+        const planOptions = Array.from(new Set(businesses.map(item => String(item && (item.productsPlan || item.type) || 'Unknown').trim() || 'Unknown'))).sort();
 
         content.innerHTML = `
         <div class="page-header"><h2>Businesses Using Your Products</h2><div class="page-header-actions"><button class="btn btn-primary" data-action="businesses" onclick="window.addBusiness()">+ Add Business</button></div></div>
@@ -2507,14 +3734,51 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="stat-card"><div class="stat-icon si-blue"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><rect x="4" y="3" width="7" height="14" rx="1"/><rect x="13" y="7" width="7" height="10" rx="1"/></svg></div><div class="stat-info"><span class="stat-label">Total Businesses</span><span class="stat-value">${businesses.length}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-green"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="stat-info"><span class="stat-label">Active Stores</span><span class="stat-value">${activeCount}</span></div></div>
             <div class="stat-card"><div class="stat-icon si-amber"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="stat-info"><span class="stat-label">Trial Stores</span><span class="stat-value">${trialCount}</span></div></div>
-            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-info"><span class="stat-label">Pending Payments</span><span class="stat-value">₹${paymentDueTotal.toLocaleString()}</span></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-info"><span class="stat-label">Pending Payments</span><span class="stat-value">Rs ${paymentDueTotal.toLocaleString()}</span></div></div>
         </section>
-        <section class="card"><div class="card-hd"><h3>All Client Businesses</h3></div><div class="card-bd">${table(
-            ['Business ID', 'Business Name', 'Using BillBhai', 'Stores', 'Profit', 'Payment Due', 'Status', 'Actions'],
-            businesses.map(b => `<tr><td class="cell-main">${b.id}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.openBusinessDetails('${b.id}')">${b.name}</button></td><td>${b.tenureMonths} months</td><td>${b.storesCount}</td><td>₹${Number(b.profit || 0).toLocaleString()}</td><td>₹${Number(b.paymentDue || 0).toLocaleString()}</td><td>${statusBadge(b.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.openBusinessAdminDashboard('${b.id}')">View</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusiness('${b.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${b.id}')">Delete</button></td></tr>`).join('')
-        )}</div></section>`;
-    }
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd table-toolbar">
+                <div class="toolbar-group"><label class="toolbar-label" for="businessStatusFilter">Status</label><select id="businessStatusFilter" class="toolbar-select"><option value="all">All statuses</option>${statusOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="businessPlanFilter">Plan / Type</label><select id="businessPlanFilter" class="toolbar-select"><option value="all">All plans</option>${planOptions.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>
+                <div class="toolbar-group"><label class="toolbar-label" for="businessSortSelect">Sort by</label><select id="businessSortSelect" class="toolbar-select"><option value="payment_due">Payment due</option><option value="profit">Profit</option><option value="stores">Stores</option><option value="tenure">Tenure</option></select></div>
+            </div>
+        </section>
+        <section class="card"><div class="card-hd"><h3>All Client Businesses</h3></div><div class="card-bd"><div class="tbl-wrap"><table class="dt"><thead><tr><th>Business ID</th><th>Business Name</th><th>Using BillBhai</th><th>Stores</th><th>Profit</th><th>Payment Due</th><th>Status</th><th>Actions</th></tr></thead><tbody id="businessesTableBodyDyn"></tbody></table></div></div></section>`;
 
+        const tbody = document.getElementById('businessesTableBodyDyn');
+        const statusFilter = document.getElementById('businessStatusFilter');
+        const planFilter = document.getElementById('businessPlanFilter');
+        const sortSelect = document.getElementById('businessSortSelect');
+
+        function renderTable() {
+            if (!tbody) return;
+            const filteredRows = businesses
+                .filter(item => {
+                    const planLabel = String(item.productsPlan || item.type || 'Unknown').trim() || 'Unknown';
+                    if (statusFilter && statusFilter.value !== 'all' && String(item.status || '').trim() !== statusFilter.value) return false;
+                    if (planFilter && planFilter.value !== 'all' && planLabel !== planFilter.value) return false;
+                    return true;
+                })
+                .slice()
+                .sort((a, b) => {
+                    const sortKey = sortSelect ? sortSelect.value : 'payment_due';
+                    if (sortKey === 'profit') return Math.max(0, Number(b.profit || 0)) - Math.max(0, Number(a.profit || 0));
+                    if (sortKey === 'stores') return Math.max(0, Number(b.storesCount || 0)) - Math.max(0, Number(a.storesCount || 0));
+                    if (sortKey === 'tenure') return Math.max(0, Number(b.tenureMonths || 0)) - Math.max(0, Number(a.tenureMonths || 0));
+                    return Math.max(0, Number(b.paymentDue || 0)) - Math.max(0, Number(a.paymentDue || 0));
+                });
+
+            tbody.innerHTML = filteredRows.length
+                ? filteredRows.map(item => `<tr><td class="cell-main">${item.id}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.openBusinessDetails('${item.id}')">${item.name}</button></td><td>${item.tenureMonths} months</td><td>${item.storesCount}</td><td>Rs ${Number(item.profit || 0).toLocaleString()}</td><td>Rs ${Number(item.paymentDue || 0).toLocaleString()}</td><td>${statusBadge(item.status)}</td><td><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.openBusinessAdminDashboard('${item.id}')">View</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;" onclick="window.editBusiness('${item.id}')">Edit</button><button class="btn btn-outline" data-action="businesses" style="padding: 4px 8px; font-size: 0.75rem; color: var(--red); border-color: var(--red);" onclick="window.deleteBusiness('${item.id}')">Delete</button></td></tr>`).join('')
+                : '<tr><td colspan="8" class="text-muted">No businesses match the selected filters.</td></tr>';
+        }
+
+        [statusFilter, planFilter, sortSelect].forEach(control => {
+            if (control) control.addEventListener('change', renderTable);
+        });
+
+        renderTable();
+    }
     function renderBusinessDetails(businessId) {
         const b = businesses.find(x => x.id === businessId);
         if (!b) {
@@ -2665,6 +3929,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const identity = getCurrentUserIdentity();
         const store = loadObject(PROFILE_SETTINGS_STORAGE_KEY, {});
         const saved = store[identity.key] && typeof store[identity.key] === 'object' ? store[identity.key] : {};
+        const normalizedNotifications = normalizeNotificationPreferences(saved.notifications, activeRoleKey);
 
         return {
             key: identity.key,
@@ -2677,12 +3942,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currency: String(saved.currency || 'INR').trim(),
             timezone: String(saved.timezone || 'Asia/Kolkata').trim(),
             dateFormat: String(saved.dateFormat || 'DD/MM/YYYY').trim(),
-            notifications: {
-                orders: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.orders) : true,
-                inventory: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.inventory) : true,
-                returns: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.returns) : true,
-                summary: saved.notifications && typeof saved.notifications === 'object' ? Boolean(saved.notifications.summary) : false
-            }
+            notifications: normalizedNotifications
         };
     }
 
@@ -2718,6 +3978,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.user-avatar').forEach(el => {
             el.textContent = record.fullName.charAt(0).toUpperCase();
         });
+        renderNotificationDropdown();
     }
 
     function updatePasswordOverrideForCurrentUser(newPassword) {
@@ -2737,6 +3998,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const profile = loadProfileSettingsRecord();
         const activityItems = getRecentProfileActivity();
         const initial = profile.fullName.charAt(0).toUpperCase();
+        const notificationOptions = getNotificationPreferenceConfig(activeRoleKey);
+        const notificationToggles = notificationOptions.length
+            ? notificationOptions.map(option => `
+                <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                    <span>${option.label}</span>
+                    <input id="psNotif_${option.key}" data-notification-key="${option.key}" type="checkbox" ${profile.notifications[option.key] ? 'checked' : ''}>
+                </label>
+            `).join('')
+            : '<div class="text-sm text-muted">No notification preferences available for this role.</div>';
 
         content.innerHTML = `
         <div class="page-header"><h2>Profile & Settings</h2><div class="page-header-actions"><button class="btn btn-primary" id="saveProfileSettingsBtn">Save Changes</button></div></div>
@@ -2796,10 +4066,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="form-group"><label class="form-label">Date Format</label><select id="psDateFormat" class="form-control"><option ${profile.dateFormat === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY</option><option ${profile.dateFormat === 'MM/DD/YYYY' ? 'selected' : ''}>MM/DD/YYYY</option></select></div>
                     </div>
                     <div style="margin-top:6px;padding-top:12px;border-top:1px solid var(--border);display:grid;gap:10px;">
-                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Order Alerts</span><input id="psNotifOrders" type="checkbox" ${profile.notifications.orders ? 'checked' : ''}></label>
-                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Inventory Alerts</span><input id="psNotifInventory" type="checkbox" ${profile.notifications.inventory ? 'checked' : ''}></label>
-                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Return Alerts</span><input id="psNotifReturns" type="checkbox" ${profile.notifications.returns ? 'checked' : ''}></label>
-                        <label class="text-sm" style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><span>Daily Summary</span><input id="psNotifSummary" type="checkbox" ${profile.notifications.summary ? 'checked' : ''}></label>
+                        ${notificationToggles}
                     </div>
                 </form>
             </div>
@@ -2831,12 +4098,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 currency: String(document.getElementById('psCurrency').value || 'INR').trim(),
                 timezone: String(document.getElementById('psTimezone').value || 'Asia/Kolkata').trim(),
                 dateFormat: String(document.getElementById('psDateFormat').value || 'DD/MM/YYYY').trim(),
-                notifications: {
-                    orders: Boolean(document.getElementById('psNotifOrders').checked),
-                    inventory: Boolean(document.getElementById('psNotifInventory').checked),
-                    returns: Boolean(document.getElementById('psNotifReturns').checked),
-                    summary: Boolean(document.getElementById('psNotifSummary').checked)
-                }
+                notifications: normalizeNotificationPreferences(
+                    notificationOptions.reduce((acc, option) => {
+                        const toggle = document.getElementById(`psNotif_${option.key}`);
+                        acc[option.key] = Boolean(toggle && toggle.checked);
+                        return acc;
+                    }, {}),
+                    activeRoleKey
+                )
             };
 
             saveProfileSettingsRecord(nextRecord);
@@ -2884,69 +4153,129 @@ document.addEventListener('DOMContentLoaded', () => {
         renderProfileSettingsUnified();
     }
 
-    function renderNotifications(filter) {
-        const activeFilter = String(filter || 'all').trim().toLowerCase() || 'all';
-        const unreadCount = notificationsList.filter(item => item.unread).length;
-        const readCount = Math.max(0, notificationsList.length - unreadCount);
+    function resolveNotificationViewState(input) {
+        const defaults = { status: 'all', category: 'all', sort: 'priority' };
+        if (typeof input === 'string') return { ...defaults, status: String(input || 'all').trim().toLowerCase() || 'all' };
+        if (!input || typeof input !== 'object') return defaults;
+        return {
+            status: String(input.status || defaults.status).trim().toLowerCase() || defaults.status,
+            category: String(input.category || defaults.category).trim().toLowerCase() || defaults.category,
+            sort: String(input.sort || defaults.sort).trim().toLowerCase() || defaults.sort
+        };
+    }
 
-        const filteredRows = notificationsList.filter(item => {
-            if (activeFilter === 'unread') return item.unread;
-            if (activeFilter === 'read') return !item.unread;
-            return true;
-        });
+    function getNotificationPriorityBadge(notification) {
+        const priority = String(notification && notification.priority || 'low').trim().toLowerCase();
+        if (priority === 'critical') return badge('Critical', 'cancelled');
+        if (priority === 'high') return badge('High', 'pending');
+        if (priority === 'medium') return badge('Medium', 'processing');
+        return badge('Low', 'active');
+    }
+
+    function renderNotifications(filterState) {
+        const viewState = resolveNotificationViewState(filterState);
+        const notifications = getActiveNotifications();
+        const unreadCount = notifications.filter(item => item.unread).length;
+        const readCount = Math.max(0, notifications.length - unreadCount);
+        const actionableCount = notifications.filter(item => item.unread || item.priorityRank >= 3).length;
+        const categoryOptions = Array.from(new Set(notifications.map(item => item.category))).sort((a, b) => getNotificationCategoryLabel(a).localeCompare(getNotificationCategoryLabel(b)));
+
+        const filteredRows = notifications
+            .filter(item => {
+                if (viewState.status === 'unread' && !item.unread) return false;
+                if (viewState.status === 'read' && item.unread) return false;
+                if (viewState.category !== 'all' && item.category !== viewState.category) return false;
+                return true;
+            })
+            .slice()
+            .sort((a, b) => {
+                if (viewState.sort === 'oldest') return (a.sortTimeMs || 0) - (b.sortTimeMs || 0);
+                if (viewState.sort === 'newest') return (b.sortTimeMs || 0) - (a.sortTimeMs || 0);
+                if (b.priorityRank !== a.priorityRank) return b.priorityRank - a.priorityRank;
+                return (b.sortTimeMs || 0) - (a.sortTimeMs || 0);
+            });
 
         content.innerHTML = `
-        <div class="page-header"><h2>Notifications</h2><div class="page-header-actions"><button class="btn btn-outline" id="markAllReadBtn" ${unreadCount ? '' : 'disabled'}>Mark all as read</button></div></div>
+        <div class="page-header">
+            <h2>Notifications</h2>
+            <div class="page-header-actions">
+                <button class="btn btn-outline" id="markAllReadBtn" ${unreadCount ? '' : 'disabled'}>Mark all as read</button>
+            </div>
+        </div>
         <section class="stats-grid" style="margin-bottom:12px;">
-            <div class="stat-card"><div class="stat-info"><span class="stat-label">Total</span><span class="stat-value">${notificationsList.length}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Total</span><span class="stat-value">${notifications.length}</span></div></div>
             <div class="stat-card"><div class="stat-info"><span class="stat-label">Unread</span><span class="stat-value">${unreadCount}</span></div></div>
             <div class="stat-card"><div class="stat-info"><span class="stat-label">Read</span><span class="stat-value">${readCount}</span></div></div>
-            <div class="stat-card"><div class="stat-info"><span class="stat-label">Actionable</span><span class="stat-value">${notificationsList.filter(item => item.unread || item.type === 'alert').length}</span></div></div>
+            <div class="stat-card"><div class="stat-info"><span class="stat-label">Actionable</span><span class="stat-value">${actionableCount}</span></div></div>
         </section>
-        <section class="card notification-center" id="notificationCenter">
-            <div class="card-hd" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                <h3>Inbox</h3>
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd table-toolbar" style="justify-content:space-between;align-items:center;gap:12px;">
                 <div class="chart-tabs">
-                    <button class="chart-tab notif-filter ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">All</button>
-                    <button class="chart-tab notif-filter ${activeFilter === 'unread' ? 'active' : ''}" data-filter="unread">Unread</button>
-                    <button class="chart-tab notif-filter ${activeFilter === 'read' ? 'active' : ''}" data-filter="read">Read</button>
+                    <button class="chart-tab notif-filter ${viewState.status === 'all' ? 'active' : ''}" data-filter="all">All</button>
+                    <button class="chart-tab notif-filter ${viewState.status === 'unread' ? 'active' : ''}" data-filter="unread">Unread</button>
+                    <button class="chart-tab notif-filter ${viewState.status === 'read' ? 'active' : ''}" data-filter="read">Read</button>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;">
+                    <div class="toolbar-group"><label class="toolbar-label" for="notificationsCategoryFilter">Category</label><select id="notificationsCategoryFilter" class="toolbar-select"><option value="all">All categories</option>${categoryOptions.map(option => `<option value="${option}" ${viewState.category === option ? 'selected' : ''}>${getNotificationCategoryLabel(option)}</option>`).join('')}</select></div>
+                    <div class="toolbar-group"><label class="toolbar-label" for="notificationsSortSelect">Sort by</label><select id="notificationsSortSelect" class="toolbar-select"><option value="priority" ${viewState.sort === 'priority' ? 'selected' : ''}>Priority</option><option value="newest" ${viewState.sort === 'newest' ? 'selected' : ''}>Newest</option><option value="oldest" ${viewState.sort === 'oldest' ? 'selected' : ''}>Oldest</option></select></div>
                 </div>
             </div>
-            <div class="card-bd" style="padding:0;">
+        </section>
+        <section class="card notification-shell" id="notificationCenter">
+            <div class="card-hd"><h3>${ROLE_LABELS[activeRoleKey] || 'Team'} inbox</h3></div>
+            <div class="card-bd notification-list" style="padding:0;">
                 ${filteredRows.length ? filteredRows.map(item => `
-                    <div class="notif-row ${item.unread ? 'unread' : ''}" data-notif-id="${item.id}" style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:flex-start;">
-                        <div style="background:var(--${item.color || 'blue'}-bg);color:var(--${item.color || 'blue'});padding:8px;border-radius:8px;">${getNotificationIcon(item)}</div>
-                        <div>
-                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <div class="notification-row ${item.unread ? 'unread' : ''}" data-notif-id="${item.id}">
+                        <div class="notification-icon" style="background: var(--${item.color || 'blue'}-bg); color: var(--${item.color || 'blue'});">${getNotificationIcon(item)}</div>
+                        <div class="notification-content">
+                            <div class="notification-title-row">
                                 <strong>${item.title}</strong>
-                                ${item.unread ? '<span class="badge b-processing">Unread</span>' : '<span class="badge b-active">Read</span>'}
+                                <span class="notification-chip ${item.unread ? 'is-unread' : 'is-read'}">${item.unread ? 'Unread' : 'Read'}</span>
+                                ${getNotificationPriorityBadge(item)}
+                                <span class="notification-chip">${getNotificationCategoryLabel(item.category)}</span>
                             </div>
-                            <div class="text-sm text-muted" style="margin-top:4px;">${item.desc}</div>
-                            <div class="text-sm text-muted" style="margin-top:6px;">${item.time}</div>
+                            <div class="text-sm text-muted" style="margin-top:6px;">${item.desc}</div>
+                            <div class="notification-meta">
+                                <span>${item.time}</span>
+                                <span>${item.priority.charAt(0).toUpperCase() + item.priority.slice(1)} priority</span>
+                            </div>
                         </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-                            <button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;" data-notif-action="toggle-read">${item.unread ? 'Mark read' : 'Mark unread'}</button>
-                            <button class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;" data-notif-action="open">View</button>
+                        <div class="notification-actions">
+                            <button class="btn btn-outline" data-notif-action="toggle-read">${item.unread ? 'Mark read' : 'Mark unread'}</button>
+                            <button class="btn btn-outline" data-notif-action="open">View</button>
                         </div>
                     </div>
-                `).join('') : '<div style="padding:28px;" class="text-muted">No notifications in this filter.</div>'}
+                `).join('') : '<div class="notification-empty text-muted">No notifications match this view.</div>'}
             </div>
         </section>`;
 
         const markAllBtn = document.getElementById('markAllReadBtn');
         if (markAllBtn) {
             markAllBtn.addEventListener('click', () => {
-                notificationsList = notificationsList.map(item => ({ ...item, unread: false }));
-                persistNotifications();
-                renderNotifications(activeFilter);
+                markNotificationsRead(notifications.filter(item => item.unread).map(item => item.id), true);
+                renderNotificationDropdown();
+                renderNotifications(viewState);
             });
         }
 
         content.querySelectorAll('.notif-filter').forEach(btn => {
             btn.addEventListener('click', () => {
-                renderNotifications(String(btn.getAttribute('data-filter') || 'all'));
+                renderNotifications({ ...viewState, status: String(btn.getAttribute('data-filter') || 'all').trim().toLowerCase() || 'all' });
             });
         });
+
+        const categorySelect = document.getElementById('notificationsCategoryFilter');
+        const sortSelect = document.getElementById('notificationsSortSelect');
+        if (categorySelect) {
+            categorySelect.addEventListener('change', () => {
+                renderNotifications({ ...viewState, category: categorySelect.value });
+            });
+        }
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => {
+                renderNotifications({ ...viewState, sort: sortSelect.value });
+            });
+        }
 
         const center = document.getElementById('notificationCenter');
         if (center) {
@@ -2958,65 +4287,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 const notifId = row ? String(row.getAttribute('data-notif-id') || '').trim() : '';
                 if (!notifId) return;
 
-                const notification = notificationsList.find(item => item.id === notifId);
+                const notification = notifications.find(item => item.id === notifId);
                 if (!notification) return;
 
                 const action = String(actionBtn.getAttribute('data-notif-action') || '').trim();
                 if (action === 'toggle-read') {
-                    notification.unread = !notification.unread;
-                    persistNotifications();
-                    renderNotifications(activeFilter);
+                    setNotificationReadState(notification.id, notification.unread);
+                    renderNotificationDropdown();
+                    renderNotifications(viewState);
                     return;
                 }
 
                 if (action === 'open') {
-                    renderNotificationDetail(notifId, activeFilter);
+                    renderNotificationDetail(notifId, viewState);
                 }
             });
         }
     }
 
-    function renderNotificationDetail(id, returnFilter) {
-        const n = notificationsList.find(x => x.id === id);
-        if (!n) return;
-
-        if (n.unread) {
-            n.unread = false;
-            persistNotifications();
+    function renderNotificationDetail(id, returnState) {
+        const viewState = resolveNotificationViewState(returnState);
+        const initialNotification = getActiveNotifications().find(item => item.id === id);
+        if (!initialNotification) {
+            renderNotifications(viewState);
+            return;
         }
 
-        const filterToReturn = String(returnFilter || 'all').trim().toLowerCase() || 'all';
-        const changes = Array.isArray(n.changes) ? n.changes : [];
-        const diffHtml = changes.length
-            ? changes.map(c => `
-                <div style="margin-bottom:14px;">
-                    <div class="text-sm text-muted" style="margin-bottom:6px;">${c.file}</div>
-                    <div class="diff-view">
-                        <div class="diff-line removed">- ${c.old}</div>
-                        <div class="diff-line added">+ ${c.new}</div>
-                    </div>
-                </div>
-            `).join('')
-            : '<div class="text-muted">No structured diff is attached to this notification.</div>';
+        if (initialNotification.unread) {
+            setNotificationReadState(initialNotification.id, true);
+            renderNotificationDropdown();
+        }
+
+        const notification = getActiveNotifications().find(item => item.id === id) || initialNotification;
+        const detailRows = Array.isArray(notification.detailRows) ? notification.detailRows : [];
+        const detailHtml = detailRows.length
+            ? detailRows.map(row => `<div class="notification-detail-item"><span class="text-sm text-muted">${row.label}</span><strong>${row.value}</strong></div>`).join('')
+            : '<div class="text-muted">No structured details are attached to this notification.</div>';
 
         content.innerHTML = `
         <div class="page-header" style="justify-content:flex-start;gap:10px;">
             <button class="btn btn-outline" id="notifBackBtn" style="padding:8px;">Back</button>
             <h2>Notification Details</h2>
-            <div class="page-header-actions" style="margin-left:auto;"><button class="btn btn-outline" id="notifToggleBtn">${n.unread ? 'Mark read' : 'Mark unread'}</button></div>
+            <div class="page-header-actions" style="margin-left:auto;"><button class="btn btn-outline" id="notifToggleBtn">${notification.unread ? 'Mark read' : 'Mark unread'}</button></div>
         </div>
-        <div class="card" style="margin-bottom:14px;"><div class="card-bd" style="display:flex;gap:12px;align-items:flex-start;"><div style="background:var(--${n.color}-bg);color:var(--${n.color});padding:10px;border-radius:8px;">${getNotificationIcon(n)}</div><div><h3 style="margin-bottom:4px;">${n.title}</h3><div class="text-sm text-muted" style="margin-bottom:8px;">${n.time}</div><p>${n.desc}</p></div></div></div>
-        <div class="card"><div class="card-hd"><h3>System Changes</h3></div><div class="card-bd">${diffHtml}</div></div>`;
+        <section class="card" style="margin-bottom:14px;">
+            <div class="card-bd" style="display:flex;gap:14px;align-items:flex-start;">
+                <div class="notification-icon" style="background: var(--${notification.color || 'blue'}-bg); color: var(--${notification.color || 'blue'}); min-width:50px; min-height:50px;">${getNotificationIcon(notification)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="notification-title-row" style="margin-bottom:6px;">
+                        <h3 style="margin:0;">${notification.title}</h3>
+                        ${getNotificationPriorityBadge(notification)}
+                        <span class="notification-chip">${getNotificationCategoryLabel(notification.category)}</span>
+                    </div>
+                    <div class="text-sm text-muted" style="margin-bottom:10px;">${notification.time}</div>
+                    <p style="margin:0;color:var(--text-secondary);">${notification.desc}</p>
+                </div>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-hd"><h3>Context</h3></div>
+            <div class="card-bd"><div class="notification-detail-grid">${detailHtml}</div></div>
+        </section>`;
 
         const backBtn = document.getElementById('notifBackBtn');
-        if (backBtn) backBtn.addEventListener('click', () => renderNotifications(filterToReturn));
+        if (backBtn) backBtn.addEventListener('click', () => renderNotifications(viewState));
 
         const toggleBtn = document.getElementById('notifToggleBtn');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
-                n.unread = !n.unread;
-                persistNotifications();
-                renderNotificationDetail(id, filterToReturn);
+                setNotificationReadState(notification.id, notification.unread);
+                renderNotificationDropdown();
+                renderNotificationDetail(id, viewState);
             });
         }
     }
@@ -3263,7 +4604,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initReportCharts() {
         const c = getColors();
-        const trend = buildRevenueTrendWeeks(8);
+        const state = currentReportChartState || {
+            revenueTrend: buildRevenueTrendWeeks(8),
+            statusCounts: {
+                delivered: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length,
+                processing: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Processing').length,
+                pending: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Pending').length,
+                cancelled: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Cancelled').length
+            },
+            paymentLabels: [],
+            paymentValues: []
+        };
+        const trend = state.revenueTrend || { labels: ['No data'], values: [0] };
         createChart('repRevChart', 'line', {
             labels: trend.labels,
             datasets: [{
@@ -3276,11 +4628,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }]
         });
 
-        const statusCounts = {
-            delivered: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Delivered').length,
-            processing: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Processing').length,
-            pending: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Pending').length,
-            cancelled: orders.filter(order => normalizeOrderStatus(order && order.status) === 'Cancelled').length
+        const statusCounts = state.statusCounts || {
+            delivered: 0,
+            processing: 0,
+            pending: 0,
+            cancelled: 0
         };
         createChart('repStatusChart', 'doughnut', {
             labels: ['Delivered', 'Processing', 'Pending', 'Cancelled'],
@@ -3290,18 +4642,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }]
         });
 
-        const paymentBuckets = new Map();
-        orders.forEach(order => {
-            const paymentLabel = String(order && order.payment || 'Unknown').trim() || 'Unknown';
-            paymentBuckets.set(paymentLabel, (paymentBuckets.get(paymentLabel) || 0) + 1);
-        });
-        const paymentLabels = Array.from(paymentBuckets.keys());
-        const paymentValues = Array.from(paymentBuckets.values());
+        const paymentLabels = Array.isArray(state.paymentLabels) && state.paymentLabels.length ? state.paymentLabels : ['No Data'];
+        const paymentValues = Array.isArray(state.paymentValues) && state.paymentValues.length ? state.paymentValues : [0];
         createChart('repPaymentChart', 'bar', {
-            labels: paymentLabels.length ? paymentLabels : ['No Data'],
+            labels: paymentLabels,
             datasets: [{
                 label: 'Orders',
-                data: paymentValues.length ? paymentValues : [0],
+                data: paymentValues,
                 backgroundColor: c.purple
             }]
         }, {
@@ -4633,4 +5980,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })();
 });
+
+
+
 

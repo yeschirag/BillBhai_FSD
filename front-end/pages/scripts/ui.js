@@ -11,6 +11,8 @@ const UI = (() => {
     let currentCategory = 'All';
     let searchQuery = '';
     let currentCustomerProfile = null;
+    let currentCheckoutMode = 'takeaway_now';
+    let sessionContext = { roleKey: 'cashier', roleLabel: 'Cashier', isCustomerTerminal: false };
 
     let callbacks = { onCheckout: null };
 
@@ -49,6 +51,9 @@ const UI = (() => {
             discSpan: document.getElementById('discSpan'),
             totSpan: document.getElementById('totSpan'),
             btnCheckout: document.getElementById('btnCheckout'),
+            checkoutModeGrid: document.getElementById('checkoutModeGrid'),
+            checkoutModeError: document.getElementById('checkoutModeError'),
+            checkoutSummary: document.getElementById('paymentOutcomeSummary'),
 
             // Step 2 Discount
             inpPromo: document.getElementById('promoCode'),
@@ -63,12 +68,73 @@ const UI = (() => {
             menu: document.getElementById('contextMenu'),
 
             // Step 3 Actions
-            btnReset: document.getElementById('btnResetFlow')
+            btnReset: document.getElementById('btnResetFlow'),
+            paymentTitle: document.getElementById('paymentStepTitle'),
+            paymentSubtitle: document.getElementById('paymentStepSubtitle')
         };
     }
 
     function sanitizePhone(value) {
         return String(value || '').replace(/\D/g, '').slice(0, 10);
+    }
+
+    function getTerminalCopy() {
+        if (sessionContext.isCustomerTerminal) {
+            return {
+                lookupInfo: 'Enter your 10-digit phone number to auto-fill saved details.',
+                lookupExisting: (name) => `Welcome back, ${name}. Your saved checkout details are ready.`,
+                lookupNew: 'No saved profile found yet. We will create one after checkout.'
+            };
+        }
+
+        return {
+            lookupInfo: 'Enter a 10-digit phone number to check existing customer records.',
+            lookupExisting: (name) => `Existing customer found: ${name}. Details auto-filled.`,
+            lookupNew: 'No existing profile found. Creating a new customer record after checkout.'
+        };
+    }
+
+    function getCheckoutModeConfig(mode) {
+        const safeMode = String(mode || 'takeaway_now').trim().toLowerCase();
+        const isCustomer = sessionContext.isCustomerTerminal;
+        const titlePrefix = isCustomer ? 'Self-checkout' : 'Order';
+
+        if (safeMode === 'prepaid_delivery') {
+            return {
+                mode: 'prepaid_delivery',
+                deliveryOption: 'delivery',
+                paymentMethod: 'Paid Upfront',
+                orderStatus: 'Processing',
+                buttonLabel: isCustomer ? 'Pay Now for Delivery' : 'Confirm Prepaid Delivery',
+                successTitle: 'Payment Gateway Ready',
+                successSubtitle: `${titlePrefix} logged for home delivery. Collect payment now and dispatch once confirmed.`,
+                summaryLabel: 'Prepaid delivery'
+            };
+        }
+
+        if (safeMode === 'cod_delivery') {
+            return {
+                mode: 'cod_delivery',
+                deliveryOption: 'delivery',
+                paymentMethod: 'COD',
+                orderStatus: 'Processing',
+                buttonLabel: isCustomer ? 'Confirm COD Delivery' : 'Confirm COD Dispatch',
+                successTitle: 'COD Delivery Booked',
+                successSubtitle: `${titlePrefix} will be sent for delivery and payment will be collected at the doorstep.`,
+                summaryLabel: 'Cash on delivery'
+            };
+        }
+
+        return {
+            mode: 'takeaway_now',
+            deliveryOption: 'pickup',
+            paymentMethod: 'Counter Paid',
+            orderStatus: 'Delivered',
+            buttonLabel: isCustomer ? 'Confirm Takeaway' : 'Mark as Takeaway',
+            successTitle: 'Takeaway Ready',
+            successSubtitle: `${titlePrefix} is marked for immediate handover from the counter.`,
+            summaryLabel: 'Take away now'
+        };
     }
 
     function setLookupHint(type, text) {
@@ -105,6 +171,75 @@ const UI = (() => {
         if (!isDelivery && el.errAddress) el.errAddress.textContent = '';
     }
 
+    function syncCheckoutModeCards() {
+        document.querySelectorAll('input[name="checkoutMode"]').forEach(input => {
+            const card = input.closest('.checkout-mode-card');
+            if (card) card.classList.toggle('active', input.checked);
+        });
+    }
+
+    function updateCheckoutButtonLabel() {
+        if (!el.btnCheckout) return;
+        el.btnCheckout.textContent = getCheckoutModeConfig(currentCheckoutMode).buttonLabel;
+    }
+
+    function setCheckoutMode(mode, syncDelivery) {
+        const config = getCheckoutModeConfig(mode);
+        currentCheckoutMode = config.mode;
+
+        document.querySelectorAll('input[name="checkoutMode"]').forEach(input => {
+            input.checked = input.value === config.mode;
+        });
+        syncCheckoutModeCards();
+        updateCheckoutButtonLabel();
+
+        if (el.checkoutModeError) el.checkoutModeError.textContent = '';
+
+        if (syncDelivery !== false && el.selDeliveryOption) {
+            el.selDeliveryOption.value = config.deliveryOption;
+            toggleDeliveryFields();
+        }
+    }
+
+    function buildCheckoutCustomerPayload() {
+        const config = getCheckoutModeConfig(currentCheckoutMode);
+        const payload = getCustomerPayload();
+        payload.checkoutMode = config.mode;
+        payload.deliveryOption = config.deliveryOption;
+        payload.paymentMethod = config.paymentMethod;
+        payload.orderStatus = config.orderStatus;
+
+        if (config.deliveryOption !== 'delivery') {
+            payload.deliveryPartner = '';
+            payload.deliveryPartnerPhone = '';
+        }
+
+        return payload;
+    }
+
+    function renderCheckoutSummary(order, customerPayload) {
+        if (!el.checkoutSummary) return;
+        const config = getCheckoutModeConfig(customerPayload && customerPayload.checkoutMode);
+        const detailAddress = customerPayload.deliveryOption === 'delivery'
+            ? (customerPayload.address || 'Address to be confirmed')
+            : 'Counter pickup';
+
+        el.checkoutSummary.style.display = 'grid';
+        el.checkoutSummary.innerHTML = `
+            <div class="checkout-summary-row"><span>Order ID</span><strong>${order.id}</strong></div>
+            <div class="checkout-summary-row"><span>Customer</span><strong>${order.customer || '-'}</strong></div>
+            <div class="checkout-summary-row"><span>Mode</span><strong>${config.summaryLabel}</strong></div>
+            <div class="checkout-summary-row"><span>Payment</span><strong>${order.paymentMethod || config.paymentMethod}</strong></div>
+            <div class="checkout-summary-row"><span>Total</span><strong>Rs ${Math.max(0, Number(order.total || 0)).toFixed(2)}</strong></div>
+            <div class="checkout-summary-row"><span>Destination</span><strong>${detailAddress}</strong></div>
+        `;
+
+        const titleEl = document.getElementById('paymentStepTitle');
+        const subtitleEl = document.getElementById('paymentStepSubtitle');
+        if (titleEl) titleEl.textContent = config.successTitle;
+        if (subtitleEl) subtitleEl.textContent = config.successSubtitle;
+    }
+
     function applyCustomerProfile(profile) {
         if (!profile) return;
 
@@ -135,7 +270,7 @@ const UI = (() => {
 
         if (phone.length < 10) {
             currentCustomerProfile = null;
-            setLookupHint('info', 'Enter a 10-digit phone number to check existing customer records.');
+            setLookupHint('info', getTerminalCopy().lookupInfo);
             return;
         }
 
@@ -145,7 +280,7 @@ const UI = (() => {
 
         if (profile) {
             applyCustomerProfile(profile);
-            setLookupHint('existing', `Existing customer found: ${profile.name}. Details auto-filled.`);
+            setLookupHint('existing', getTerminalCopy().lookupExisting(profile.name));
         } else {
             if (hadExistingProfile) {
                 if (el.inpEmail) el.inpEmail.value = '';
@@ -156,7 +291,7 @@ const UI = (() => {
                 if (el.inpDeliveryPartnerPhone) el.inpDeliveryPartnerPhone.value = '';
                 toggleDeliveryFields();
             }
-            setLookupHint('new', 'No existing profile found. Creating a new customer record after checkout.');
+            setLookupHint('new', getTerminalCopy().lookupNew);
         }
     }
 
@@ -190,8 +325,8 @@ const UI = (() => {
         if (el.errAddress) el.errAddress.textContent = '';
 
         currentCustomerProfile = null;
-        toggleDeliveryFields();
-        setLookupHint('info', 'Enter a 10-digit phone number to check existing customer records.');
+        setCheckoutMode('takeaway_now');
+        setLookupHint('info', getTerminalCopy().lookupInfo);
 
         cart = [];
         currentDiscount = { active: false, discount: 0 };
@@ -205,6 +340,16 @@ const UI = (() => {
         if (el.promoInputBlock) el.promoInputBlock.style.display = 'flex';
         if (el.promoAppliedTag) el.promoAppliedTag.style.display = 'none';
         if (el.promoAppliedCode) el.promoAppliedCode.textContent = '';
+        if (el.checkoutSummary) {
+            el.checkoutSummary.style.display = 'none';
+            el.checkoutSummary.innerHTML = '';
+        }
+        if (el.paymentTitle) el.paymentTitle.textContent = sessionContext.isCustomerTerminal ? 'Ready for Payment' : 'Routing to Gateway...';
+        if (el.paymentSubtitle) {
+            el.paymentSubtitle.textContent = sessionContext.isCustomerTerminal
+                ? 'Your order is prepared. Complete payment to confirm the self-checkout.'
+                : 'The payload has been sent successfully. The user chooses Card, UPI, etc., on their device/interface. Webhook triggers upon completion.';
+        }
 
         showStep(1);
         renderCart();
@@ -225,6 +370,9 @@ const UI = (() => {
             if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
 
             if (validation.isValid) {
+                if (el.selDeliveryOption && String(el.selDeliveryOption.value || 'pickup').toLowerCase() === 'delivery' && currentCheckoutMode === 'takeaway_now') {
+                    setCheckoutMode('prepaid_delivery', false);
+                }
                 renderCategories();
                 renderCatalog();
                 showStep(2);
@@ -262,8 +410,23 @@ const UI = (() => {
             el.selDeliveryOption.addEventListener('change', () => {
                 toggleDeliveryFields();
                 if (el.errAddress) el.errAddress.textContent = '';
+                if (String(el.selDeliveryOption.value || 'pickup').toLowerCase() === 'delivery') {
+                    if (currentCheckoutMode === 'takeaway_now') setCheckoutMode('prepaid_delivery', false);
+                } else if (currentCheckoutMode !== 'takeaway_now') {
+                    setCheckoutMode('takeaway_now', false);
+                }
             });
         }
+    }
+
+    function bindCheckoutModes() {
+        document.querySelectorAll('input[name="checkoutMode"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (input.checked) setCheckoutMode(input.value);
+            });
+        });
+        syncCheckoutModeCards();
+        updateCheckoutButtonLabel();
     }
 
     function renderCategories() {
@@ -517,14 +680,32 @@ const UI = (() => {
         el.btnCheckout.addEventListener('click', () => {
             if (cart.length === 0) return;
 
-            if (callbacks.onCheckout) {
-                callbacks.onCheckout({
-                    customer: getCustomerPayload(),
-                    cart,
-                    discount: currentDiscount
-                });
+            const customerPayload = buildCheckoutCustomerPayload();
+            const validation = Validator.validateCustomerStep(customerPayload);
+            if (!validation.isValid) {
+                if (el.errName) el.errName.textContent = validation.errors.name || '';
+                if (el.errPhone) el.errPhone.textContent = validation.errors.phone || '';
+                if (el.errEmail) el.errEmail.textContent = validation.errors.email || '';
+                if (el.errAddress) el.errAddress.textContent = validation.errors.address || '';
+                if (el.checkoutModeError) {
+                    el.checkoutModeError.textContent = validation.errors.address
+                        ? 'Delivery needs a valid address before confirmation.'
+                        : 'Please complete the customer details before checkout.';
+                }
+                showStep(1);
+                return;
             }
 
+            let createdOrder = null;
+            if (callbacks.onCheckout) {
+                createdOrder = callbacks.onCheckout({
+                    customer: customerPayload,
+                    cart,
+                    discount: currentDiscount
+                }) || null;
+            }
+
+            if (createdOrder) renderCheckoutSummary(createdOrder, customerPayload);
             showStep(3);
         });
 
@@ -536,6 +717,7 @@ const UI = (() => {
     function init() {
         cacheElements();
         bindStep1();
+        bindCheckoutModes();
         bindSearch();
         bindPromo();
         bindCheckout();
@@ -546,6 +728,9 @@ const UI = (() => {
 
     return {
         init,
-        setCallbacks: cbs => callbacks = { ...callbacks, ...cbs }
+        setCallbacks: cbs => callbacks = { ...callbacks, ...cbs },
+        setSessionContext: context => {
+            sessionContext = { ...sessionContext, ...(context && typeof context === 'object' ? context : {}) };
+        }
     };
 })();

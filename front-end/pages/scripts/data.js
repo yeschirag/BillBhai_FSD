@@ -9,21 +9,33 @@ const DataStore = (() => {
 
     const STORAGE_KEY = 'bb_pos_orders';
     const CUSTOMER_STORAGE_KEY = 'bb_pos_customers';
+    const CUSTOMER_SESSION_NOTIFICATION_KEY = 'bb_customer_session_notifications';
     const CASHIER_DATA_PATH = 'data/cashier_data.json';
     const LIVE_SYNC_KEY = 'bb_live_sync_event';
     const LIVE_SYNC_CHANNEL = 'bb_live_sync';
     const syncSourceId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const DEFAULT_CATALOG = [
-        { id: 'P001', name: 'Basmati Rice', category: 'Groceries', image: '🍚', options: [{ label: '1kg', price: 85 }, { label: '2kg', price: 160 }, { label: '5kg', price: 380 }] },
-        { id: 'P002', name: 'Toor Dal', category: 'Groceries', image: '🫘', options: [{ label: '500g', price: 65 }, { label: '1kg', price: 120 }, { label: '2kg', price: 230 }] },
-        { id: 'P003', name: 'Refined Oil', category: 'Groceries', image: '🛢️', options: [{ label: '500ml', price: 80 }, { label: '1L', price: 155 }, { label: '5L', price: 750 }] },
-        { id: 'P004', name: 'Amul Butter', category: 'Dairy', image: '🧈', options: [{ label: '100g', price: 60 }, { label: '500g', price: 275 }] },
-        { id: 'P005', name: 'Milk', category: 'Dairy', image: '🥛', options: [{ label: '500ml', price: 32 }, { label: '1L', price: 60 }] },
-        { id: 'P006', name: 'Bread Loaf', category: 'Snacks', image: '🍞', options: [{ label: 'Regular', price: 45 }, { label: 'Family Pack', price: 80 }] },
-        { id: 'P007', name: 'Maggi Noodles', category: 'Snacks', image: '🍜', options: [{ label: 'Single', price: 14 }, { label: 'Pack of 4', price: 54 }, { label: 'Pack of 12', price: 168 }] },
-        { id: 'P008', name: 'Tea Powder', category: 'Beverages', image: '🍵', options: [{ label: '250g', price: 160 }, { label: '500g', price: 310 }] },
-        { id: 'P009', name: 'Coffee Jar', category: 'Beverages', image: '☕', options: [{ label: '50g', price: 95 }, { label: '100g', price: 180 }] }
+        { id: 'P001', name: 'Basmati Rice', category: 'Groceries', image: 'Rice', options: [{ label: '1kg', price: 85 }, { label: '2kg', price: 160 }, { label: '5kg', price: 380 }] },
+        { id: 'P002', name: 'Toor Dal', category: 'Groceries', image: 'Dal', options: [{ label: '500g', price: 65 }, { label: '1kg', price: 120 }, { label: '2kg', price: 230 }] },
+        { id: 'P003', name: 'Refined Oil', category: 'Groceries', image: 'Oil', options: [{ label: '500ml', price: 80 }, { label: '1L', price: 155 }, { label: '5L', price: 750 }] },
+        { id: 'P004', name: 'Amul Butter', category: 'Dairy', image: 'Butter', options: [{ label: '100g', price: 60 }, { label: '500g', price: 275 }] },
+        { id: 'P005', name: 'Milk', category: 'Dairy', image: 'Milk', options: [{ label: '500ml', price: 32 }, { label: '1L', price: 60 }] },
+        { id: 'P006', name: 'Bread Loaf', category: 'Snacks', image: 'Bread', options: [{ label: 'Regular', price: 45 }, { label: 'Family Pack', price: 80 }] },
+        { id: 'P007', name: 'Maggi Noodles', category: 'Snacks', image: 'Noodles', options: [{ label: 'Single', price: 14 }, { label: 'Pack of 4', price: 54 }, { label: 'Pack of 12', price: 168 }] },
+        { id: 'P008', name: 'Tea Powder', category: 'Beverages', image: 'Tea', options: [{ label: '250g', price: 160 }, { label: '500g', price: 310 }] },
+        { id: 'P009', name: 'Coffee Jar', category: 'Beverages', image: 'Coffee', options: [{ label: '50g', price: 95 }, { label: '100g', price: 180 }] },
+        { id: 'P010', name: 'Atta Flour', category: 'Groceries', image: 'Atta', options: [{ label: '1kg', price: 52 }, { label: '5kg', price: 248 }, { label: '10kg', price: 470 }] },
+        { id: 'P011', name: 'Sugar', category: 'Groceries', image: 'Sugar', options: [{ label: '1kg', price: 48 }, { label: '5kg', price: 232 }] },
+        { id: 'P012', name: 'Paneer', category: 'Dairy', image: 'Paneer', options: [{ label: '200g', price: 78 }, { label: '500g', price: 185 }] },
+        { id: 'P013', name: 'Curd Cup', category: 'Dairy', image: 'Curd', options: [{ label: '200g', price: 26 }, { label: '400g', price: 48 }] },
+        { id: 'P014', name: 'Potato Chips', category: 'Snacks', image: 'Chips', options: [{ label: 'Classic', price: 20 }, { label: 'Party Pack', price: 55 }] },
+        { id: 'P015', name: 'Biscuits', category: 'Snacks', image: 'Biscuits', options: [{ label: 'Single Pack', price: 12 }, { label: 'Value Pack', price: 45 }] },
+        { id: 'P016', name: 'Orange Juice', category: 'Beverages', image: 'Juice', options: [{ label: '500ml', price: 42 }, { label: '1L', price: 78 }] },
+        { id: 'P017', name: 'Mineral Water', category: 'Beverages', image: 'Water', options: [{ label: '1L', price: 20 }, { label: '2L', price: 32 }, { label: 'Box of 12', price: 210 }] },
+        { id: 'P018', name: 'Bath Soap', category: 'Home Care', image: 'Soap', options: [{ label: 'Single', price: 34 }, { label: 'Pack of 4', price: 128 }] },
+        { id: 'P019', name: 'Dishwash Liquid', category: 'Home Care', image: 'Dishwash', options: [{ label: '250ml', price: 58 }, { label: '500ml', price: 105 }] },
+        { id: 'P020', name: 'Detergent Powder', category: 'Home Care', image: 'Detergent', options: [{ label: '1kg', price: 96 }, { label: '3kg', price: 268 }] }
     ];
 
     const DEFAULT_PROMOS = {
@@ -38,6 +50,23 @@ const DataStore = (() => {
 
     function clone(value) {
         return JSON.parse(JSON.stringify(value));
+    }
+
+    function mergeCatalogProducts(preferredRows, fallbackRows) {
+        const map = new Map();
+        (Array.isArray(fallbackRows) ? fallbackRows : []).forEach(item => {
+            if (!item || typeof item !== 'object') return;
+            const key = String(item.id || '').trim();
+            if (!key) return;
+            map.set(key, clone(item));
+        });
+        (Array.isArray(preferredRows) ? preferredRows : []).forEach(item => {
+            if (!item || typeof item !== 'object') return;
+            const key = String(item.id || '').trim();
+            if (!key) return;
+            map.set(key, { ...(map.get(key) || {}), ...clone(item) });
+        });
+        return Array.from(map.values());
     }
 
     function loadStoredValue(key, fallback, expectArray) {
@@ -58,6 +87,10 @@ const DataStore = (() => {
 
     function normalizePhone(value) {
         return String(value || '').replace(/\D/g, '').slice(0, 10);
+    }
+
+    function normalizeRoleKey(role) {
+        return String(role || '').toLowerCase().replace(/\s+/g, '');
     }
 
     function saveCustomers() {
@@ -104,6 +137,84 @@ const DataStore = (() => {
         return `${now.getDate()} ${months[now.getMonth()]} ${hh}:${mm}`;
     }
 
+    function appendCustomerSessionNotifications(order, businessContext) {
+        const roleKey = normalizeRoleKey(localStorage.getItem('userRole'));
+        if (roleKey !== 'customer') return;
+
+        let notifications = [];
+        try {
+            const raw = sessionStorage.getItem(CUSTOMER_SESSION_NOTIFICATION_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                notifications = Array.isArray(parsed) ? parsed : [];
+            }
+        } catch (err) {
+            notifications = [];
+        }
+
+        const timestamp = Date.now();
+        const timeLabel = formatOrderMoment();
+        const safeBusinessName = String(businessContext && businessContext.name || 'BillBhai').trim() || 'BillBhai';
+        const nextNotifications = [
+            {
+                id: `customer-order-${order.id}`,
+                category: 'orders',
+                priority: 'medium',
+                title: `${order.id} created`,
+                desc: `Your self-checkout order at ${safeBusinessName} is set to ${order.checkoutMode === 'takeaway_now' ? 'take away now' : (order.checkoutMode === 'cod_delivery' ? 'cash on delivery' : 'prepaid delivery')}.`,
+                time: timeLabel,
+                sortTimeMs: timestamp,
+                detailRows: [
+                    { label: 'Business', value: safeBusinessName },
+                    { label: 'Order', value: order.id },
+                    { label: 'Customer', value: order.customer || '-' },
+                    { label: 'Total', value: `Rs ${Math.max(0, Number(order.total || 0)).toLocaleString()}` },
+                    { label: 'Delivery Option', value: order.deliveryOption || 'pickup' },
+                    { label: 'Payment', value: order.paymentMethod || 'Pending' }
+                ]
+            },
+            {
+                id: `customer-payment-${order.id}`,
+                category: 'payments',
+                priority: 'high',
+                title: `Payment pending for ${order.id}`,
+                desc: order.paymentMethod === 'COD'
+                    ? `Payment of Rs ${Math.max(0, Number(order.total || 0)).toLocaleString()} will be collected on delivery.`
+                    : `Checkout mode recorded as ${order.paymentMethod || 'Pending'} for Rs ${Math.max(0, Number(order.total || 0)).toLocaleString()}.`,
+                time: timeLabel,
+                sortTimeMs: timestamp - 1,
+                detailRows: [
+                    { label: 'Order', value: order.id },
+                    { label: 'Amount', value: `Rs ${Math.max(0, Number(order.total || 0)).toLocaleString()}` },
+                    { label: 'Status', value: order.paymentMethod || 'Pending' }
+                ]
+            }
+        ];
+
+        if (String(order && order.deliveryOption || '').toLowerCase() === 'delivery') {
+            nextNotifications.push({
+                id: `customer-delivery-${order.id}`,
+                category: 'delivery',
+                priority: 'medium',
+                title: `Delivery queued for ${order.id}`,
+                desc: `${order.deliveryPartner || 'Store team'} will coordinate delivery to ${order.address || 'your saved address'}.`,
+                time: timeLabel,
+                sortTimeMs: timestamp - 2,
+                detailRows: [
+                    { label: 'Order', value: order.id },
+                    { label: 'Delivery Partner', value: order.deliveryPartner || 'Pending assignment' },
+                    { label: 'Partner Phone', value: order.deliveryPartnerPhone || '-' },
+                    { label: 'Address', value: order.address || '-' }
+                ]
+            });
+        }
+
+        sessionStorage.setItem(
+            CUSTOMER_SESSION_NOTIFICATION_KEY,
+            JSON.stringify([...nextNotifications, ...notifications].slice(0, 25))
+        );
+    }
+
     function getNextDeliveryId(rows) {
         const numbers = (Array.isArray(rows) ? rows : [])
             .map(item => parseInt(String(item && item.id || '').replace(/[^\d]/g, ''), 10))
@@ -140,7 +251,7 @@ const DataStore = (() => {
             if (!parsed || typeof parsed !== 'object') return;
 
             if (Array.isArray(parsed.catalog) && parsed.catalog.length) {
-                catalog = clone(parsed.catalog);
+                catalog = mergeCatalogProducts(parsed.catalog, DEFAULT_CATALOG);
             }
 
             if (parsed.promos && typeof parsed.promos === 'object' && !Array.isArray(parsed.promos)) {
@@ -348,9 +459,17 @@ const DataStore = (() => {
     }
 
     function createOrder(customerData, cartItems, discountApplied) {
-        const deliveryOption = String(customerData && customerData.deliveryOption || 'pickup').toLowerCase() === 'delivery'
+        const businessContext = resolveBusinessContext();
+        const checkoutMode = String(customerData && customerData.checkoutMode || '').trim().toLowerCase();
+        const deliveryOption = checkoutMode === 'prepaid_delivery' || checkoutMode === 'cod_delivery'
             ? 'delivery'
-            : 'pickup';
+            : (String(customerData && customerData.deliveryOption || 'pickup').toLowerCase() === 'delivery' ? 'delivery' : 'pickup');
+        const paymentMethod = checkoutMode === 'prepaid_delivery'
+            ? 'Paid Upfront'
+            : (checkoutMode === 'cod_delivery' ? 'COD' : (String(customerData && customerData.paymentMethod || 'Counter Paid').trim() || 'Counter Paid'));
+        const orderStatus = checkoutMode === 'takeaway_now'
+            ? 'Delivered'
+            : (String(customerData && customerData.orderStatus || 'Processing').trim() || 'Processing');
         const order = {
             id: generateId(),
             customer: String(customerData && customerData.name || '').trim(),
@@ -358,6 +477,7 @@ const DataStore = (() => {
             email: String(customerData && customerData.email || '').trim(),
             address: String(customerData && customerData.address || '').trim(),
             notes: String(customerData && customerData.notes || '').trim(),
+            checkoutMode: checkoutMode || (deliveryOption === 'delivery' ? 'prepaid_delivery' : 'takeaway_now'),
             deliveryOption,
             deliveryPartner: String(customerData && customerData.deliveryPartner || '').trim(),
             deliveryPartnerPhone: String(customerData && customerData.deliveryPartnerPhone || '').trim(),
@@ -371,8 +491,8 @@ const DataStore = (() => {
             discount: discountApplied.active ? discountApplied.discount : 0,
             promoCode: discountApplied.active ? discountApplied.code : null,
             total: 0,
-            status: 'Processing',
-            paymentMethod: 'Pending',
+            status: orderStatus,
+            paymentMethod,
             date: new Date().toISOString()
         };
 
@@ -386,15 +506,22 @@ const DataStore = (() => {
         saveOrders();
         upsertCustomerProfile(order);
         syncOperationalData(order, cartItems);
+        appendCustomerSessionNotifications(order, businessContext);
         return order;
     }
 
     function getSessionContext() {
         const businessContext = resolveBusinessContext();
+        const roleKey = normalizeRoleKey(localStorage.getItem('userRole') || 'cashier') || 'cashier';
+        const isCustomerTerminal = roleKey === 'customer';
+        const storedName = String(localStorage.getItem('userName') || '').trim();
         return {
             businessId: businessContext.id,
             businessName: businessContext.name,
-            userName: String(localStorage.getItem('userName') || 'Cashier').trim() || 'Cashier'
+            userName: storedName || (isCustomerTerminal ? 'Self Checkout' : 'Cashier'),
+            roleKey,
+            roleLabel: isCustomerTerminal ? 'Self Checkout' : (String(localStorage.getItem('userRole') || 'Cashier').trim() || 'Cashier'),
+            isCustomerTerminal
         };
     }
 

@@ -38,8 +38,8 @@
                     </div>
                     <div class="dropdown-menu" id="userDropdown">
                         <div class="dropdown-header">
-                            <strong>Cashier</strong>
-                            <div class="text-sm text-muted">Counter Terminal 1</div>
+                            <strong id="terminalDropdownTitle">Cashier</strong>
+                            <div class="text-sm text-muted" id="terminalDropdownSubtitle">Counter Terminal 1</div>
                         </div>
 
                         <a href="login.html" class="dropdown-item text-danger">
@@ -56,8 +56,8 @@
             <!-- STEP 1: Customer Info -->
             <div id="step-1-customer" class="step-container active">
                 <div class="wizard-centered">
-                    <h3>Start New Order</h3>
-                    <p class="text-muted" style="margin-bottom:20px; font-size: 0.9rem;">Capture customer details first. Existing customers auto-fill when you enter their phone number.</p>
+                    <h3 id="checkoutStepTitle">Start New Order</h3>
+                    <p class="text-muted" id="checkoutStepSubtitle" style="margin-bottom:20px; font-size: 0.9rem;">Capture customer details first. Existing customers auto-fill when you enter their phone number.</p>
                     <form id="customerForm" novalidate>
                         <div id="customerLookupHint" class="text-sm text-muted" style="margin-bottom:12px;">Enter a 10-digit phone number to check existing customer records.</div>
                         <div class="form-row">
@@ -107,7 +107,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Begin Scanning / Manual Entry</button>
+                        <button type="submit" class="btn btn-primary" id="customerStepSubmitBtn" style="width:100%; justify-content:center;">Begin Scanning / Manual Entry</button>
                     </form>
                 </div>
             </div>
@@ -169,6 +169,30 @@
                                 <span>Grand Total</span>
                                 <span id="totSpan">₹0.00</span>
                             </div>
+                            <div class="checkout-mode-block">
+                                <div class="checkout-mode-header">
+                                    <strong id="checkoutModeHeading">How should this order go out?</strong>
+                                    <span class="text-muted text-sm">Choose payment and fulfillment before confirmation.</span>
+                                </div>
+                                <div class="checkout-mode-grid" id="checkoutModeGrid">
+                                    <label class="checkout-mode-card active">
+                                        <input type="radio" name="checkoutMode" value="takeaway_now" checked>
+                                        <span class="checkout-mode-title">Take Away Now</span>
+                                        <span class="checkout-mode-copy">Hand over immediately at the counter.</span>
+                                    </label>
+                                    <label class="checkout-mode-card">
+                                        <input type="radio" name="checkoutMode" value="prepaid_delivery">
+                                        <span class="checkout-mode-title">Delivery + Pay Upfront</span>
+                                        <span class="checkout-mode-copy">Collect payment now and dispatch for delivery.</span>
+                                    </label>
+                                    <label class="checkout-mode-card">
+                                        <input type="radio" name="checkoutMode" value="cod_delivery">
+                                        <span class="checkout-mode-title">Delivery + COD</span>
+                                        <span class="checkout-mode-copy">Dispatch now and collect cash on delivery.</span>
+                                    </label>
+                                </div>
+                                <div id="checkoutModeError" class="text-sm" style="color:var(--red); min-height:18px;"></div>
+                            </div>
                             <br>
                             <button id="btnCheckout" class="btn btn-primary" style="width:100%; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);" disabled>
                                 Proceed to Payment Gateway
@@ -185,10 +209,11 @@
                     <div class="success-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     </div>
-                    <h3>Routing to Gateway...</h3>
-                    <p class="text-muted" style="margin-bottom:30px; font-size: 0.95rem;">
+                    <h3 id="paymentStepTitle">Routing to Gateway...</h3>
+                    <p class="text-muted" id="paymentStepSubtitle" style="margin-bottom:30px; font-size: 0.95rem;">
                         The payload has been sent successfully. The user chooses Card, UPI, etc., on their device/interface. Webhook triggers upon completion.
                     </p>
+                    <div id="paymentOutcomeSummary" class="checkout-summary-card" style="display:none;"></div>
                     <button class="btn btn-primary" id="btnResetFlow" style="justify-content:center;">
                         Next Customer (Reset POS)
                     </button>

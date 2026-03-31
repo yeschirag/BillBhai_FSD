@@ -222,6 +222,56 @@ body.no-sidebar .main-content {
 .cf-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
 .cf-tot { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-weight: 700; font-size: 1.2rem; color: var(--accent); }
 
+.checkout-mode-block {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.checkout-mode-header {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.checkout-mode-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.checkout-mode-card {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: border-color var(--t), transform var(--t), background var(--t);
+}
+
+.checkout-mode-card input {
+    display: none;
+}
+
+.checkout-mode-card.active {
+    border-color: var(--accent);
+    background: rgba(220, 53, 69, 0.1);
+    transform: translateY(-1px);
+}
+
+.checkout-mode-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-heading, #fff);
+}
+
+.checkout-mode-copy {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
 .promo-block { display: flex; gap: 8px; margin-bottom: 16px; }
 .promo-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.8rem; background: var(--bg-body); color: #fff; }
 
@@ -269,6 +319,34 @@ body.no-sidebar .main-content {
 }
 .success-icon {
     width: 60px; height: 60px; border-radius: 50%; background: var(--green-bg); display: flex; align-items: center; justify-content: center; color: var(--green); margin: 0 auto 20px auto;
+}
+
+.checkout-summary-card {
+    display: grid;
+    gap: 10px;
+    margin: 0 auto 24px auto;
+    padding: 16px 18px;
+    max-width: 420px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-body);
+    text-align: left;
+}
+
+.checkout-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.9rem;
+}
+
+.checkout-summary-row span {
+    color: var(--text-muted);
+}
+
+.checkout-summary-row strong {
+    color: var(--text-heading, #fff);
+    text-align: right;
 }
 
 /* ── Context Menu (Quantity Selection) ── */

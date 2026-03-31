@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (r === 'returnhandler') return 'returns.html';
         if (r === 'inventorymanager') return 'inventory.html';
         if (r === 'deliveryops') return 'delivery.html';
-        if (r === 'customer') return 'profile.html';
+        if (r === 'customer') return 'cashier.html';
         return 'dashboard.html';
     }
 
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Tenant context:
         // - Operational roles are scoped to exactly one business.
         // - Super User chooses a business from the portal when needed.
-        const businessScopedRoles = ['admin', 'cashier', 'inventorymanager', 'deliveryops', 'returnhandler'];
+        const businessScopedRoles = ['admin', 'cashier', 'inventorymanager', 'deliveryops', 'returnhandler', 'customer'];
         if (businessScopedRoles.includes(normalizedRole)) {
             localStorage.setItem('activeBusinessId', resolveScopedBusinessId());
             localStorage.removeItem('activeBusinessName');
@@ -215,6 +215,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             name: userRecord.name,
             role: normalizedRole
         }));
+
+        if (normalizedRole === 'customer') {
+            sessionStorage.setItem('bb_customer_session_id', `customer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+            sessionStorage.setItem('bb_customer_session_notifications', '[]');
+        } else {
+            sessionStorage.removeItem('bb_customer_session_id');
+            sessionStorage.removeItem('bb_customer_session_notifications');
+        }
 
         btnLogin.classList.add('loading'); btnLogin.disabled = true;
         setTimeout(() => {
