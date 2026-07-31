@@ -5,12 +5,12 @@ function getActiveRole() {
     const rawUser = localStorage.getItem('currentUser')
     if (rawUser) {
       const user = JSON.parse(rawUser)
-      if (user?.role) return user.role
+      if (user?.role) return String(user.role).trim().toLowerCase().replace(/\s+/g, '')
     }
   } catch {
     // fallback
   }
-  return localStorage.getItem('userRole') || 'customer'
+  return String(localStorage.getItem('userRole') || 'customer').trim().toLowerCase().replace(/\s+/g, '')
 }
 
 export async function request(path, options = {}) {
@@ -21,6 +21,7 @@ export async function request(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     'x-role': activeRole,
+    Authorization: `Bearer ${activeRole}`,
     ...(options.headers || {}),
   }
 

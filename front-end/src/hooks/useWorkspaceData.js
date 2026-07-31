@@ -61,17 +61,22 @@ export function useWorkspaceData() {
   }, [])
 
   const mutateWorkspace = async (updater) => {
-    const snapshot = await loadWorkspaceState()
-    const draft = typeof structuredClone === 'function'
-      ? structuredClone(snapshot)
-      : JSON.parse(JSON.stringify(snapshot))
+    try {
+      const snapshot = await loadWorkspaceState()
+      const draft = typeof structuredClone === 'function'
+        ? structuredClone(snapshot)
+        : JSON.parse(JSON.stringify(snapshot))
 
-    const result = await updater(draft)
-    persistWorkspaceState(draft)
+      const result = await updater(draft)
+      persistWorkspaceState(draft)
 
-    const nextState = await loadWorkspaceState()
-    setState(nextState)
-    return result
+      const nextState = await loadWorkspaceState()
+      setState(nextState)
+      return result
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update workspace state.')
+      return null
+    }
   }
 
   return {

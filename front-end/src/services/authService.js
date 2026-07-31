@@ -213,9 +213,10 @@ export function getStoredCurrentUser() {
     const username = String(parsed.username || '').trim()
     const name = String(parsed.name || '').trim()
     const role = roleToKey(parsed.role)
+    const companyId = String(parsed.companyId || '').trim()
 
     if (!username || !name) return null
-    return { username, name, role }
+    return { username, name, role, companyId: companyId || undefined }
   } catch {
     return null
   }
@@ -242,9 +243,10 @@ export async function authenticateUser(identity, password) {
         username: String(remoteUser.username || resolvedUsername).trim(),
         name: String(remoteUser.name || remoteUser.username || resolvedUsername).trim(),
         role: normalizedRole,
+        companyId: String(remoteUser.companyId || '').trim() || undefined,
       }
 
-      localStorage.setItem('userRole', String(remoteUser.role || normalizedRole))
+      localStorage.setItem('userRole', normalizedRole)
       localStorage.setItem('userName', currentUser.name)
       localStorage.setItem('currentUser', JSON.stringify(currentUser))
       if (remoteUser.companyId) {
@@ -304,6 +306,7 @@ export async function authenticateUser(identity, password) {
     username: userKey,
     name: userRecord.name,
     role: normalizedRole,
+    companyId: normalizedRole === 'superuser' ? undefined : await resolveScopedBusinessId(),
   }
 
   localStorage.setItem('currentUser', JSON.stringify(currentUser))

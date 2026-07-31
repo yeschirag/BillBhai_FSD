@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth.js'
+import { routeByRolePath } from '../services/authService.js'
 
 function LoginPage() {
   const navigate = useNavigate()
-  const { signIn } = useAuth()
+  const { user, signIn } = useAuth()
 
   const [identity, setIdentity] = useState('')
   const [password, setPassword] = useState('')
@@ -36,6 +37,10 @@ function LoginPage() {
     return () => window.clearTimeout(timer)
   }, [])
 
+  if (user) {
+    return <Navigate to={routeByRolePath(user.role)} replace />
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
@@ -46,17 +51,20 @@ function LoginPage() {
     }
 
     setIsSubmitting(true)
-    const result = await signIn(identity, password)
+    try {
+      const result = await signIn(identity, password)
 
-    if (!result.ok) {
-      setIsSubmitting(false)
-      setError(result.error)
-      return
-    }
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
 
-    window.setTimeout(() => {
       navigate(result.redirectPath, { replace: true })
-    }, 700)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign in right now.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -133,7 +141,7 @@ function LoginPage() {
               {error}
             </p>
 
-            <button type="submit" className={`btn-login ${isSubmitting ? 'loading' : ''}`} id="btnLogin">
+            <button type="submit" className={`btn-login ${isSubmitting ? 'loading' : ''}`} id="btnLogin" disabled={isSubmitting}>
               <span className="btn-text">{isSubmitting ? 'Signing In...' : 'Sign In'}</span>
               <span className="btn-loader">
                 <svg className="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle></svg>

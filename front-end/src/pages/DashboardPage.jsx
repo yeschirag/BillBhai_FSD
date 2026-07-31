@@ -28,18 +28,31 @@ ChartJS.register(
 function DashboardPage() {
   const [snapshot, setSnapshot] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let isMounted = true
 
     const loadData = async () => {
       setIsLoading(true)
-      const data = await getActiveBusinessDashboardData()
-      const nextSnapshot = buildDashboardSnapshot(data)
+      setError('')
 
-      if (isMounted) {
-        setSnapshot(nextSnapshot)
-        setIsLoading(false)
+      try {
+        const data = await getActiveBusinessDashboardData()
+        const nextSnapshot = buildDashboardSnapshot(data)
+
+        if (isMounted) {
+          setSnapshot(nextSnapshot)
+        }
+      } catch (err) {
+        if (isMounted) {
+          setSnapshot(null)
+          setError(err instanceof Error ? err.message : 'Dashboard data could not be loaded.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
@@ -86,6 +99,10 @@ function DashboardPage() {
 
   if (isLoading) {
     return <section className="card"><div className="card-bd">Loading dashboard...</div></section>
+  }
+
+  if (error) {
+    return <section className="card"><div className="card-bd">{error}</div></section>
   }
 
   if (!snapshot) {

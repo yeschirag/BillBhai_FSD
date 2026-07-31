@@ -1,4 +1,5 @@
 import { apiProvider } from '../api/index.js'
+import { localProvider } from '../api/providers/localProvider.js'
 
 const BUSINESSES_STORAGE_KEY = 'bb_businesses'
 const BUSINESS_DATA_STORAGE_KEY = 'bb_business_data'
@@ -38,6 +39,35 @@ function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+async function fetchJsonWithTimeout(path) {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null
+  let timeoutId
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      if (controller) controller.abort()
+      reject(new Error('Request timed out'))
+    }, 7000)
+  })
+
+  try {
+    const response = await Promise.race([
+      fetch(path, {
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined,
+      }),
+      timeoutPromise,
+    ])
+
+    if (!response.ok) return null
+    return await response.json()
+  } catch {
+    return null
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 function normalizeBusinessRecord(record) {
   return {
     id: String(record?.id || '').trim(),
@@ -46,7 +76,7 @@ function normalizeBusinessRecord(record) {
     adminName: String(record?.adminName || 'Unassigned').trim() || 'Unassigned',
     type: String(record?.type || 'Retail').trim() || 'Retail',
     email: String(record?.email || '').trim(),
-    phone: String(record?.phone || '').trim(),
+    phone: String(record?.phone || record?.mobileNo || '').trim(),
     status: String(record?.status || 'Active').trim() || 'Active',
     productsPlan: String(record?.productsPlan || record?.type || 'Core POS').trim() || 'Core POS',
     tenureMonths: Number(record?.tenureMonths || 0),
@@ -68,6 +98,7 @@ function normalizeTeamMember(record) {
     email: String(record?.email || '').trim(),
     role: String(record?.role || 'Cashier').trim() || 'Cashier',
     status: String(record?.status || 'Active').trim() || 'Active',
+    phone: String(record?.phone || record?.mobileNo || '').trim(),
   }
 }
 
@@ -88,60 +119,62 @@ function normalizePaymentRecord(record) {
 }
 
 function normalizeOrderRecord(order) {
+  const items = Array.isArray(order?.items) ? order.items : []
   return {
     id: String(order?.id || '').trim(),
-    customer: String(order?.customer || 'Walk-in').trim() || 'Walk-in',
-    items: Number(order?.items || 1),
+    customer: String(order?.customer || order?.customerName || 'Walk-in').trim() || 'Walk-in',
+    items: Number(order?.items || items.length || 1),
     total: Number(order?.total || 0),
     payment: String(order?.payment || order?.paymentMethod || 'Pending').trim() || 'Pending',
     status: String(order?.status || 'Pending').trim() || 'Pending',
-    date: String(order?.date || formatTimestamp()).trim() || formatTimestamp(),
+    date: String(order?.date || order?.orderDate || formatTimestamp()).trim() || formatTimestamp(),
     phone: String(order?.phone || '').trim(),
     email: String(order?.email || '').trim(),
-    address: String(order?.address || '').trim(),
+    address: String(order?.address || order?.customerAddress || '').trim(),
     notes: String(order?.notes || '').trim(),
-    deliveryOption: String(order?.deliveryOption || 'pickup').trim() || 'pickup',
+    deliveryOption: String(order?.deliveryOption || order?.orderType || 'pickup').trim() || 'pickup',
     deliveryPartner: String(order?.deliveryPartner || '').trim(),
     deliveryPartnerPhone: String(order?.deliveryPartnerPhone || '').trim(),
   }
 }
 
 function normalizeInventoryRecord(item) {
+  const stockValue = Number(item?.stock || item?.stockAvailable || 0)
   return {
-    sku: String(item?.sku || '').trim(),
-    name: String(item?.name || 'Unnamed Item').trim() || 'Unnamed Item',
+    sku: String(item?.sku || item?.id || item?.productId || '').trim(),
+    name: String(item?.name || item?.productName || item?.productId || 'Unnamed Item').trim() || 'Unnamed Item',
     cat: String(item?.cat || item?.category || 'General').trim() || 'General',
-    supplier: String(item?.supplier || 'Unassigned').trim() || 'Unassigned',
-    stock: Number(item?.stock || 0),
+    supplier: String(item?.supplier || item?.supplierId || 'Unassigned').trim() || 'Unassigned',
+    stock: stockValue,
     price: Number(item?.price || 0),
-    status: String(item?.status || deriveInventoryStatus(item?.stock)).trim() || 'In Stock',
+    status: String(item?.status || deriveInventoryStatus(stockValue)).trim() || 'In Stock',
   }
 }
 
 function normalizeDeliveryRecord(item) {
   return {
     id: String(item?.id || '').trim(),
-    oid: String(item?.oid || '').trim(),
-    customer: String(item?.customer || '').trim(),
+    oid: String(item?.oid || item?.orderId || '').trim(),
+    customer: String(item?.customer || item?.customerName || '').trim(),
     address: String(item?.address || '').trim(),
-    partner: String(item?.partner || '').trim(),
+    partner: String(item?.partner || item?.partnerName || '').trim(),
     partnerPhone: String(item?.partnerPhone || '').trim(),
     status: String(item?.status || 'Pending').trim() || 'Pending',
     etaMin: item?.etaMin === null || typeof item?.etaMin === 'undefined' ? null : Number(item.etaMin),
-    time: String(item?.time || '').trim(),
-    updatedAt: String(item?.updatedAt || item?.time || formatTimestamp()).trim() || formatTimestamp(),
+    time: String(item?.time || item?.dispatchDate || '').trim(),
+    updatedAt: String(item?.updatedAt || item?.deliveryDate || item?.dispatchDate || formatTimestamp()).trim() || formatTimestamp(),
   }
 }
 
 function normalizeReturnRecord(item) {
   return {
     id: String(item?.id || '').trim(),
-    oid: String(item?.oid || '').trim(),
-    reason: String(item?.reason || 'Return requested').trim() || 'Return requested',
-    amount: Number(item?.amount || 0),
+    oid: String(item?.oid || item?.orderId || '').trim(),
+    reason: String(item?.reason || item?.product || 'Return requested').trim() || 'Return requested',
+    amount: Number(item?.amount || item?.refundAmount || 0),
     status: String(item?.status || 'Pending').trim() || 'Pending',
     requestedBy: String(item?.requestedBy || 'Customer').trim() || 'Customer',
-    updatedAt: String(item?.updatedAt || formatTimestamp()).trim() || formatTimestamp(),
+    updatedAt: String(item?.updatedAt || item?.returnDate || formatTimestamp()).trim() || formatTimestamp(),
   }
 }
 
@@ -225,28 +258,43 @@ function ensureBusinessDataEntries(businesses, dataByBusiness) {
 
 async function seedBusinesses() {
   const stored = readJson(BUSINESSES_STORAGE_KEY, [])
-  if (Array.isArray(stored) && stored.length) {
-    return stored.map((item) => normalizeBusinessRecord(item))
-  }
+  const normalizedStored = Array.isArray(stored) ? stored.map((item) => normalizeBusinessRecord(item)) : []
 
-  const seeded = await apiProvider.getBusinesses()
-  const normalized = Array.isArray(seeded)
-    ? seeded.map((item) => normalizeBusinessRecord(item))
+  const remoteBusinesses = await apiProvider.getBusinesses()
+  const remoteNormalized = Array.isArray(remoteBusinesses)
+    ? remoteBusinesses.map((item) => normalizeBusinessRecord(item))
     : []
-  writeJson(BUSINESSES_STORAGE_KEY, normalized)
-  return normalized
+  const fallbackBusinesses = remoteNormalized.length
+    ? remoteNormalized
+    : (await localProvider.getBusinesses())?.map((item) => normalizeBusinessRecord(item)) || []
+
+  const merged = [...fallbackBusinesses]
+  normalizedStored.forEach((storedBusiness) => {
+    const index = merged.findIndex((item) => item.id === storedBusiness.id)
+    if (index >= 0) {
+      merged[index] = { ...merged[index], ...storedBusiness }
+    } else {
+      merged.push(storedBusiness)
+    }
+  })
+
+  writeJson(BUSINESSES_STORAGE_KEY, merged)
+  return merged
 }
 
 async function seedBusinessData() {
   const stored = readJson(BUSINESS_DATA_STORAGE_KEY, null)
-  if (stored && typeof stored === 'object' && !Array.isArray(stored) && Object.keys(stored).length) {
-    return normalizeBusinessDataMap(stored)
-  }
+  const normalizedStored = normalizeBusinessDataMap(stored)
 
-  const seeded = await apiProvider.getBusinessData()
-  const normalized = normalizeBusinessDataMap(seeded)
-  writeJson(BUSINESS_DATA_STORAGE_KEY, normalized)
-  return normalized
+  const remoteSeeded = await apiProvider.getBusinessData()
+  const remoteNormalized = normalizeBusinessDataMap(remoteSeeded)
+  const fallbackSeeded = Object.keys(remoteNormalized).length
+    ? remoteNormalized
+    : normalizeBusinessDataMap(await localProvider.getBusinessData())
+
+  const merged = { ...fallbackSeeded, ...normalizedStored }
+  writeJson(BUSINESS_DATA_STORAGE_KEY, merged)
+  return merged
 }
 
 async function seedNotifications() {
@@ -255,8 +303,7 @@ async function seedNotifications() {
     return stored.map((item) => normalizeNotificationRecord(item))
   }
 
-  const response = await fetch('/data/notifications.json', { cache: 'no-store' })
-  const seeded = response.ok ? await response.json() : []
+  const seeded = (await fetchJsonWithTimeout('/data/notifications.json')) || []
   const normalized = Array.isArray(seeded)
     ? seeded.map((item) => normalizeNotificationRecord(item))
     : []
@@ -265,12 +312,11 @@ async function seedNotifications() {
 }
 
 async function seedCashierData() {
-  const response = await fetch('/data/cashier_data.json', { cache: 'no-store' })
-  if (!response.ok) {
+  const parsed = await fetchJsonWithTimeout('/data/cashier_data.json')
+  if (!parsed || typeof parsed !== 'object') {
     return { catalog: [], promos: {}, settings: { deliveryCharge: 0 } }
   }
 
-  const parsed = await response.json()
   return {
     catalog: Array.isArray(parsed?.catalog) ? parsed.catalog : [],
     promos: parsed?.promos && typeof parsed.promos === 'object' ? parsed.promos : {},

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 function RegisterBusinessPage() {
-  const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -53,13 +52,8 @@ function RegisterBusinessPage() {
     }
 
     setIsSubmitting(true)
-    // Simulate submission delay
-    await new Promise((resolve) => setTimeout(resolve, 1200))
-    setIsSubmitting(false)
     setSubmitted(true)
-
-    // Redirect to login after 2 seconds
-    setTimeout(() => navigate('/login'), 2000)
+    setIsSubmitting(false)
   }
 
   if (submitted) {
@@ -73,7 +67,7 @@ function RegisterBusinessPage() {
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>✅</div>
             <h2 style={{ color: 'var(--text-primary)', marginBottom: '12px' }}>Registration Successful!</h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              Your business has been registered. Redirecting to login...
+              Your business has been registered. You can sign in now.
             </p>
             <Link to="/login" className="btn btn-primary">Sign In Now</Link>
           </div>

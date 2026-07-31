@@ -34,12 +34,20 @@ function AppRoot() {
 }
 
 function App() {
+  const { user } = useAuth()
+
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<AppRoot />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register-business" element={<RegisterBusinessPage />} />
+      <Route
+        path="/login"
+        element={user ? <Navigate to={routeByRolePath(user.role)} replace /> : <LoginPage />}
+      />
+      <Route
+        path="/register-business"
+        element={user ? <Navigate to={routeByRolePath(user.role)} replace /> : <RegisterBusinessPage />}
+      />
 
       {/* Cashier — standalone (no sidebar layout) */}
       <Route
