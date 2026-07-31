@@ -23,7 +23,10 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api', {
-    exclude: [{ path: '', method: RequestMethod.GET }],
+    exclude: [
+      { path: '', method: RequestMethod.GET },
+      { path: 'health', method: RequestMethod.GET }
+    ],
   });
 
   // 1. Enable CORS: This allows your frontend (HTML/JS files)
@@ -63,12 +66,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // 4. Start the server on port 3000
-  await app.listen(3000);
+  // 4. Start the server
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
   console.log('----------------------------------------------------');
-  console.log('BillBhai Backend is running on: http://localhost:3000');
-  console.log('Swagger Docs available at: http://localhost:3000/api');
-  console.log('API prefix: http://localhost:3000/api');
+  console.log(`BillBhai Backend is running on: http://localhost:${port}`);
+  console.log(`Swagger Docs available at: http://localhost:${port}/api`);
+  console.log(`API prefix: http://localhost:${port}/api`);
   console.log(
     'Example endpoints: /api/auth/login, /api/products, /api/orders',
   );

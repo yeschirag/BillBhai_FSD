@@ -10,4 +10,14 @@ export class AppController {
   getHello() {
     return { url: '/api', statusCode: 301 };
   }
+
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      application: 'BillBhai Backend',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    };
+  }
 }
