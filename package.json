@@ -1,0 +1,16 @@
+{
+  "name": "billbhai-fsd",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix back-end run start:dev",
+    "dev:frontend": "npm --prefix front-end run dev",
+    "dev": "concurrently -k -n BACKEND,FRONTEND -c cyan,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:backend": "npm --prefix back-end run build",
+    "build:frontend": "npm --prefix front-end run build",
+    "build": "npm run build:backend && npm run build:frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

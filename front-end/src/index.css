@@ -1,0 +1,163 @@
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  display: contents;
+}
+
+.status-card {
+  max-width: 720px;
+  margin: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: #eaeaea;
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.btn-xs {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+.btn-danger {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.workspace-actions-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspace-notification-list {
+  display: grid;
+  gap: 16px;
+}
+
+.workspace-notification {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.workspace-notification.is-unread {
+  border-color: rgba(220, 53, 69, 0.35);
+  box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.12) inset;
+}
+
+.workspace-notification-copy {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-notification-copy p {
+  color: var(--text-secondary);
+}
+
+.workspace-notification-topline,
+.workspace-meta-row,
+.workspace-inline-actions,
+.workspace-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-notification-topline {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.workspace-meta-row {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.workspace-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.workspace-detail-card,
+.workspace-list-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.workspace-detail-card span,
+.workspace-list-card span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.workspace-form-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-list-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-option-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.workspace-qty-row {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px;
+  border-radius: 999px;
+}
+
+.product-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.product-visual {
+  font-size: 2.4rem;
+  text-align: center;
+}
+
+.product-meta {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.product-meta span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .workspace-actions-cell,
+  .workspace-notification,
+  .workspace-notification-topline,
+  .workspace-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

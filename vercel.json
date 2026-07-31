@@ -1,6 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": "front-end/pages",
+  "installCommand": "cd front-end/react-app && npm install",
+  "buildCommand": "cd front-end/react-app && npm run build",
+  "outputDirectory": "front-end/react-app/dist",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
