@@ -120,7 +120,6 @@ function AppLayout() {
     document.title = `BillBhai - ${currentRoute.label || 'Dashboard'}`
     return () => {
       document.body.removeAttribute('data-page')
-      document.body.removeAttribute('data-app-ready')
     }
   }, [currentRoute])
 

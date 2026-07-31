@@ -71,7 +71,6 @@ function CashierPage() {
     document.body.classList.add('no-sidebar')
     return () => {
       document.body.removeAttribute('data-page')
-      document.body.removeAttribute('data-app-ready')
       document.body.classList.remove('no-sidebar')
     }
   }, [])

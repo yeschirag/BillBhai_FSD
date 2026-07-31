@@ -9,8 +9,14 @@ function LandingPage() {
 
   useEffect(() => {
     document.title = 'BillBhai - Smart Billing and Inventory for Modern Businesses'
+    document.body.classList.remove('no-sidebar')
+    document.body.classList.add('landing-page')
     document.body.removeAttribute('data-page')
-    document.body.removeAttribute('data-app-ready')
+    document.body.setAttribute('data-app-ready', 'true')
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    return () => {
+      document.body.classList.remove('landing-page')
+    }
   }, [])
 
   // Navbar scroll effect

@@ -17,7 +17,7 @@ function LoginPage() {
   useEffect(() => {
     document.title = 'BillBhai - Admin Login'
     document.body.removeAttribute('data-page')
-    document.body.removeAttribute('data-app-ready')
+    document.body.setAttribute('data-app-ready', 'true')
   }, [])
 
   useEffect(() => {

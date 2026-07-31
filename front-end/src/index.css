@@ -6,6 +6,17 @@
   display: contents;
 }
 
+body.landing-page {
+  display: block;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body.landing-page #root {
+  display: contents;
+}
+
 .status-card {
   max-width: 720px;
   margin: 16px;

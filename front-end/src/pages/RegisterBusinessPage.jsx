@@ -24,7 +24,7 @@ function RegisterBusinessPage() {
   useEffect(() => {
     document.title = 'BillBhai — Register Your Business'
     document.body.removeAttribute('data-page')
-    document.body.removeAttribute('data-app-ready')
+    document.body.setAttribute('data-app-ready', 'true')
   }, [])
 
   const handleChange = (e) => {
