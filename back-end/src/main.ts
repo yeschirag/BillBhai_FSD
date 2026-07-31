@@ -29,9 +29,15 @@ async function bootstrap() {
   // 1. Enable CORS: This allows your frontend (HTML/JS files)
   // to make requests to this backend server from different origins.
   app.enableCors({
-    origin: '*',
+    origin: [
+      'https://billbhai.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'x-role'], // 'x-role' is essential for RBAC
+    allowedHeaders: ['Content-Type', 'x-role', 'Authorization'], // 'x-role' is essential for RBAC
+    credentials: true,
   });
 
   // 2. Global Validation: Automatically validates incoming data
