@@ -1,8 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import express, { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
-import { Request, Response, NextFunction } from 'express';
 
 /**
  * Main entry point of the BillBhai Backend.
@@ -10,8 +13,13 @@ import { Request, Response, NextFunction } from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Log every request so mutation methods (POST/PUT/DELETE) are visible in backend console.
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  const requestIdMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    const requestId = req.headers['x-request-id'] || `bb-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    res.setHeader('x-request-id', Array.isArray(requestId) ? requestId[0] : requestId);
+    next();
+  };
+
+  const appLogger = (req: Request, res: Response, next: NextFunction) => {
     const startedAt = Date.now();
     res.on('finish', () => {
       const durationMs = Date.now() - startedAt;
@@ -20,31 +28,61 @@ async function bootstrap() {
       );
     });
     next();
+  };
+
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'Too many login attempts. Please try again later.',
+    },
   });
+
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 250,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'Too many requests from this client.',
+    },
+  });
+
+  app.use(helmet({
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: false,
+  }));
+  app.use(
+    cors({
+      origin: [
+        'https://billbhai.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
+        'http://127.0.0.1:3000',
+        'http://localhost:3000',
+      ],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-role'],
+      credentials: true,
+    }),
+  );
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(requestIdMiddleware);
+  app.use(appLogger);
+  app.use('/api/auth', loginLimiter);
+  app.use('/api', apiLimiter);
 
   app.setGlobalPrefix('api', {
     exclude: [
       { path: '', method: RequestMethod.GET },
-      { path: 'health', method: RequestMethod.GET }
+      { path: 'health', method: RequestMethod.GET },
     ],
   });
 
-  // 1. Enable CORS: This allows your frontend (HTML/JS files)
-  // to make requests to this backend server from different origins.
-  app.enableCors({
-    origin: [
-      'https://billbhai.vercel.app',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-    ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'x-role', 'Authorization'], // 'x-role' is essential for RBAC
-    credentials: true,
-  });
-
-  // 2. Global Validation: Automatically validates incoming data
-  // against the rules defined in our DTO files (Data Transfer Objects).
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -53,7 +91,6 @@ async function bootstrap() {
     }),
   );
 
-  // 3. Swagger Setup: Documentation for API testing
   const config = new DocumentBuilder()
     .setTitle('BillBhai API')
     .setDescription(
@@ -66,7 +103,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // 4. Start the server
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log('----------------------------------------------------');

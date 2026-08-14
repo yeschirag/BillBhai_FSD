@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev:backend": "npm --prefix back-end run start:dev",
+    "start": "npm --prefix back-end run start",
+    "start:dev": "npm --prefix back-end run dev",
+    "dev:backend": "npm --prefix back-end run dev",
     "dev:frontend": "npm --prefix front-end run dev",
     "dev": "concurrently -k -n BACKEND,FRONTEND -c cyan,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build:backend": "npm --prefix back-end run build",
+    "build:backend": "node -e \"console.log('Express backend has no build step required')\"",
     "build:frontend": "npm --prefix front-end run build",
     "build": "npm run build:backend && npm run build:frontend"
   },

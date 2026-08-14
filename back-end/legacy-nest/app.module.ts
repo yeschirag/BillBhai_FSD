@@ -12,7 +12,7 @@ import { ReturnsModule } from './modules/returns/returns.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { APP_GUARD } from '@nestjs/core';
-import { RolesGuard } from './common/guards/roles.guard';
+import { AuthJwtGuard } from './common/guards/auth.guard';
 import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
@@ -34,7 +34,7 @@ import { AuthModule } from './modules/auth/auth.module';
     AppService,
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
+      useClass: AuthJwtGuard,
     },
   ],
 })

@@ -43,10 +43,13 @@ async function run() {
   assert(login && login.id, 'Login response missing id');
   assert(login && login.role, 'Login response missing role');
   assert(login && login.companyId, 'Login response missing companyId');
+  assert(login && login.token, 'Login response missing token');
   console.log('Login check passed.');
 
   const products = await request('/products', {
-    headers: { 'x-role': 'cashier' },
+    headers: {
+      Authorization: `Bearer ${login.token}`,
+    },
   });
   assert(Array.isArray(products), 'Products response is not an array');
   assert(products.length > 0, 'Products array is empty');
@@ -72,21 +75,27 @@ async function run() {
 
   const createdOrder = await request('/orders', {
     method: 'POST',
-    headers: { 'x-role': 'cashier' },
+    headers: {
+      Authorization: `Bearer ${login.token}`,
+    },
     body: createOrderPayload,
   });
   assert(createdOrder && createdOrder.id, 'Created order missing id');
   console.log(`Order create check passed (${createdOrder.id}).`);
 
   const orderList = await request('/orders', {
-    headers: { 'x-role': 'cashier' },
+    headers: {
+      Authorization: `Bearer ${login.token}`,
+    },
   });
   assert(Array.isArray(orderList), 'Orders list response is not an array');
   assert(orderList.some((o) => o.id === createdOrder.id), 'Created order not found in GET /orders');
   console.log('Order list check passed.');
 
   const fetchedOrder = await request(`/orders/${encodeURIComponent(createdOrder.id)}`, {
-    headers: { 'x-role': 'cashier' },
+    headers: {
+      Authorization: `Bearer ${login.token}`,
+    },
   });
   assert(fetchedOrder && fetchedOrder.id === createdOrder.id, 'GET /orders/:id did not return the created order');
   console.log('Order detail check passed.');
