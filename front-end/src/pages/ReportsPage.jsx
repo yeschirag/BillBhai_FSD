@@ -15,7 +15,7 @@ import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
 import { formatCurrency } from '../services/workspaceService.js'
 
 const EMPTY_LIST = []
-const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#bf5af2']
+const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#ff9f0a']
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null

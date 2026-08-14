@@ -27,8 +27,8 @@
   --orange-bg: rgba(255, 159, 10, 0.12);
   --red: #ff453a;
   --red-bg: rgba(255, 69, 58, 0.12);
-  --purple: #bf5af2;
-  --purple-bg: rgba(191, 90, 242, 0.12);
+  --purple: #64b5f6;
+  --purple-bg: rgba(100, 181, 246, 0.12);
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
   --radius: 20px;
   --radius-lg: 24px;
@@ -503,9 +503,15 @@ table.dt .cell-main {
 }
 
 .b-upi {
-  background: rgba(191, 90, 242, 0.12);
-  border-color: rgba(191, 90, 242, 0.2);
-  color: var(--purple);
+  background: var(--blue-bg);
+  border-color: rgba(100, 181, 246, 0.2);
+  color: var(--blue);
+}
+
+.b-refunded,
+.b-approved {
+  background: var(--blue-bg);
+  color: var(--blue);
 }
 
 .b-cash,
@@ -765,6 +771,23 @@ table.dt .cell-main {
 
 .brand-logo-img {
   max-height: 56px;
+}
+
+body.landing-page .nav-brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+body.landing-page .nav-logo-img {
+  max-height: 28px;
+  max-width: 120px;
+  object-fit: contain;
+}
+
+body.landing-page .footer-logo-img {
+  max-height: 34px;
+  max-width: 140px;
+  object-fit: contain;
 }
 
 .brand-subtitle,
@@ -1047,6 +1070,7 @@ body.landing-page .navbar {
   inset: 16px 0 auto;
   width: min(calc(100% - 32px), var(--container));
   margin: 0 auto;
+  z-index: 40;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   background: rgba(10, 12, 18, 0.75);
@@ -1092,16 +1116,16 @@ body.landing-page .hero::after {
 }
 
 body.landing-page .hero::before {
-  width: 280px;
-  height: 280px;
+  width: 220px;
+  height: 220px;
   top: 120px;
   right: 6%;
   background: radial-gradient(circle, rgba(220, 53, 69, 0.12), transparent 70%);
 }
 
 body.landing-page .hero::after {
-  width: 220px;
-  height: 220px;
+  width: 180px;
+  height: 180px;
   left: 4%;
   bottom: 120px;
   background: radial-gradient(circle, rgba(52, 199, 89, 0.1), transparent 70%);
@@ -1112,8 +1136,11 @@ body.landing-page .hero-badge {
 }
 
 body.landing-page .hero-title {
-  max-width: 11ch;
+  max-width: 10ch;
   margin-bottom: 18px;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
 }
 
 body.landing-page .hero-line {
@@ -1142,16 +1169,17 @@ body.landing-page .hero-underline {
 }
 
 body.landing-page .hero-subtitle {
-  max-width: 640px;
+  max-width: 620px;
   margin: 0 0 18px;
-  font-size: 1.06rem;
+  font-size: 0.99rem;
+  line-height: 1.7;
 }
 
 body.landing-page .hero-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 36px;
+  margin-bottom: 30px;
 }
 
 body.landing-page .hero-pill {
@@ -1185,7 +1213,7 @@ body.landing-page .hero-visual {
 body.landing-page .hero-sticker {
   position: absolute;
   z-index: 3;
-  width: min(240px, 42vw);
+  width: min(220px, 38vw);
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1274,8 +1302,8 @@ body.landing-page .section-title {
   margin-left: auto;
   margin-right: auto;
   font-family: var(--font-heading);
-  font-size: clamp(2.2rem, 5vw, 3.5rem);
-  line-height: 1;
+  font-size: clamp(1.75rem, 3.5vw, 2.7rem);
+  line-height: 0.98;
   letter-spacing: -0.06em;
 }
 
@@ -1359,7 +1387,7 @@ body.landing-page .testimonial-card.featured::before {
 }
 
 body.landing-page .cta-title {
-  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-size: clamp(1.75rem, 3.5vw, 2.7rem);
 }
 
 body.landing-page .cta-card {
@@ -1376,7 +1404,8 @@ body.landing-page .cta-card::before {
 }
 
 body.landing-page .footer-logo-img {
-  max-height: 42px;
+  max-height: 34px;
+  max-width: 140px;
 }
 
 @media (max-width: 1200px) {
@@ -1493,7 +1522,7 @@ body.landing-page .footer-logo-img {
 
   body.landing-page .hero-title {
     max-width: none;
-    font-size: clamp(2.7rem, 11vw, 4rem);
+    font-size: clamp(2.4rem, 10vw, 3.4rem);
   }
 
   body.landing-page .hero-underline {

@@ -137,7 +137,7 @@ function BusinessesPage() {
           title: `${nextBusiness.name} ${index >= 0 ? 'updated' : 'added'}`,
           desc: `${nextBusiness.productsPlan} plan is now tracked in the superuser workspace.`,
           type: 'businesses',
-          color: 'purple',
+          color: 'blue',
           scopeBusinessId: nextId,
           detailRows: [
             { label: 'Owner', value: nextBusiness.owner },

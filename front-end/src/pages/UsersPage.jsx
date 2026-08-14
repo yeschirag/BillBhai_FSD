@@ -105,7 +105,7 @@ function UsersPage() {
           title: `${nextUser.name} ${index >= 0 ? 'updated' : 'added'}`,
           desc: `${nextUser.role} access is now ${nextUser.status.toLowerCase()} for ${draft.activeBusiness.name}.`,
           type: 'user',
-          color: nextUser.status === 'Active' ? 'purple' : 'amber',
+          color: nextUser.status === 'Active' ? 'green' : 'amber',
           scopeBusinessId: businessId,
           detailRows: [
             { label: 'Business', value: draft.activeBusiness.name },
