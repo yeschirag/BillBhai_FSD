@@ -1,19 +1,35 @@
 import { useMemo } from 'react'
 import {
-  ArcElement,
-  BarElement,
-  CategoryScale,
-  Chart as ChartJS,
-  Legend,
-  LinearScale,
-  Tooltip,
-} from 'chart.js'
-import { Bar, Doughnut } from 'react-chartjs-2'
+  Bar,
+  BarChart,
+  Cell,
+  CartesianGrid,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from 'recharts'
 import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
 import { formatCurrency } from '../services/workspaceService.js'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend)
 const EMPTY_LIST = []
+const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#bf5af2']
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+
+  const title = label || payload[0].payload?.name || payload[0].name || 'Value'
+  const value = payload[0].dataKey === 'total' ? formatCurrency(payload[0].value) : payload[0].value
+
+  return (
+    <div className="chart-tooltip">
+      <p className="chart-tooltip-label">{title}</p>
+      <p className="chart-tooltip-value">{value}</p>
+    </div>
+  )
+}
 
 function ReportsPage() {
   const { activeBusiness, activeData, isLoading, error } = useWorkspaceData()
@@ -38,28 +54,23 @@ function ReportsPage() {
     }
   }, [deliveries, inventory, orders, returns])
 
-  const revenueData = useMemo(() => ({
-    labels: orders.map((item) => item.id),
-    datasets: [
-      {
-        label: 'Order value',
-        data: orders.map((item) => Number(item.total || 0)),
-        backgroundColor: 'rgba(220, 53, 69, 0.75)',
-        borderRadius: 8,
-      },
-    ],
-  }), [orders])
+  const revenueData = useMemo(
+    () => orders.map((item) => ({
+      id: item.id,
+      total: Number(item.total || 0),
+    })),
+    [orders],
+  )
 
-  const opsMixData = useMemo(() => ({
-    labels: ['Orders', 'Returns', 'Low Stock', 'Delivered'],
-    datasets: [
-      {
-        data: [orders.length, returns.length, metrics.lowStock, metrics.completedDeliveries],
-        backgroundColor: ['#64b5f6', '#e8a838', '#ff453a', '#34c759'],
-        borderWidth: 0,
-      },
+  const opsMixData = useMemo(
+    () => [
+      { name: 'Orders', value: orders.length, fill: CHART_COLORS[0] },
+      { name: 'Returns', value: returns.length, fill: CHART_COLORS[1] },
+      { name: 'Low Stock', value: metrics.lowStock, fill: CHART_COLORS[2] },
+      { name: 'Delivered', value: metrics.completedDeliveries, fill: CHART_COLORS[3] },
     ],
-  }), [metrics.completedDeliveries, metrics.lowStock, orders.length, returns.length])
+    [metrics.completedDeliveries, metrics.lowStock, orders.length, returns.length],
+  )
 
   if (isLoading) {
     return <section className="card"><div className="card-bd">Loading reports...</div></section>
@@ -86,14 +97,44 @@ function ReportsPage() {
         <div className="card">
           <div className="card-hd"><h3>{activeBusiness?.name || 'Business'} Revenue Snapshot</h3></div>
           <div className="card-bd" style={{ height: '280px' }}>
-            {orders.length ? <Bar data={revenueData} options={{ responsive: true, maintainAspectRatio: false }} /> : <p className="text-muted">Add orders to unlock revenue visualizations.</p>}
+            {revenueData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="4 8" />
+                  <XAxis dataKey="id" tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tickLine={false} axisLine={false} width={42} />
+                  <RechartsTooltip content={<ChartTooltip />} />
+                  <Bar dataKey="total" fill="#dc3545" radius={[12, 12, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <p className="text-muted">Add orders to unlock revenue visualizations.</p>}
           </div>
         </div>
         <div className="card">
           <div className="card-hd"><h3>Operations Mix</h3></div>
           <div className="card-bd" style={{ height: '280px' }}>
             {(orders.length || returns.length || inventory.length || deliveries.length)
-              ? <Doughnut data={opsMixData} options={{ responsive: true, maintainAspectRatio: false }} />
+              ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={opsMixData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={58}
+                      outerRadius={94}
+                      paddingAngle={4}
+                      stroke="rgba(255,255,255,0.06)"
+                      strokeWidth={1}
+                    >
+                      {opsMixData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )
               : <p className="text-muted">No operational activity has been recorded yet.</p>}
           </div>
         </div>

@@ -1,29 +1,35 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArcElement,
-  CategoryScale,
-  Chart as ChartJS,
-  Legend,
-  LineElement,
-  LinearScale,
-  PointElement,
-  Tooltip,
-} from 'chart.js'
-import { Doughnut, Line } from 'react-chartjs-2'
+  Area,
+  AreaChart,
+  Cell,
+  CartesianGrid,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import {
   buildDashboardSnapshot,
   getActiveBusinessDashboardData,
 } from '../services/dataService.js'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Tooltip,
-  Legend,
-)
+const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#bf5af2']
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+
+  const title = label || payload[0].payload?.name || payload[0].name || 'Value'
+
+  return (
+    <div className="chart-tooltip">
+      <p className="chart-tooltip-label">{title}</p>
+      <p className="chart-tooltip-value">{payload[0].value}</p>
+    </div>
+  )
+}
 
 function DashboardPage() {
   const [snapshot, setSnapshot] = useState(null)
@@ -63,50 +69,69 @@ function DashboardPage() {
     }
   }, [])
 
-  const salesChartData = useMemo(() => {
-    if (!snapshot) return null
+  const salesChartData = useMemo(
+    () => (snapshot ? snapshot.salesTrend.map((point) => ({
+      label: point.label,
+      value: Number(point.value || 0),
+    })) : []),
+    [snapshot],
+  )
 
-    return {
-      labels: snapshot.salesTrend.map((point) => point.label),
-      datasets: [
-        {
-          label: 'Sales',
-          data: snapshot.salesTrend.map((point) => point.value),
-          borderColor: '#dc3545',
-          backgroundColor: 'rgba(220, 53, 69, 0.12)',
-          fill: true,
-          tension: 0.28,
-          pointRadius: 3,
-        },
-      ],
-    }
-  }, [snapshot])
-
-  const statusChartData = useMemo(() => {
-    if (!snapshot) return null
-
-    return {
-      labels: snapshot.statusBreakdown.map((item) => item.label),
-      datasets: [
-        {
-          data: snapshot.statusBreakdown.map((item) => item.value),
-          backgroundColor: ['#64b5f6', '#34c759', '#e8a838', '#ff453a', '#bf5af2'],
-          borderWidth: 0,
-        },
-      ],
-    }
-  }, [snapshot])
+  const statusChartData = useMemo(
+    () => (snapshot ? snapshot.statusBreakdown.map((item, index) => ({
+      name: item.label,
+      value: Number(item.value || 0),
+      fill: CHART_COLORS[index % CHART_COLORS.length],
+    })) : []),
+    [snapshot],
+  )
 
   if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading dashboard...</div></section>
+    return (
+      <>
+        <div className="page-header">
+          <h2>Dashboard</h2>
+          <div className="page-header-actions">
+            <button className="btn btn-outline" disabled>
+              Loading…
+            </button>
+          </div>
+        </div>
+
+        <div className="dashboard-loading-shell">
+          <div className="dashboard-loading-card">
+            <span className="dashboard-loading-spinner" aria-hidden="true" />
+            <span>Loading orders...</span>
+          </div>
+        </div>
+      </>
+    )
   }
 
   if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+    return (
+      <div className="card loading-panel error-panel">
+        <div className="card-hd">
+          <h3>Dashboard</h3>
+        </div>
+        <div className="card-bd">
+          <p className="loading-error-message">{error}</p>
+        </div>
+      </div>
+    )
   }
 
   if (!snapshot) {
-    return <section className="card"><div className="card-bd">Dashboard data could not be loaded.</div></section>
+    return (
+      <div className="card loading-panel error-panel">
+        <div className="card-hd">
+          <h3>Dashboard</h3>
+        </div>
+        <div className="card-bd">
+          <p className="loading-error-message">Dashboard data could not be loaded.</p>
+        </div>
+      </div>
+    )
   }
 
   const statusBadgeClass = (status) => {
@@ -180,16 +205,67 @@ function DashboardPage() {
           <div className="card-hd">
             <h3>Sales Trend</h3>
           </div>
-          <div className="card-bd" style={{ position: 'relative', height: '240px' }}>
-            {salesChartData ? <Line data={salesChartData} /> : <p>No trend data available.</p>}
+          <div className="card-bd" style={{ position: 'relative', height: '260px' }}>
+            {salesChartData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={salesChartData}
+                  margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+                >
+                  <defs>
+                    <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#dc3545" stopOpacity={0.34} />
+                      <stop offset="100%" stopColor="#dc3545" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="4 8" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tickLine={false} axisLine={false} width={32} />
+                  <RechartsTooltip content={<ChartTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#dc3545"
+                    strokeWidth={3}
+                    fill="url(#salesGradient)"
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <p>No trend data available.</p>
+            )}
           </div>
         </div>
         <div className="card">
           <div className="card-hd">
             <h3>Order Status</h3>
           </div>
-          <div className="card-bd" style={{ position: 'relative', height: '240px' }}>
-            {statusChartData ? <Doughnut data={statusChartData} /> : <p>No status data available.</p>}
+          <div className="card-bd" style={{ position: 'relative', height: '260px' }}>
+            {statusChartData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={62}
+                    outerRadius={94}
+                    paddingAngle={3}
+                    stroke="rgba(255,255,255,0.06)"
+                    strokeWidth={1}
+                  >
+                    {statusChartData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip content={<ChartTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p>No status data available.</p>
+            )}
           </div>
         </div>
       </section>

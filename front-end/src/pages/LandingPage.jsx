@@ -109,12 +109,27 @@ function LandingPage() {
           </div>
           <h1 className="hero-title">
             <span className="hero-line">Billing Made</span>
-            <span className="hero-line hero-accent">Effortless.</span>
+            <span className="hero-line hero-accent-line">
+              <span className="hero-accent-text text-highlight">Effortless</span>
+              <svg className="hero-underline" viewBox="0 0 220 24" aria-hidden="true">
+                <path
+                  d="M4 15c20-11 41-11 60 0s40 11 60 0 40-11 92-3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
           </h1>
           <p className="hero-subtitle">
-            BillBhai is the all-in-one platform for invoicing, inventory tracking,
-            and order management — designed for speed, built for Indian businesses.
+            BillBhai is the all-in-one platform for <span className="text-highlight">invoicing, inventory tracking, and order management</span> — designed for speed, built for Indian businesses.
           </p>
+          <div className="hero-pills" aria-label="Core product capabilities">
+            <span className="hero-pill">GST-ready</span>
+            <span className="hero-pill">Live inventory</span>
+            <span className="hero-pill">Fast checkout</span>
+          </div>
           <div className="hero-cta">
             <Link to="/register-business" className="btn btn-primary btn-lg" id="heroPrimaryBtn">
               Start Free Trial
@@ -200,6 +215,14 @@ function LandingPage() {
                 <span className="fc-value">#4821</span>
               </div>
             </div>
+            <div className="hero-sticker hero-sticker-left">
+              <span className="hero-sticker-label">Live sync</span>
+              <strong>Billing, stock, and receipts stay in one rhythm.</strong>
+            </div>
+            <div className="hero-sticker hero-sticker-right">
+              <span className="hero-sticker-label">Built for speed</span>
+              <strong>Made for counter teams that need clean, quick flow.</strong>
+            </div>
           </div>
         </div>
       </section>
@@ -209,7 +232,7 @@ function LandingPage() {
         <div className="container">
           <div className="section-header">
             <span className="section-tag">Features</span>
-            <h2 className="section-title">Everything your business needs</h2>
+            <h2 className="section-title">Everything your <span className="text-highlight">business</span> needs</h2>
             <p className="section-desc">From lightning-fast invoicing to granular inventory control — BillBhai packs enterprise power into a beautifully simple interface.</p>
           </div>
           <div className="features-grid">
@@ -295,7 +318,7 @@ function LandingPage() {
         <div className="container">
           <div className="section-header">
             <span className="section-tag">How It Works</span>
-            <h2 className="section-title">Up and running in minutes</h2>
+            <h2 className="section-title">Up and <span className="text-highlight">running</span> in minutes</h2>
             <p className="section-desc">No complex setup. No training needed. Just sign up and start billing.</p>
           </div>
           <div className="steps-grid">
@@ -331,7 +354,7 @@ function LandingPage() {
         <div className="container">
           <div className="section-header">
             <span className="section-tag">Testimonials</span>
-            <h2 className="section-title">Loved by businesses</h2>
+            <h2 className="section-title">Loved by <span className="text-highlight">businesses</span></h2>
             <p className="section-desc">See what our users have to say about BillBhai.</p>
           </div>
           <div className="testimonials-grid">
@@ -374,10 +397,10 @@ function LandingPage() {
 
       {/* CTA Section */}
       <section className="cta-section" id="cta">
-        <div className="container">
+          <div className="container">
           <div className="cta-card">
             <div className="cta-glow" />
-            <h2 className="cta-title">Ready to simplify your business?</h2>
+            <h2 className="cta-title">Ready to simplify your <span className="text-highlight">business</span>?</h2>
             <p className="cta-desc">Join 500+ businesses already using BillBhai. Start your free trial today — no credit card required.</p>
             <div className="cta-actions">
               <Link to="/register-business" className="btn btn-primary btn-lg">
@@ -398,7 +421,8 @@ function LandingPage() {
               <img src="/logo.png" alt="BillBhai" className="footer-logo-img" />
               <p className="footer-tagline">Smart billing &amp; inventory management for modern Indian businesses.</p>
             </div>
-            <div className="footer-col">
+
+            <div className="footer-columns">
               <div className="footer-col">
                 <h4>Product</h4>
                 <a href="#features">Features</a>
@@ -406,6 +430,7 @@ function LandingPage() {
                 <a href="#">Pricing</a>
                 <a href="#">Integrations</a>
               </div>
+
               <div className="footer-col">
                 <h4>Company</h4>
                 <a href="#">About Us</a>
@@ -413,6 +438,7 @@ function LandingPage() {
                 <a href="#">Blog</a>
                 <a href="#">Contact</a>
               </div>
+
               <div className="footer-col">
                 <h4>Support</h4>
                 <a href="#">Help Center</a>
@@ -422,6 +448,7 @@ function LandingPage() {
               </div>
             </div>
           </div>
+
           <div className="footer-bottom">
             <p>&copy; 2026 BillBhai Systems. All rights reserved.</p>
             <div className="footer-links">

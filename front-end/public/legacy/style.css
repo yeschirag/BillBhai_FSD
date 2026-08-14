@@ -32,6 +32,7 @@ html {
     font-size: 17.5px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
 }
 
 body {
@@ -39,11 +40,15 @@ body {
     background-color: var(--bg);
     color: var(--text-primary);
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
     transition: background-color 0.6s ease;
+}
+
+::selection {
+    background: rgba(220, 53, 69, 0.8);
+    color: #fff;
 }
 
 

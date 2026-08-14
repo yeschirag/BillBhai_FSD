@@ -223,9 +223,9 @@ function RegisterBusinessPage() {
           </form>
 
           <div className="login-footer" style={{ marginTop: '24px' }}>
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
+            <p className="text-muted" style={{ fontSize: '0.85rem' }}>
               Already have an account?{' '}
-              <Link to="/login" style={{ color: '#dc3545', fontWeight: 600, textDecoration: 'none' }}>
+              <Link to="/login" className="accent-link">
                 Sign In
               </Link>
             </p>

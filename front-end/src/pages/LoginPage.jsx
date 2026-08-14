@@ -153,9 +153,9 @@ function LoginPage() {
           </form>
 
           <div className="login-footer">
-            <p style={{ marginBottom: '12px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
+            <p className="text-muted" style={{ marginBottom: '12px', fontSize: '0.85rem' }}>
               Don&apos;t have an account?{' '}
-              <Link to="/register-business" style={{ color: '#dc3545', fontWeight: 600, textDecoration: 'none' }}>
+              <Link to="/register-business" className="accent-link">
                 Sign Up
               </Link>
             </p>
