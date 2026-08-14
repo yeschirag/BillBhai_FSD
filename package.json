@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "npm --prefix back-end run start",
+    "start:prod": "npm --prefix back-end run start:prod",
     "start:dev": "npm --prefix back-end run dev",
     "dev:backend": "npm --prefix back-end run dev",
     "dev:frontend": "npm --prefix front-end run dev",
