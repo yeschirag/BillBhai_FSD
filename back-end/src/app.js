@@ -7,6 +7,8 @@ const routes = require('./routes');
 
 const app = express();
 
+require('dotenv').config();
+
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
