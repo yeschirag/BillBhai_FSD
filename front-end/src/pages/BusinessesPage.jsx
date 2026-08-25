@@ -4,9 +4,15 @@ import {
   buildNotification,
   createEmptyBusinessData,
   formatCurrency,
+  getStatusBadgeClass,
   setActiveBusiness,
   upsertAuthOverride,
 } from '../services/workspaceService.js'
+import Modal from '../components/Modal.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
+import { toast } from '../components/toastBus.js'
 
 const INITIAL_BUSINESS_FORM = {
   id: '',
@@ -30,6 +36,8 @@ const INITIAL_DETAIL_FORM = {
   extra: '',
 }
 
+const INITIAL_USER_FORM = { name: '', email: '', role: 'Cashier', status: 'Active', password: '' }
+
 function buildBusinessId(businesses) {
   const maxValue = businesses
     .map((item) => parseInt(String(item.id || '').replace(/[^\d]/g, ''), 10))
@@ -39,13 +47,15 @@ function buildBusinessId(businesses) {
 }
 
 function BusinessesPage() {
-  const { businesses, activeBusiness, isLoading, error, mutateWorkspace } = useWorkspaceData()
+  const { businesses, activeBusiness, isLoading, error, refresh, mutateWorkspace } = useWorkspaceData()
   const [isBusinessModalOpen, setIsBusinessModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [editingBusinessId, setEditingBusinessId] = useState('')
   const [businessForm, setBusinessForm] = useState(INITIAL_BUSINESS_FORM)
   const [storeForm, setStoreForm] = useState(INITIAL_DETAIL_FORM)
   const [paymentForm, setPaymentForm] = useState({ month: '', amount: '', status: 'Paid' })
-  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'Cashier', status: 'Active', password: '' })
+  const [userForm, setUserForm] = useState(INITIAL_USER_FORM)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [scopedBusinessId, setScopedBusinessId] = useState(() => activeBusiness?.id || '')
 
   useEffect(() => {
@@ -97,6 +107,10 @@ function BusinessesPage() {
 
   const handleBusinessSubmit = async (event) => {
     event.preventDefault()
+    if (isSaving) return
+
+    setIsSaving(true)
+    let savedLabel = ''
 
     await mutateWorkspace((draft) => {
       const nextId = editingBusinessId || buildBusinessId(draft.businesses)
@@ -127,6 +141,7 @@ function BusinessesPage() {
       } else {
         draft.businesses.unshift(nextBusiness)
       }
+      savedLabel = `${nextBusiness.name} ${index >= 0 ? 'updated' : 'added'}`
 
       if (!draft.dataByBusiness[nextId]) {
         draft.dataByBusiness[nextId] = createEmptyBusinessData()
@@ -148,14 +163,23 @@ function BusinessesPage() {
       )
     })
 
-    closeBusinessModal()
+    setIsSaving(false)
+    if (savedLabel) {
+      toast.success(savedLabel)
+      closeBusinessModal()
+    }
   }
 
-  const deleteBusiness = async (businessId) => {
+  const handleDeleteBusiness = async () => {
+    if (!deleteTarget) return
+
     await mutateWorkspace((draft) => {
-      draft.businesses = draft.businesses.filter((item) => item.id !== businessId)
-      delete draft.dataByBusiness[businessId]
+      draft.businesses = draft.businesses.filter((item) => item.id !== deleteTarget)
+      delete draft.dataByBusiness[deleteTarget]
     })
+
+    setDeleteTarget(null)
+    toast.success('Business deleted')
   }
 
   const scopeBusiness = (business) => {
@@ -178,6 +202,7 @@ function BusinessesPage() {
       business.storesCount = business.stores.length
     })
     setStoreForm(INITIAL_DETAIL_FORM)
+    toast.success('Store added')
   }
 
   const addPayment = async (event) => {
@@ -198,6 +223,7 @@ function BusinessesPage() {
       )
     })
     setPaymentForm({ month: '', amount: '', status: 'Paid' })
+    toast.success('Payment recorded')
   }
 
   const addBusinessUser = async (event) => {
@@ -233,15 +259,8 @@ function BusinessesPage() {
       password: String(userForm.password || '').trim() || undefined,
     })
 
-    setUserForm({ name: '', email: '', role: 'Cashier', status: 'Active', password: '' })
-  }
-
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading businesses...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+    setUserForm(INITIAL_USER_FORM)
+    toast.success('Business user added')
   }
 
   return (
@@ -249,224 +268,293 @@ function BusinessesPage() {
       <div className="page-header">
         <h2>Businesses Using BillBhai</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>+ Add Business</button>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>Add Business</button>
         </div>
       </div>
 
-      <section className="stats-grid">
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Businesses</span><span className="stat-value">{stats.total}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Network Profit</span><span className="stat-value">{formatCurrency(stats.profit)}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Outstanding Due</span><span className="stat-value">{formatCurrency(stats.due)}</span></div></div>
-      </section>
+      <PageState loading={isLoading} error={error} label="Loading businesses…" onRetry={refresh} />
 
-      <section className="card">
-        <div className="card-hd"><h3>Client Businesses</h3></div>
-        <div className="card-bd">
-          <div className="tbl-wrap">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Plan</th>
-                  <th>Stores</th>
-                  <th>Profit</th>
-                  <th>Payment Due</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {businesses.map((business) => (
-                  <tr key={business.id}>
-                    <td className="cell-main">{business.id}</td>
-                    <td>{business.name}</td>
-                    <td>{business.productsPlan}</td>
-                    <td>{business.storesCount}</td>
-                    <td>{formatCurrency(business.profit)}</td>
-                    <td>{formatCurrency(business.paymentDue)}</td>
-                    <td>{business.status}</td>
-                    <td className="workspace-actions-cell">
-                      <button type="button" className="btn btn-outline btn-xs" onClick={() => scopeBusiness(business)}>Open</button>
-                      <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(business)}>Edit</button>
-                      <button type="button" className="btn btn-outline btn-xs btn-danger" onClick={() => deleteBusiness(business.id)}>Delete</button>
-                    </td>
+      {!isLoading && !error ? (
+        <>
+          <section className="stats-grid">
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Businesses</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Network Profit</span><span className="stat-value">{formatCurrency(stats.profit)}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Outstanding Due</span><span className="stat-value">{formatCurrency(stats.due)}</span></div></div>
+          </section>
+
+          <section className="card">
+            <div className="card-hd"><h3>Client Businesses</h3></div>
+            <div className="tbl-wrap">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Plan</th>
+                    <th className="cell-num">Stores</th>
+                    <th className="cell-num">Profit</th>
+                    <th className="cell-num">Payment Due</th>
+                    <th>Status</th>
+                    <th className="cell-num">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {scopedBusiness ? (
-        <section className="grid-2">
-          <div className="card">
-            <div className="card-hd"><h3>{scopedBusiness.name}</h3></div>
-            <div className="card-bd workspace-detail-grid">
-              <div className="workspace-detail-card"><span>Owner</span><strong>{scopedBusiness.owner}</strong></div>
-              <div className="workspace-detail-card"><span>Admin</span><strong>{scopedBusiness.adminName}</strong></div>
-              <div className="workspace-detail-card"><span>Email</span><strong>{scopedBusiness.email || '-'}</strong></div>
-              <div className="workspace-detail-card"><span>Phone</span><strong>{scopedBusiness.phone || '-'}</strong></div>
+                </thead>
+                <tbody>
+                  {businesses.length ? businesses.map((business) => (
+                    <tr key={business.id}>
+                      <td className="cell-main">{business.id}</td>
+                      <td>{business.name}</td>
+                      <td>{business.productsPlan}</td>
+                      <td className="cell-num">{business.storesCount}</td>
+                      <td className="cell-num">{formatCurrency(business.profit)}</td>
+                      <td className="cell-num">{formatCurrency(business.paymentDue)}</td>
+                      <td><span className={`badge ${getStatusBadgeClass(business.status)}`}>{business.status}</span></td>
+                      <td className="workspace-actions-cell">
+                        <button type="button" className="btn btn-outline btn-xs" onClick={() => scopeBusiness(business)}>Open</button>
+                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(business)}>Edit</button>
+                        <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(business.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="8">
+                        <EmptyState title="No client businesses" hint="Add a business to start tracking plans and payments." />
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </section>
 
-          <div className="card">
-            <div className="card-hd"><h3>Add Store</h3></div>
-            <div className="card-bd">
-              <form onSubmit={addStore} className="workspace-form-stack">
-                <input className="form-control" placeholder="Store Code" value={storeForm.label} onChange={(event) => setStoreForm((prev) => ({ ...prev, label: event.target.value }))} />
-                <input className="form-control" placeholder="City" value={storeForm.value} onChange={(event) => setStoreForm((prev) => ({ ...prev, value: event.target.value }))} />
-                <input className="form-control" placeholder="Status" value={storeForm.extra} onChange={(event) => setStoreForm((prev) => ({ ...prev, extra: event.target.value }))} />
-                <button type="submit" className="btn btn-primary">Add Store</button>
-              </form>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-hd"><h3>Add Payment</h3></div>
-            <div className="card-bd">
-              <form onSubmit={addPayment} className="workspace-form-stack">
-                <input className="form-control" placeholder="Month" value={paymentForm.month} onChange={(event) => setPaymentForm((prev) => ({ ...prev, month: event.target.value }))} />
-                <input className="form-control" placeholder="Amount" type="number" min="0" value={paymentForm.amount} onChange={(event) => setPaymentForm((prev) => ({ ...prev, amount: event.target.value }))} />
-                <select className="form-control" value={paymentForm.status} onChange={(event) => setPaymentForm((prev) => ({ ...prev, status: event.target.value }))}>
-                  <option value="Paid">Paid</option>
-                  <option value="Partial">Partial</option>
-                  <option value="Due">Due</option>
-                </select>
-                <button type="submit" className="btn btn-primary">Add Payment</button>
-              </form>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-hd"><h3>Add Business User</h3></div>
-            <div className="card-bd">
-              <form onSubmit={addBusinessUser} className="workspace-form-stack">
-                <input className="form-control" placeholder="Name" value={userForm.name} onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))} />
-                <input className="form-control" placeholder="Email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} />
-                <select className="form-control" value={userForm.role} onChange={(event) => setUserForm((prev) => ({ ...prev, role: event.target.value }))}>
-                  <option value="Admin">Admin</option>
-                  <option value="Cashier">Cashier</option>
-                  <option value="Inventory Manager">Inventory Manager</option>
-                  <option value="Delivery Ops">Delivery Ops</option>
-                  <option value="Return Handler">Return Handler</option>
-                </select>
-                <input className="form-control" placeholder="Password" value={userForm.password} onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))} />
-                <button type="submit" className="btn btn-primary">Add Business User</button>
-              </form>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-hd"><h3>Store Locations</h3></div>
-            <div className="card-bd workspace-list-grid">
-              {(scopedBusiness.stores || []).length ? scopedBusiness.stores.map((store) => (
-                <div key={`${scopedBusiness.id}-${store.code}`} className="workspace-list-card">
-                  <strong>{store.code}</strong>
-                  <span>{store.city}</span>
-                  <span className="text-muted">{store.status}</span>
+          {scopedBusiness ? (
+            <section className="grid-2">
+              <div className="card">
+                <div className="card-hd"><h3>{scopedBusiness.name}</h3></div>
+                <div className="card-bd workspace-detail-grid">
+                  <div className="workspace-detail-card"><span>Owner</span><strong>{scopedBusiness.owner}</strong></div>
+                  <div className="workspace-detail-card"><span>Admin</span><strong>{scopedBusiness.adminName}</strong></div>
+                  <div className="workspace-detail-card"><span>Email</span><strong>{scopedBusiness.email || '-'}</strong></div>
+                  <div className="workspace-detail-card"><span>Phone</span><strong>{scopedBusiness.phone || '-'}</strong></div>
                 </div>
-              )) : <p className="text-muted">No stores added yet.</p>}
-            </div>
-          </div>
+              </div>
 
-          <div className="card">
-            <div className="card-hd"><h3>Payments</h3></div>
-            <div className="card-bd workspace-list-grid">
-              {(scopedBusiness.payments || []).length ? scopedBusiness.payments.map((payment) => (
-                <div key={`${scopedBusiness.id}-${payment.month}`} className="workspace-list-card">
-                  <strong>{payment.month}</strong>
-                  <span>{formatCurrency(payment.amount)}</span>
-                  <span className="text-muted">{payment.status}</span>
+              <div className="card">
+                <div className="card-hd"><h3>Add Store</h3></div>
+                <div className="card-bd">
+                  <form onSubmit={addStore} className="workspace-form-stack">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="storeCode">Store Code</label>
+                      <input id="storeCode" className="form-control" required value={storeForm.label} onChange={(event) => setStoreForm((prev) => ({ ...prev, label: event.target.value }))} />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="storeCity">City</label>
+                        <input id="storeCity" className="form-control" required value={storeForm.value} onChange={(event) => setStoreForm((prev) => ({ ...prev, value: event.target.value }))} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="storeStatus">Status</label>
+                        <select id="storeStatus" className="form-control" value={storeForm.extra || 'Active'} onChange={(event) => setStoreForm((prev) => ({ ...prev, extra: event.target.value }))}>
+                          <option value="Active">Active</option>
+                          <option value="Opening Soon">Opening Soon</option>
+                          <option value="Closed">Closed</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button type="submit" className="btn btn-primary">Add Store</button>
+                  </form>
                 </div>
-              )) : <p className="text-muted">No payment records added yet.</p>}
-            </div>
-          </div>
-        </section>
+              </div>
+
+              <div className="card">
+                <div className="card-hd"><h3>Add Payment</h3></div>
+                <div className="card-bd">
+                  <form onSubmit={addPayment} className="workspace-form-stack">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="paymentMonth">Month</label>
+                        <input id="paymentMonth" className="form-control" placeholder="e.g. Aug 2026" required value={paymentForm.month} onChange={(event) => setPaymentForm((prev) => ({ ...prev, month: event.target.value }))} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="paymentAmount">Amount (₹)</label>
+                        <input id="paymentAmount" className="form-control" type="number" min="0" step="0.01" required value={paymentForm.amount} onChange={(event) => setPaymentForm((prev) => ({ ...prev, amount: event.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="paymentStatus">Status</label>
+                      <select id="paymentStatus" className="form-control" value={paymentForm.status} onChange={(event) => setPaymentForm((prev) => ({ ...prev, status: event.target.value }))}>
+                        <option value="Paid">Paid</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Due">Due</option>
+                      </select>
+                    </div>
+                    <button type="submit" className="btn btn-primary">Record Payment</button>
+                  </form>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-hd"><h3>Add Business User</h3></div>
+                <div className="card-bd">
+                  <form onSubmit={addBusinessUser} className="workspace-form-stack">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="bizUserName">Name</label>
+                        <input id="bizUserName" className="form-control" required value={userForm.name} onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="bizUserEmail">Email</label>
+                        <input id="bizUserEmail" className="form-control" type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="bizUserRole">Role</label>
+                        <select id="bizUserRole" className="form-control" value={userForm.role} onChange={(event) => setUserForm((prev) => ({ ...prev, role: event.target.value }))}>
+                          <option value="Admin">Admin</option>
+                          <option value="Cashier">Cashier</option>
+                          <option value="Inventory Manager">Inventory Manager</option>
+                          <option value="Delivery Ops">Delivery Ops</option>
+                          <option value="Return Handler">Return Handler</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="bizUserPassword">Password</label>
+                        <input
+                          id="bizUserPassword"
+                          className="form-control"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          value={userForm.password}
+                          onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" className="btn btn-primary">Add Business User</button>
+                  </form>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-hd"><h3>Store Locations</h3></div>
+                <div className="card-bd workspace-list-grid">
+                  {(scopedBusiness.stores || []).length ? scopedBusiness.stores.map((store) => (
+                    <div key={`${scopedBusiness.id}-${store.code}`} className="workspace-list-card">
+                      <strong>{store.code}</strong>
+                      <span>{store.city}</span>
+                      <span className="text-muted">{store.status}</span>
+                    </div>
+                  )) : <p className="text-muted">No stores added yet.</p>}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-hd"><h3>Payments</h3></div>
+                <div className="card-bd workspace-list-grid">
+                  {(scopedBusiness.payments || []).length ? scopedBusiness.payments.map((payment) => (
+                    <div key={`${scopedBusiness.id}-${payment.month}`} className="workspace-list-card">
+                      <strong>{payment.month}</strong>
+                      <span>{formatCurrency(payment.amount)}</span>
+                      <span className="text-muted">{payment.status}</span>
+                    </div>
+                  )) : <p className="text-muted">No payment records added yet.</p>}
+                </div>
+              </div>
+            </section>
+          ) : null}
+        </>
       ) : null}
 
-      <div className={`modal-overlay ${isBusinessModalOpen ? 'active' : ''}`}>
-        <div className="modal">
-          <div className="modal-header">
-            <h3>{editingBusinessId ? 'Edit Business' : 'Add Business'}</h3>
-            <button type="button" className="modal-close" onClick={closeBusinessModal}>&times;</button>
-          </div>
-          <form onSubmit={handleBusinessSubmit}>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessName">Business Name</label>
-                  <input id="businessName" className="form-control" value={businessForm.name} onChange={(event) => setBusinessForm((prev) => ({ ...prev, name: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessOwner">Owner</label>
-                  <input id="businessOwner" className="form-control" value={businessForm.owner} onChange={(event) => setBusinessForm((prev) => ({ ...prev, owner: event.target.value }))} />
-                </div>
+      {isBusinessModalOpen ? (
+        <Modal
+          title={editingBusinessId ? 'Edit Business' : 'Add Business'}
+          onClose={closeBusinessModal}
+          wide
+          footer={
+            <>
+              <button type="button" className="btn btn-outline" onClick={closeBusinessModal}>Cancel</button>
+              <button type="submit" form="businessForm" className="btn btn-primary" disabled={isSaving}>
+                {editingBusinessId ? 'Save Changes' : 'Add Business'}
+              </button>
+            </>
+          }
+        >
+          <form id="businessForm" onSubmit={handleBusinessSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessName">Business Name</label>
+                <input id="businessName" className="form-control" required value={businessForm.name} onChange={(event) => setBusinessForm((prev) => ({ ...prev, name: event.target.value }))} />
               </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessAdmin">Admin Name</label>
-                  <input id="businessAdmin" className="form-control" value={businessForm.adminName} onChange={(event) => setBusinessForm((prev) => ({ ...prev, adminName: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessType">Type</label>
-                  <input id="businessType" className="form-control" value={businessForm.type} onChange={(event) => setBusinessForm((prev) => ({ ...prev, type: event.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessEmail">Email</label>
-                  <input id="businessEmail" className="form-control" value={businessForm.email} onChange={(event) => setBusinessForm((prev) => ({ ...prev, email: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessPhone">Phone</label>
-                  <input id="businessPhone" className="form-control" value={businessForm.phone} onChange={(event) => setBusinessForm((prev) => ({ ...prev, phone: event.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessPlan">Plan</label>
-                  <input id="businessPlan" className="form-control" value={businessForm.productsPlan} onChange={(event) => setBusinessForm((prev) => ({ ...prev, productsPlan: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessStatus">Status</label>
-                  <select id="businessStatus" className="form-control" value={businessForm.status} onChange={(event) => setBusinessForm((prev) => ({ ...prev, status: event.target.value }))}>
-                    <option value="Active">Active</option>
-                    <option value="Trial">Trial</option>
-                    <option value="Paused">Paused</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessTenure">Tenure (months)</label>
-                  <input id="businessTenure" className="form-control" type="number" min="0" value={businessForm.tenureMonths} onChange={(event) => setBusinessForm((prev) => ({ ...prev, tenureMonths: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessStores">Stores</label>
-                  <input id="businessStores" className="form-control" type="number" min="0" value={businessForm.storesCount} onChange={(event) => setBusinessForm((prev) => ({ ...prev, storesCount: event.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessProfit">Profit</label>
-                  <input id="businessProfit" className="form-control" type="number" min="0" value={businessForm.profit} onChange={(event) => setBusinessForm((prev) => ({ ...prev, profit: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="businessDue">Payment Due</label>
-                  <input id="businessDue" className="form-control" type="number" min="0" value={businessForm.paymentDue} onChange={(event) => setBusinessForm((prev) => ({ ...prev, paymentDue: event.target.value }))} />
-                </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessOwner">Owner</label>
+                <input id="businessOwner" className="form-control" required value={businessForm.owner} onChange={(event) => setBusinessForm((prev) => ({ ...prev, owner: event.target.value }))} />
               </div>
             </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline" onClick={closeBusinessModal}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingBusinessId ? 'Save Changes' : 'Add Business'}</button>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessAdmin">Admin Name</label>
+                <input id="businessAdmin" className="form-control" value={businessForm.adminName} onChange={(event) => setBusinessForm((prev) => ({ ...prev, adminName: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessType">Type</label>
+                <input id="businessType" className="form-control" value={businessForm.type} onChange={(event) => setBusinessForm((prev) => ({ ...prev, type: event.target.value }))} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessEmail">Email</label>
+                <input id="businessEmail" className="form-control" type="email" value={businessForm.email} onChange={(event) => setBusinessForm((prev) => ({ ...prev, email: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessPhone">Phone</label>
+                <input id="businessPhone" className="form-control" type="tel" value={businessForm.phone} onChange={(event) => setBusinessForm((prev) => ({ ...prev, phone: event.target.value }))} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessPlan">Plan</label>
+                <input id="businessPlan" className="form-control" value={businessForm.productsPlan} onChange={(event) => setBusinessForm((prev) => ({ ...prev, productsPlan: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessStatus">Status</label>
+                <select id="businessStatus" className="form-control" value={businessForm.status} onChange={(event) => setBusinessForm((prev) => ({ ...prev, status: event.target.value }))}>
+                  <option value="Active">Active</option>
+                  <option value="Trial">Trial</option>
+                  <option value="Paused">Paused</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-row cols-3">
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessTenure">Tenure (months)</label>
+                <input id="businessTenure" className="form-control" type="number" min="0" value={businessForm.tenureMonths} onChange={(event) => setBusinessForm((prev) => ({ ...prev, tenureMonths: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessStores">Stores</label>
+                <input id="businessStores" className="form-control" type="number" min="0" value={businessForm.storesCount} onChange={(event) => setBusinessForm((prev) => ({ ...prev, storesCount: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="businessProfit">Profit (₹)</label>
+                <input id="businessProfit" className="form-control" type="number" min="0" value={businessForm.profit} onChange={(event) => setBusinessForm((prev) => ({ ...prev, profit: event.target.value }))} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="businessDue">Payment Due (₹)</label>
+              <input id="businessDue" className="form-control" type="number" min="0" value={businessForm.paymentDue} onChange={(event) => setBusinessForm((prev) => ({ ...prev, paymentDue: event.target.value }))} />
             </div>
           </form>
-        </div>
-      </div>
+        </Modal>
+      ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete Business"
+        message={`This will permanently delete ${deleteTarget || 'this business'} along with all of its orders, inventory, and records. This cannot be undone.`}
+        confirmLabel="Delete Business"
+        onConfirm={handleDeleteBusiness}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   )
 }

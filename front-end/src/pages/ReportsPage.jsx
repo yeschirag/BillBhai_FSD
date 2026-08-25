@@ -13,6 +13,8 @@ import {
 } from 'recharts'
 import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
 import { formatCurrency } from '../services/workspaceService.js'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
 
 const EMPTY_LIST = []
 const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#ff9f0a']
@@ -32,7 +34,7 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 function ReportsPage() {
-  const { activeBusiness, activeData, isLoading, error } = useWorkspaceData()
+  const { activeBusiness, activeData, isLoading, error, refresh } = useWorkspaceData()
 
   const orders = Array.isArray(activeData?.orders) ? activeData.orders : EMPTY_LIST
   const inventory = Array.isArray(activeData?.inventory) ? activeData.inventory : EMPTY_LIST
@@ -72,12 +74,15 @@ function ReportsPage() {
     [metrics.completedDeliveries, metrics.lowStock, orders.length, returns.length],
   )
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading reports...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+  if (isLoading || error) {
+    return (
+      <>
+        <div className="page-header">
+          <h2>Reports</h2>
+        </div>
+        <PageState loading={isLoading} error={error} label="Loading reports…" onRetry={refresh} />
+      </>
+    )
   }
 
   return (
@@ -104,10 +109,10 @@ function ReportsPage() {
                   <XAxis dataKey="id" tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis tickLine={false} axisLine={false} width={42} />
                   <RechartsTooltip content={<ChartTooltip />} />
-                  <Bar dataKey="total" fill="#dc3545" radius={[12, 12, 0, 0]} />
+                  <Bar dataKey="total" fill="#dc3545" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="text-muted">Add orders to unlock revenue visualizations.</p>}
+            ) : <EmptyState title="No revenue to chart yet" hint="Revenue per order appears once orders are recorded." />}
           </div>
         </div>
         <div className="card">
@@ -135,7 +140,7 @@ function ReportsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               )
-              : <p className="text-muted">No operational activity has been recorded yet.</p>}
+              : <EmptyState title="No operational activity yet" hint="The operations mix fills in as you record work." />}
           </div>
         </div>
       </section>
@@ -153,7 +158,7 @@ function ReportsPage() {
           </div>
           <div className="workspace-detail-card">
             <span>Order throughput</span>
-            <strong>{orders.length ? `${orders.length} orders tracked in this seed environment` : 'No orders captured yet'}</strong>
+            <strong>{orders.length ? `${orders.length} orders recorded so far` : 'No orders captured yet'}</strong>
           </div>
         </div>
       </section>

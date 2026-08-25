@@ -33,6 +33,31 @@ function LandingPage() {
     const el = statsRef.current
     if (!el) return
 
+    const formatStatNumber = (target) => {
+      if (target >= 1000000) {
+        return (target / 1000000).toFixed(1) + 'M'
+      }
+      if (target >= 1000) {
+        return (target / 1000).toFixed(0) + 'K'
+      }
+      return String(target)
+    }
+
+    const setFinalValues = () => {
+      el.querySelectorAll('.stat-number[data-target]').forEach((counter) => {
+        counter.textContent = formatStatNumber(parseInt(counter.getAttribute('data-target'), 10))
+      })
+    }
+
+    const prefersReducedMotion =
+      typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (prefersReducedMotion) {
+      setFinalValues()
+      return
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -45,13 +70,7 @@ function LandingPage() {
               let current = 0
               const timer = setInterval(() => {
                 current = Math.min(current + step, target)
-                if (target >= 1000000) {
-                  counter.textContent = (current / 1000000).toFixed(1) + 'M'
-                } else if (target >= 1000) {
-                  counter.textContent = (current / 1000).toFixed(0) + 'K'
-                } else {
-                  counter.textContent = current
-                }
+                counter.textContent = formatStatNumber(current)
                 if (current >= target) clearInterval(timer)
               }, 16)
             })
@@ -65,14 +84,10 @@ function LandingPage() {
     return () => observer.disconnect()
   }, [])
 
+  const closeMobileMenu = () => setIsMobileMenuOpen(false)
+
   return (
     <>
-      {/* Ambient Background */}
-      <div className="ambient-glow glow-1" />
-      <div className="ambient-glow glow-2" />
-      <div className="ambient-glow glow-3" />
-      <div className="grid-pattern" />
-
       {/* Navigation */}
       <nav className={`navbar${isNavScrolled ? ' scrolled' : ''}`} id="navbar">
         <div className="container nav-container">
@@ -80,19 +95,22 @@ function LandingPage() {
             <img src="/logo.png" alt="BillBhai" className="nav-logo-img" />
           </a>
           <div className={`nav-links${isMobileMenuOpen ? ' open' : ''}`} id="navLinks">
-            <a href="#features" className="nav-link">Features</a>
-            <a href="#how-it-works" className="nav-link">How It Works</a>
-            <a href="#stats" className="nav-link">Impact</a>
-            <a href="#testimonials" className="nav-link">Testimonials</a>
+            <a href="#features" className="nav-link" onClick={closeMobileMenu}>Features</a>
+            <a href="#how-it-works" className="nav-link" onClick={closeMobileMenu}>How It Works</a>
+            <a href="#stats" className="nav-link" onClick={closeMobileMenu}>Impact</a>
+            <a href="#testimonials" className="nav-link" onClick={closeMobileMenu}>Testimonials</a>
           </div>
           <div className="nav-actions">
             <Link to="/login" className="btn btn-ghost" id="navSignInBtn">Sign In</Link>
             <a href="#cta" className="btn btn-primary" id="navPrimaryBtn">Get Started Free</a>
           </div>
           <button
-            className="mobile-toggle"
+            type="button"
+            className={`mobile-toggle${isMobileMenuOpen ? ' open' : ''}`}
             id="mobileToggle"
-            aria-label="Toggle menu"
+            aria-label="Toggle navigation menu"
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="navLinks"
             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
           >
             <span /><span /><span />
@@ -103,126 +121,95 @@ function LandingPage() {
       {/* Hero Section */}
       <section className="hero">
         <div className="container">
-          <div className="hero-badge">
-            <span className="badge-dot" />
-            <span>Trusted by 500+ businesses across India</span>
-          </div>
-          <h1 className="hero-title">
-            <span className="hero-line">Billing Made</span>
-            <span className="hero-line hero-accent-line">
-              <span className="hero-accent-text text-highlight">Effortless</span>
-              <svg className="hero-underline" viewBox="0 0 220 24" aria-hidden="true">
-                <path
-                  d="M4 15c20-11 41-11 60 0s40 11 60 0 40-11 92-3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-          </h1>
-          <p className="hero-subtitle">
-            BillBhai is the all-in-one platform for <span className="text-highlight">invoicing, inventory tracking, and order management</span> — designed for speed, built for Indian businesses.
-          </p>
-          <div className="hero-pills" aria-label="Core product capabilities">
-            <span className="hero-pill">GST-ready</span>
-            <span className="hero-pill">Live inventory</span>
-            <span className="hero-pill">Fast checkout</span>
-          </div>
-          <div className="hero-cta">
-            <Link to="/register-business" className="btn btn-primary btn-lg" id="heroPrimaryBtn">
-              Start Free Trial
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </Link>
-            <a href="#how-it-works" className="btn btn-outline btn-lg">See How It Works</a>
-          </div>
-          <div className="hero-visual">
-            <div className="dashboard-preview">
-              <div className="preview-topbar">
-                <div className="preview-dots">
-                  <span /><span /><span />
-                </div>
-                <span className="preview-url">billbhai.vercel.app/dashboard</span>
+          <div className="hero-layout">
+            <div className="hero-copy">
+              <div className="hero-badge">
+                <span className="badge-dot" />
+                <span>Trusted by 500+ businesses across India</span>
               </div>
-              <div className="preview-body">
-                <div className="preview-sidebar">
-                  <div className="ps-item active" />
-                  <div className="ps-item" />
-                  <div className="ps-item" />
-                  <div className="ps-item" />
-                  <div className="ps-item" />
+              <h1 className="hero-title">
+                <span className="hero-line">Billing Made</span>
+                <span className="hero-line hero-accent-line">
+                  <span className="text-highlight">Effortless</span>
+                </span>
+              </h1>
+              <p className="hero-subtitle">
+                BillBhai is the all-in-one platform for invoicing, inventory tracking, and order management, built for Indian businesses that want speed without the clutter.
+              </p>
+              <div className="hero-pills" aria-label="Core product capabilities">
+                <span className="hero-pill">GST-ready</span>
+                <span className="hero-pill">Live inventory</span>
+                <span className="hero-pill">Fast checkout</span>
+              </div>
+              <div className="hero-cta">
+                <Link to="/register-business" className="btn btn-primary btn-lg" id="heroPrimaryBtn">
+                  Start Free Trial
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </Link>
+                <a href="#how-it-works" className="btn btn-outline btn-lg">See How It Works</a>
+              </div>
+            </div>
+            <div className="hero-visual">
+              <div className="dashboard-preview">
+                <div className="preview-topbar">
+                  <div className="preview-dots">
+                    <span /><span /><span />
+                  </div>
+                  <span className="preview-url">billbhai.vercel.app/dashboard</span>
                 </div>
-                <div className="preview-content">
-                  <div className="pc-stat-row">
-                    <div className="pc-stat">
-                      <div className="pc-stat-icon green" />
-                      <div className="pc-stat-text">
-                        <span className="pc-label">Revenue</span>
-                        <span className="pc-val">₹58,680</span>
-                      </div>
-                    </div>
-                    <div className="pc-stat">
-                      <div className="pc-stat-icon blue" />
-                      <div className="pc-stat-text">
-                        <span className="pc-label">Orders</span>
-                        <span className="pc-val">124</span>
-                      </div>
-                    </div>
-                    <div className="pc-stat">
-                      <div className="pc-stat-icon amber" />
-                      <div className="pc-stat-text">
-                        <span className="pc-label">Accuracy</span>
-                        <span className="pc-val">98.2%</span>
-                      </div>
-                    </div>
+                <div className="preview-body">
+                  <div className="preview-sidebar">
+                    <div className="ps-item active" />
+                    <div className="ps-item" />
+                    <div className="ps-item" />
+                    <div className="ps-item" />
+                    <div className="ps-item" />
                   </div>
-                  <div className="pc-chart">
-                    <svg viewBox="0 0 300 80" className="chart-line">
-                      <defs>
-                        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="rgba(220,53,69,0.3)" />
-                          <stop offset="100%" stopColor="rgba(220,53,69,0)" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20" fill="none" stroke="#dc3545" strokeWidth="2" />
-                      <path d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20 L300,80 L0,80 Z" fill="url(#chartGrad)" />
-                    </svg>
-                  </div>
-                  <div className="pc-table">
-                    <div className="pc-row"><span /><span /><span className="pc-badge green" /></div>
-                    <div className="pc-row"><span /><span /><span className="pc-badge blue" /></div>
-                    <div className="pc-row"><span /><span /><span className="pc-badge amber" /></div>
+                  <div className="preview-content">
+                    <div className="pc-stat-row">
+                      <div className="pc-stat">
+                        <div className="pc-stat-icon green" />
+                        <div className="pc-stat-text">
+                          <span className="pc-label">Revenue</span>
+                          <span className="pc-val">₹58,680</span>
+                        </div>
+                      </div>
+                      <div className="pc-stat">
+                        <div className="pc-stat-icon blue" />
+                        <div className="pc-stat-text">
+                          <span className="pc-label">Orders</span>
+                          <span className="pc-val">124</span>
+                        </div>
+                      </div>
+                      <div className="pc-stat">
+                        <div className="pc-stat-icon amber" />
+                        <div className="pc-stat-text">
+                          <span className="pc-label">Accuracy</span>
+                          <span className="pc-val">98.2%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pc-chart">
+                      <svg viewBox="0 0 300 80" className="chart-line">
+                        <defs>
+                          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(220,53,69,0.3)" />
+                            <stop offset="100%" stopColor="rgba(220,53,69,0)" />
+                          </linearGradient>
+                        </defs>
+                        <path d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20" fill="none" stroke="#dc3545" strokeWidth="2" />
+                        <path d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20 L300,80 L0,80 Z" fill="url(#chartGrad)" />
+                      </svg>
+                    </div>
+                    <div className="pc-table">
+                      <div className="pc-row"><span /><span /><span className="pc-badge green" /></div>
+                      <div className="pc-row"><span /><span /><span className="pc-badge blue" /></div>
+                      <div className="pc-row"><span /><span /><span className="pc-badge amber" /></div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="float-card float-card-1">
-              <div className="fc-icon green">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              </div>
-              <div className="fc-text">
-                <span className="fc-label">Revenue Today</span>
-                <span className="fc-value">₹12,450</span>
-              </div>
-            </div>
-            <div className="float-card float-card-2">
-              <div className="fc-icon blue">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              </div>
-              <div className="fc-text">
-                <span className="fc-label">Order Completed</span>
-                <span className="fc-value">#4821</span>
-              </div>
-            </div>
-            <div className="hero-sticker hero-sticker-left">
-              <span className="hero-sticker-label">Live sync</span>
-              <strong>Billing, stock, and receipts stay in one rhythm.</strong>
-            </div>
-            <div className="hero-sticker hero-sticker-right">
-              <span className="hero-sticker-label">Built for speed</span>
-              <strong>Made for counter teams that need clean, quick flow.</strong>
-            </div>
+          </div>
           </div>
         </div>
       </section>

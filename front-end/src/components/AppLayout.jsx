@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { NAV_ITEMS } from '../config/navigation.js'
 import { useAuth } from '../context/useAuth.js'
+import { ToastHost } from './toast.jsx'
 
 const ROLE_LABELS = {
   superuser: 'Super User',
@@ -104,6 +105,7 @@ function AppLayout() {
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false)
   const [isNotifOpen, setIsNotifOpen] = useState(false)
   const [isUserOpen, setIsUserOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const { user, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -111,6 +113,48 @@ function AppLayout() {
   const currentRoute = useMemo(() => {
     const route = NAV_ITEMS.find((item) => item.path === location.pathname)
     return route || NAV_ITEMS[0]
+  }, [location.pathname])
+
+  // Unread notifications for the active business (dot + count in header)
+  const computeUnreadCount = useCallback(() => {
+    try {
+      const raw = localStorage.getItem('bb_notifications')
+      const list = raw ? JSON.parse(raw) : []
+      if (!Array.isArray(list)) return 0
+      const activeBusinessId = String(localStorage.getItem('activeBusinessId') || '').trim()
+      return list.filter((item) => {
+        if (!item || item.unread !== true) return false
+        const scope = String(item.scopeBusinessId || '').trim()
+        return !scope || !activeBusinessId || scope === activeBusinessId
+      }).length
+    } catch {
+      return 0
+    }
+  }, [])
+
+  useEffect(() => {
+    const updateUnread = () => setUnreadCount(computeUnreadCount())
+    updateUnread()
+    window.addEventListener('storage', updateUnread)
+    return () => window.removeEventListener('storage', updateUnread)
+  }, [computeUnreadCount, location.pathname])
+
+  // Re-check after the dropdown closes so read receipts clear the dot
+  useEffect(() => {
+    if (!isNotifOpen) setUnreadCount(computeUnreadCount())
+  }, [isNotifOpen, computeUnreadCount])
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeDropdowns()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
+
+  useEffect(() => {
+    setIsSidebarMobileOpen(false)
+    closeDropdowns()
   }, [location.pathname])
 
   // Set body data-page and data-app-ready attributes to activate dashboard.css page-specific styles
@@ -175,6 +219,7 @@ function AppLayout() {
             <NavLink
               key={item.path}
               to={item.path}
+              title={item.label}
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
               data-page={item.pageKey}
             >
@@ -188,6 +233,7 @@ function AppLayout() {
             <NavLink
               key={item.path}
               to={item.path}
+              title={item.label}
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
               data-page={item.pageKey}
             >
@@ -208,7 +254,12 @@ function AppLayout() {
           </button>
         </div>
       </aside>
-      <div className="sidebar-overlay" id="sidebarOverlay" onClick={() => setIsSidebarMobileOpen(false)} />
+      <div
+        className={`sidebar-overlay${isSidebarMobileOpen ? ' show' : ''}`}
+        id="sidebarOverlay"
+        onClick={() => setIsSidebarMobileOpen(false)}
+        aria-hidden="true"
+      />
 
       <main className="main-content" id="mainContent" onClick={closeDropdowns}>
         <header className="top-header">
@@ -242,7 +293,9 @@ function AppLayout() {
                 type="button"
                 className="icon-btn notif-btn"
                 id="notifBtn"
-                aria-label="Notifications"
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                aria-haspopup="menu"
+                aria-expanded={isNotifOpen}
                 onClick={() => {
                   setIsNotifOpen((prev) => !prev)
                   setIsUserOpen(false)
@@ -252,34 +305,37 @@ function AppLayout() {
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
-                <span className="notif-dot" />
+                {unreadCount > 0 ? <span className="notif-count">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}
               </button>
-              <div className={`dropdown-menu ${isNotifOpen ? 'show' : ''}`} id="notifDropdown" style={{ width: '260px' }}>
+              <div className={`dropdown-menu notif-menu ${isNotifOpen ? 'show' : ''}`} id="notifDropdown">
                 <div className="dropdown-header">
                   <strong>Notifications</strong>
                   <div className="text-sm text-muted">You have new notifications</div>
                 </div>
-                <NavLink to="/notifications" className="dropdown-item nav-item" data-page="notifications" onClick={closeDropdowns} style={{ justifyContent: 'center', fontWeight: 500, color: 'var(--accent)' }}>
+                <NavLink to="/notifications" className="dropdown-item dropdown-item-accent" data-page="notifications" onClick={closeDropdowns}>
                   View all notifications
                 </NavLink>
               </div>
             </div>
 
             <div className="dropdown-container" id="userContainer">
-              <div
+              <button
+                type="button"
                 className="header-user"
                 id="userMenuBtn"
+                aria-haspopup="menu"
+                aria-expanded={isUserOpen}
                 onClick={() => {
                   setIsUserOpen((prev) => !prev)
                   setIsNotifOpen(false)
                 }}
               >
-                <div className="user-avatar">{String(user?.name || 'U').charAt(0).toUpperCase()}</div>
-                <div className="user-info">
+                <span className="user-avatar">{String(user?.name || 'U').charAt(0).toUpperCase()}</span>
+                <span className="user-info">
                   <span className="user-name">{user?.name || 'User'}</span>
                   <span className="user-role">{roleLabel}</span>
-                </div>
-              </div>
+                </span>
+              </button>
               <div className={`dropdown-menu ${isUserOpen ? 'show' : ''}`} id="userDropdown">
                 <div className="dropdown-header">
                   <strong>{user?.name || 'User'}</strong>
@@ -303,6 +359,7 @@ function AppLayout() {
           <Outlet />
         </div>
       </main>
+      <ToastHost />
     </>
   )
 }

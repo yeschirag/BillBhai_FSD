@@ -7,6 +7,11 @@ import {
   formatTimestamp,
   getStatusBadgeClass,
 } from '../services/workspaceService.js'
+import Modal from '../components/Modal.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
+import { toast } from '../components/toastBus.js'
 
 const INITIAL_FORM = {
   oid: '',
@@ -18,10 +23,12 @@ const INITIAL_FORM = {
 const EMPTY_LIST = []
 
 function ReturnsPage() {
-  const { activeData, isLoading, error, mutateWorkspace } = useWorkspaceData()
+  const { activeData, isLoading, error, refresh, mutateWorkspace } = useWorkspaceData()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [editingId, setEditingId] = useState('')
   const [form, setForm] = useState(INITIAL_FORM)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const returns = Array.isArray(activeData?.returns) ? activeData.returns : EMPTY_LIST
   const stats = useMemo(() => ({
@@ -57,6 +64,10 @@ function ReturnsPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (isSaving) return
+
+    setIsSaving(true)
+    let savedLabel = ''
 
     await mutateWorkspace((draft) => {
       const businessId = draft.activeBusiness.id
@@ -77,6 +88,7 @@ function ReturnsPage() {
       } else {
         target.returns.unshift(nextReturn)
       }
+      savedLabel = `${nextReturn.id} ${index >= 0 ? 'updated' : 'raised'}`
 
       draft.notifications.unshift(
         buildNotification({
@@ -94,24 +106,25 @@ function ReturnsPage() {
       )
     })
 
-    closeModal()
+    setIsSaving(false)
+    if (savedLabel) {
+      toast.success(savedLabel)
+      closeModal()
+    }
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+
     await mutateWorkspace((draft) => {
       const businessId = draft.activeBusiness.id
       draft.dataByBusiness[businessId].returns = draft.dataByBusiness[businessId].returns.filter(
-        (item) => item.id !== id,
+        (item) => item.id !== deleteTarget,
       )
     })
-  }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading returns...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+    setDeleteTarget(null)
+    toast.success('Return request deleted')
   }
 
   return (
@@ -119,103 +132,120 @@ function ReturnsPage() {
       <div className="page-header">
         <h2>Returns &amp; Refunds</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>+ Raise Return</button>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>Raise Return</button>
         </div>
       </div>
 
-      <section className="stats-grid">
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Requests</span><span className="stat-value">{stats.total}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Refund Exposure</span><span className="stat-value">{formatCurrency(stats.amount)}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Approved</span><span className="stat-value">{stats.approved}</span></div></div>
-      </section>
+      <PageState loading={isLoading} error={error} label="Loading returns…" onRetry={refresh} />
 
-      <section className="card">
-        <div className="card-hd"><h3>Return Log</h3></div>
-        <div className="card-bd">
-          <div className="tbl-wrap">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <th>Return ID</th>
-                  <th>Order</th>
-                  <th>Reason</th>
-                  <th>Amount</th>
-                  <th>Requested By</th>
-                  <th>Status</th>
-                  <th>Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {returns.length ? returns.map((item) => (
-                  <tr key={item.id}>
-                    <td className="cell-main">{item.id}</td>
-                    <td>{item.oid || '-'}</td>
-                    <td>{item.reason}</td>
-                    <td>{formatCurrency(item.amount)}</td>
-                    <td>{item.requestedBy}</td>
-                    <td><span className={`badge ${getStatusBadgeClass(item.status)}`}>{item.status}</span></td>
-                    <td>{item.updatedAt}</td>
-                    <td className="workspace-actions-cell">
-                      <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(item)}>Edit</button>
-                      <button type="button" className="btn btn-outline btn-xs btn-danger" onClick={() => handleDelete(item.id)}>Delete</button>
-                    </td>
+      {!isLoading && !error ? (
+        <>
+          <section className="stats-grid">
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Requests</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Refund Exposure</span><span className="stat-value">{formatCurrency(stats.amount)}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Approved</span><span className="stat-value">{stats.approved}</span></div></div>
+          </section>
+
+          <section className="card">
+            <div className="card-hd"><h3>Return Log</h3></div>
+            <div className="tbl-wrap">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Return ID</th>
+                    <th>Order</th>
+                    <th>Reason</th>
+                    <th className="cell-num">Amount</th>
+                    <th>Requested By</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th className="cell-num">Actions</th>
                   </tr>
-                )) : (
-                  <tr><td colSpan="8">No return requests available.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+                </thead>
+                <tbody>
+                  {returns.length ? returns.map((item) => (
+                    <tr key={item.id}>
+                      <td className="cell-main">{item.id}</td>
+                      <td>{item.oid || '-'}</td>
+                      <td>{item.reason}</td>
+                      <td className="cell-num">{formatCurrency(item.amount)}</td>
+                      <td>{item.requestedBy}</td>
+                      <td><span className={`badge ${getStatusBadgeClass(item.status)}`}>{item.status}</span></td>
+                      <td>{item.updatedAt}</td>
+                      <td className="workspace-actions-cell">
+                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(item)}>Edit</button>
+                        <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="8">
+                        <EmptyState title="No returns raised" hint="Return requests will appear here once raised." />
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      ) : null}
 
-      <div className={`modal-overlay ${isModalOpen ? 'active' : ''}`}>
-        <div className="modal">
-          <div className="modal-header">
-            <h3>{editingId ? 'Edit Return' : 'Raise Return'}</h3>
-            <button type="button" className="modal-close" onClick={closeModal}>&times;</button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="returnOrder">Order ID</label>
-                  <input id="returnOrder" className="form-control" value={form.oid} onChange={(event) => setForm((prev) => ({ ...prev, oid: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="returnRequester">Requested By</label>
-                  <input id="returnRequester" className="form-control" value={form.requestedBy} onChange={(event) => setForm((prev) => ({ ...prev, requestedBy: event.target.value }))} />
-                </div>
+      {isModalOpen ? (
+        <Modal
+          title={editingId ? 'Edit Return' : 'Raise Return'}
+          onClose={closeModal}
+          footer={
+            <>
+              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="returnForm" className="btn btn-primary" disabled={isSaving}>
+                {editingId ? 'Save Changes' : 'Raise Return'}
+              </button>
+            </>
+          }
+        >
+          <form id="returnForm" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="returnOrder">Order ID</label>
+                <input id="returnOrder" className="form-control" value={form.oid} onChange={(event) => setForm((prev) => ({ ...prev, oid: event.target.value }))} />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="returnReason">Reason</label>
-                <textarea id="returnReason" className="form-control" rows="3" value={form.reason} onChange={(event) => setForm((prev) => ({ ...prev, reason: event.target.value }))} />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="returnAmount">Amount</label>
-                  <input id="returnAmount" className="form-control" type="number" min="0" value={form.amount} onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="returnStatus">Status</label>
-                  <select id="returnStatus" className="form-control" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
-                    <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Closed">Closed</option>
-                  </select>
-                </div>
+                <label className="form-label" htmlFor="returnRequester">Requested By</label>
+                <input id="returnRequester" className="form-control" value={form.requestedBy} onChange={(event) => setForm((prev) => ({ ...prev, requestedBy: event.target.value }))} />
               </div>
             </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingId ? 'Save Changes' : 'Raise Return'}</button>
+            <div className="form-group">
+              <label className="form-label" htmlFor="returnReason">Reason</label>
+              <textarea id="returnReason" className="form-control" rows="3" value={form.reason} onChange={(event) => setForm((prev) => ({ ...prev, reason: event.target.value }))} />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="returnAmount">Amount (₹)</label>
+                <input id="returnAmount" className="form-control" type="number" min="0" step="0.01" required value={form.amount} onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="returnStatus">Status</label>
+                <select id="returnStatus" className="form-control" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
             </div>
           </form>
-        </div>
-      </div>
+        </Modal>
+      ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete Return Request"
+        message={`This will permanently remove ${deleteTarget || 'this request'} from the return log.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   )
 }
