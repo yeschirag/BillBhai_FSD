@@ -54,6 +54,12 @@ const apiLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
+// Plain-200 liveness probe for platform health checks (Render, uptime monitors).
+// Keep this outside /api so any configured Health Check Path resolves.
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/', (req, res) => {
   res.redirect(301, '/api');
 });
