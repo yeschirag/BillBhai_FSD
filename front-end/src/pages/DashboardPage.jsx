@@ -15,6 +15,9 @@ import {
   buildDashboardSnapshot,
   getActiveBusinessDashboardData,
 } from '../services/dataService.js'
+import { formatCurrency } from '../services/workspaceService.js'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
 
 const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#ff9f0a']
 
@@ -35,6 +38,7 @@ function DashboardPage() {
   const [snapshot, setSnapshot] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let isMounted = true
@@ -67,7 +71,7 @@ function DashboardPage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [reloadKey])
 
   const salesChartData = useMemo(
     () => (snapshot ? snapshot.salesTrend.map((point) => ({
@@ -86,51 +90,24 @@ function DashboardPage() {
     [snapshot],
   )
 
-  if (isLoading) {
+  if (isLoading || error || !snapshot) {
     return (
       <>
         <div className="page-header">
           <h2>Dashboard</h2>
           <div className="page-header-actions">
-            <button className="btn btn-outline" disabled>
-              Loading…
+            <button type="button" className="btn btn-outline" onClick={() => window.print()} disabled={isLoading || Boolean(error)}>
+              Print
             </button>
           </div>
         </div>
-
-        <div className="dashboard-loading-shell">
-          <div className="dashboard-loading-card">
-            <span className="dashboard-loading-spinner" aria-hidden="true" />
-            <span>Loading orders...</span>
-          </div>
-        </div>
+        <PageState
+          loading={isLoading}
+          error={error || (!snapshot && !isLoading ? 'Dashboard data could not be loaded.' : '')}
+          label="Loading dashboard…"
+          onRetry={error ? () => setReloadKey((key) => key + 1) : undefined}
+        />
       </>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="card loading-panel error-panel">
-        <div className="card-hd">
-          <h3>Dashboard</h3>
-        </div>
-        <div className="card-bd">
-          <p className="loading-error-message">{error}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!snapshot) {
-    return (
-      <div className="card loading-panel error-panel">
-        <div className="card-hd">
-          <h3>Dashboard</h3>
-        </div>
-        <div className="card-bd">
-          <p className="loading-error-message">Dashboard data could not be loaded.</p>
-        </div>
-      </div>
     )
   }
 
@@ -168,7 +145,7 @@ function DashboardPage() {
           </div>
           <div className="stat-info">
             <span className="stat-label">Revenue</span>
-            <span className="stat-value">₹{snapshot.revenue.toLocaleString()}</span>
+            <span className="stat-value">{formatCurrency(snapshot.revenue)}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -234,7 +211,7 @@ function DashboardPage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <p>No trend data available.</p>
+              <EmptyState title="No trend data yet" hint="Sales will chart here as orders come in." />
             )}
           </div>
         </div>
@@ -264,7 +241,7 @@ function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p>No status data available.</p>
+              <EmptyState title="No orders yet" hint="Status breakdown appears once orders exist." />
             )}
           </div>
         </div>
@@ -274,41 +251,41 @@ function DashboardPage() {
         <div className="card-hd">
           <h3>Recent Orders</h3>
         </div>
-        <div className="card-bd">
-          <div className="tbl-wrap">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Customer</th>
-                  <th>Total</th>
-                  <th>Payment</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {snapshot.recentOrders.length ? (
-                  snapshot.recentOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="cell-main">{order.id}</td>
-                      <td>{order.customer}</td>
-                      <td>Rs {Math.max(0, Number(order.total || 0)).toLocaleString()}</td>
-                      <td>
-                        <span className={`badge ${paymentBadgeClass(order.payment)}`}>{order.payment}</span>
-                      </td>
-                      <td>
-                        <span className={`badge ${statusBadgeClass(order.status)}`}>{order.status}</span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5">No orders available for current business.</td>
+        <div className="tbl-wrap">
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th className="cell-num">Total</th>
+                <th>Payment</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snapshot.recentOrders.length ? (
+                snapshot.recentOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="cell-main">{order.id}</td>
+                    <td>{order.customer}</td>
+                    <td className="cell-num">{formatCurrency(order.total)}</td>
+                    <td>
+                      <span className={`badge ${paymentBadgeClass(order.payment)}`}>{order.payment}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${statusBadgeClass(order.status)}`}>{order.status}</span>
+                    </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5">
+                    <EmptyState title="No orders available" hint="Orders for the current business will appear here." />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
     </>

@@ -437,7 +437,7 @@ export function buildNextId(prefix, rows, seed = 1) {
 }
 
 export function formatCurrency(amount) {
-  return `Rs ${Math.max(0, Number(amount || 0)).toLocaleString()}`
+  return `₹${Math.max(0, Number(amount || 0)).toLocaleString()}`
 }
 
 export function formatTimestamp(date = new Date()) {

@@ -8,6 +8,11 @@ import {
   getPaymentBadgeClass,
   getStatusBadgeClass,
 } from '../services/workspaceService.js'
+import Modal from '../components/Modal.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
+import { toast } from '../components/toastBus.js'
 
 const INITIAL_FORM = {
   customer: '',
@@ -19,10 +24,12 @@ const INITIAL_FORM = {
 const EMPTY_LIST = []
 
 function OrdersPage() {
-  const { activeBusiness, activeData, currentUser, isLoading, error, mutateWorkspace } = useWorkspaceData()
+  const { activeBusiness, activeData, currentUser, isLoading, error, refresh, mutateWorkspace } = useWorkspaceData()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [editingId, setEditingId] = useState('')
   const [form, setForm] = useState(INITIAL_FORM)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const orders = Array.isArray(activeData?.orders) ? activeData.orders : EMPTY_LIST
   const canEdit = currentUser?.role !== 'customer'
@@ -65,7 +72,10 @@ function OrdersPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!activeBusiness) return
+    if (!activeBusiness || isSaving) return
+
+    setIsSaving(true)
+    let savedLabel = ''
 
     await mutateWorkspace((draft) => {
       const businessId = draft.activeBusiness.id
@@ -86,6 +96,7 @@ function OrdersPage() {
       } else {
         target.orders.unshift(nextOrder)
       }
+      savedLabel = `${nextOrder.id} ${index >= 0 ? 'updated' : 'created'}`
 
       draft.notifications.unshift(
         buildNotification({
@@ -104,25 +115,25 @@ function OrdersPage() {
       )
     })
 
-    closeModal()
+    setIsSaving(false)
+    if (savedLabel) {
+      toast.success(savedLabel)
+      closeModal()
+    }
   }
 
-  const handleDelete = async (orderId) => {
-    if (!activeBusiness) return
+  const handleDelete = async () => {
+    if (!activeBusiness || !deleteTarget) return
+
     await mutateWorkspace((draft) => {
       const businessId = draft.activeBusiness.id
       draft.dataByBusiness[businessId].orders = draft.dataByBusiness[businessId].orders.filter(
-        (item) => item.id !== orderId,
+        (item) => item.id !== deleteTarget,
       )
     })
-  }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading orders...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+    setDeleteTarget(null)
+    toast.success(`Order deleted`)
   }
 
   return (
@@ -132,7 +143,7 @@ function OrdersPage() {
         <div className="page-header-actions">
           {canEdit ? (
             <button type="button" className="btn btn-primary" onClick={openCreate}>
-              + New Order
+              New Order
             </button>
           ) : null}
           <button type="button" className="btn btn-outline" onClick={() => window.print()}>
@@ -141,118 +152,133 @@ function OrdersPage() {
         </div>
       </div>
 
-      <section className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-info"><span className="stat-label">Total Orders</span><span className="stat-value">{stats.total}</span></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-info"><span className="stat-label">Revenue</span><span className="stat-value">{formatCurrency(stats.revenue)}</span></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-info"><span className="stat-label">Cancelled</span><span className="stat-value">{stats.cancelled}</span></div>
-        </div>
-      </section>
+      <PageState loading={isLoading} error={error} label="Loading orders…" onRetry={refresh} />
 
-      <section className="card">
-        <div className="card-hd">
-          <h3>{activeBusiness?.name || 'Current Business'} Orders</h3>
-        </div>
-        <div className="card-bd">
-          <div className="tbl-wrap">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Payment</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  {canEdit ? <th>Actions</th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length ? orders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="cell-main">{order.id}</td>
-                    <td>{order.customer}</td>
-                    <td>{order.items}</td>
-                    <td>{formatCurrency(order.total)}</td>
-                    <td><span className={`badge ${getPaymentBadgeClass(order.payment)}`}>{order.payment}</span></td>
-                    <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{order.status}</span></td>
-                    <td>{order.date}</td>
-                    {canEdit ? (
-                      <td className="workspace-actions-cell">
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(order)}>Edit</button>
-                        <button type="button" className="btn btn-outline btn-xs btn-danger" onClick={() => handleDelete(order.id)}>Delete</button>
-                      </td>
-                    ) : null}
-                  </tr>
-                )) : (
+      {!isLoading && !error ? (
+        <>
+          <section className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-info"><span className="stat-label">Total Orders</span><span className="stat-value">{stats.total}</span></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-info"><span className="stat-label">Revenue</span><span className="stat-value">{formatCurrency(stats.revenue)}</span></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-info"><span className="stat-label">Cancelled</span><span className="stat-value">{stats.cancelled}</span></div>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-hd">
+              <h3>{activeBusiness?.name || 'Current Business'} Orders</h3>
+            </div>
+            <div className="tbl-wrap">
+              <table className="dt">
+                <thead>
                   <tr>
-                    <td colSpan={canEdit ? 8 : 7}>No orders available yet.</td>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th className="cell-num">Items</th>
+                    <th className="cell-num">Total</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    {canEdit ? <th className="cell-num">Actions</th> : null}
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+                </thead>
+                <tbody>
+                  {orders.length ? orders.map((order) => (
+                    <tr key={order.id}>
+                      <td className="cell-main">{order.id}</td>
+                      <td>{order.customer}</td>
+                      <td className="cell-num">{order.items}</td>
+                      <td className="cell-num">{formatCurrency(order.total)}</td>
+                      <td><span className={`badge ${getPaymentBadgeClass(order.payment)}`}>{order.payment}</span></td>
+                      <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{order.status}</span></td>
+                      <td>{order.date}</td>
+                      {canEdit ? (
+                        <td className="workspace-actions-cell">
+                          <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(order)}>Edit</button>
+                          <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(order.id)}>Delete</button>
+                        </td>
+                      ) : null}
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={canEdit ? 8 : 7}>
+                        <EmptyState title="No orders yet" hint="Create your first order to start tracking billing." />
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      ) : null}
 
-      <div className={`modal-overlay ${isModalOpen ? 'active' : ''}`}>
-        <div className="modal">
-          <div className="modal-header">
-            <h3>{editingId ? 'Edit Order' : 'Create Order'}</h3>
-            <button type="button" className="modal-close" onClick={closeModal}>&times;</button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
+      {isModalOpen ? (
+        <Modal
+          title={editingId ? 'Edit Order' : 'Create Order'}
+          onClose={closeModal}
+          footer={
+            <>
+              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="orderForm" className="btn btn-primary" disabled={isSaving}>
+                {editingId ? 'Save Changes' : 'Create Order'}
+              </button>
+            </>
+          }
+        >
+          <form id="orderForm" onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="orderCustomer">Customer Name</label>
+              <input id="orderCustomer" className="form-control" required value={form.customer} onChange={(event) => setForm((prev) => ({ ...prev, customer: event.target.value }))} />
+            </div>
+            <div className="form-row">
               <div className="form-group">
-                <label className="form-label" htmlFor="orderCustomer">Customer Name</label>
-                <input id="orderCustomer" className="form-control" value={form.customer} onChange={(event) => setForm((prev) => ({ ...prev, customer: event.target.value }))} />
+                <label className="form-label" htmlFor="orderItems">Items</label>
+                <input id="orderItems" className="form-control" type="number" min="1" required value={form.items} onChange={(event) => setForm((prev) => ({ ...prev, items: event.target.value }))} />
               </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="orderItems">Items</label>
-                  <input id="orderItems" className="form-control" type="number" min="1" value={form.items} onChange={(event) => setForm((prev) => ({ ...prev, items: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="orderTotal">Total</label>
-                  <input id="orderTotal" className="form-control" type="number" min="0" value={form.total} onChange={(event) => setForm((prev) => ({ ...prev, total: event.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="orderPayment">Payment</label>
-                  <select id="orderPayment" className="form-control" value={form.payment} onChange={(event) => setForm((prev) => ({ ...prev, payment: event.target.value }))}>
-                    <option value="UPI">UPI</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Card">Card</option>
-                    <option value="COD">COD</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="orderStatus">Status</label>
-                  <select id="orderStatus" className="form-control" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
-                    <option value="Pending">Pending</option>
-                    <option value="Processing">Processing</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="orderTotal">Total (₹)</label>
+                <input id="orderTotal" className="form-control" type="number" min="0" step="0.01" required value={form.total} onChange={(event) => setForm((prev) => ({ ...prev, total: event.target.value }))} />
               </div>
             </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingId ? 'Save Changes' : 'Create Order'}</button>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="orderPayment">Payment</label>
+                <select id="orderPayment" className="form-control" value={form.payment} onChange={(event) => setForm((prev) => ({ ...prev, payment: event.target.value }))}>
+                  <option value="UPI">UPI</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="COD">COD</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="orderStatus">Status</label>
+                <select id="orderStatus" className="form-control" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
+                  <option value="Pending">Pending</option>
+                  <option value="Processing">Processing</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
             </div>
           </form>
-        </div>
-      </div>
+        </Modal>
+      ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete Order"
+        message={`This will permanently remove ${deleteTarget || 'this order'} from your records.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   )
 }

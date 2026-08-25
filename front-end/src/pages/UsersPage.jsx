@@ -5,6 +5,11 @@ import {
   getStatusBadgeClass,
   upsertAuthOverride,
 } from '../services/workspaceService.js'
+import Modal from '../components/Modal.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
+import { toast } from '../components/toastBus.js'
 
 const ROLE_OPTIONS = [
   'Admin',
@@ -31,10 +36,12 @@ function createUsernameSeed(form) {
 }
 
 function UsersPage() {
-  const { activeBusiness, activeData, isLoading, error, mutateWorkspace } = useWorkspaceData()
+  const { activeBusiness, activeData, isLoading, error, refresh, mutateWorkspace } = useWorkspaceData()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [editingUsername, setEditingUsername] = useState('')
   const [form, setForm] = useState(INITIAL_FORM)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const users = Array.isArray(activeData?.users) ? activeData.users : EMPTY_LIST
   const stats = useMemo(() => ({
@@ -71,9 +78,12 @@ function UsersPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!activeBusiness) return
+    if (!activeBusiness || isSaving) return
 
+    setIsSaving(true)
     const resolvedUsername = createUsernameSeed(form)
+    let savedLabel = ''
+
     await mutateWorkspace((draft) => {
       const businessId = draft.activeBusiness.id
       const target = draft.dataByBusiness[businessId]
@@ -91,6 +101,7 @@ function UsersPage() {
       } else {
         target.users.unshift(nextUser)
       }
+      savedLabel = `${nextUser.name} ${index >= 0 ? 'updated' : 'added'}`
 
       const businessIndex = draft.businesses.findIndex((item) => item.id === businessId)
       if (businessIndex >= 0) {
@@ -125,28 +136,29 @@ function UsersPage() {
       password: String(form.password || '').trim() || undefined,
     })
 
-    closeModal()
+    setIsSaving(false)
+    if (savedLabel) {
+      toast.success(savedLabel)
+      closeModal()
+    }
   }
 
-  const handleDelete = async (username) => {
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+
     await mutateWorkspace((draft) => {
       const businessId = draft.activeBusiness.id
       draft.dataByBusiness[businessId].users = draft.dataByBusiness[businessId].users.filter(
-        (item) => (item.username || createUsernameSeed(item)) !== username,
+        (item) => (item.username || createUsernameSeed(item)) !== deleteTarget,
       )
       const businessIndex = draft.businesses.findIndex((item) => item.id === businessId)
       if (businessIndex >= 0) {
         draft.businesses[businessIndex].users = [...draft.dataByBusiness[businessId].users]
       }
     })
-  }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading users...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+    setDeleteTarget(null)
+    toast.success('Team member removed')
   }
 
   return (
@@ -154,109 +166,135 @@ function UsersPage() {
       <div className="page-header">
         <h2>Users</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>+ Add User</button>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>Add User</button>
         </div>
       </div>
 
-      <section className="stats-grid">
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Users</span><span className="stat-value">{stats.total}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Suspended</span><span className="stat-value">{stats.suspended}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Admins</span><span className="stat-value">{stats.admins}</span></div></div>
-      </section>
+      <PageState loading={isLoading} error={error} label="Loading users…" onRetry={refresh} />
 
-      <section className="card">
-        <div className="card-hd"><h3>Team Members</h3></div>
-        <div className="card-bd">
-          <div className="tbl-wrap">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.length ? users.map((user) => {
-                  const username = user.username || createUsernameSeed(user)
-                  return (
-                    <tr key={username}>
-                      <td className="cell-main">{user.name}</td>
-                      <td>{username}</td>
-                      <td>{user.email || '-'}</td>
-                      <td>{user.role}</td>
-                      <td><span className={`badge ${getStatusBadgeClass(user.status)}`}>{user.status}</span></td>
-                      <td className="workspace-actions-cell">
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(user)}>Edit</button>
-                        <button type="button" className="btn btn-outline btn-xs btn-danger" onClick={() => handleDelete(username)}>Delete</button>
+      {!isLoading && !error ? (
+        <>
+          <section className="stats-grid">
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Users</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Suspended</span><span className="stat-value">{stats.suspended}</span></div></div>
+            <div className="stat-card"><div className="stat-info"><span className="stat-label">Admins</span><span className="stat-value">{stats.admins}</span></div></div>
+          </section>
+
+          <section className="card">
+            <div className="card-hd"><h3>Team Members</h3></div>
+            <div className="tbl-wrap">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th className="cell-num">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length ? users.map((user) => {
+                    const username = user.username || createUsernameSeed(user)
+                    return (
+                      <tr key={username}>
+                        <td className="cell-main">{user.name}</td>
+                        <td>{username}</td>
+                        <td>{user.email || '-'}</td>
+                        <td>{user.role}</td>
+                        <td><span className={`badge ${getStatusBadgeClass(user.status)}`}>{user.status}</span></td>
+                        <td className="workspace-actions-cell">
+                          <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(user)}>Edit</button>
+                          <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(username)}>Delete</button>
+                        </td>
+                      </tr>
+                    )
+                  }) : (
+                    <tr>
+                      <td colSpan="6">
+                        <EmptyState title="No team members yet" hint="Add your team so they can sign in with their own role." />
                       </td>
                     </tr>
-                  )
-                }) : (
-                  <tr><td colSpan="6">No team members have been added.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      ) : null}
 
-      <div className={`modal-overlay ${isModalOpen ? 'active' : ''}`}>
-        <div className="modal">
-          <div className="modal-header">
-            <h3>{editingUsername ? 'Edit User' : 'Add User'}</h3>
-            <button type="button" className="modal-close" onClick={closeModal}>&times;</button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="userName">Full Name</label>
-                  <input id="userName" className="form-control" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="userUsername">Username</label>
-                  <input id="userUsername" className="form-control" value={form.username} onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))} placeholder="auto-generated if blank" />
-                </div>
+      {isModalOpen ? (
+        <Modal
+          title={editingUsername ? 'Edit User' : 'Add User'}
+          onClose={closeModal}
+          footer={
+            <>
+              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="userForm" className="btn btn-primary" disabled={isSaving}>
+                {editingUsername ? 'Save Changes' : 'Add User'}
+              </button>
+            </>
+          }
+        >
+          <form id="userForm" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="userName">Full Name</label>
+                <input id="userName" className="form-control" required value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
               </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="userEmail">Email</label>
-                  <input id="userEmail" className="form-control" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="userPassword">Password</label>
-                  <input id="userPassword" className="form-control" value={form.password} onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))} placeholder={editingUsername ? 'leave blank to keep current' : 'required for login'} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="userRole">Role</label>
-                  <select id="userRole" className="form-control" value={form.role} onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}>
-                    {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="userStatus">Status</label>
-                  <select id="userStatus" className="form-control" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
-                    <option value="Active">Active</option>
-                    <option value="Suspended">Suspended</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="userUsername">Username</label>
+                <input id="userUsername" className="form-control" value={form.username} onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))} placeholder="auto-generated if blank" />
               </div>
             </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingUsername ? 'Save Changes' : 'Add User'}</button>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="userEmail">Email</label>
+                <input id="userEmail" className="form-control" type="email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="userPassword">{editingUsername ? 'New Password' : 'Password'}</label>
+                <input
+                  id="userPassword"
+                  className="form-control"
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                  placeholder={editingUsername ? 'leave blank to keep current' : 'required for sign in'}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="userRole">Role</label>
+                <select id="userRole" className="form-control" value={form.role} onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}>
+                  {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="userStatus">Status</label>
+                <select id="userStatus" className="form-control" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
+                  <option value="Active">Active</option>
+                  <option value="Suspended">Suspended</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
             </div>
           </form>
-        </div>
-      </div>
+        </Modal>
+      ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Remove Team Member"
+        message={`This will revoke access for "${deleteTarget || 'this user'}". They will no longer be able to sign in.`}
+        confirmLabel="Remove User"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   )
 }

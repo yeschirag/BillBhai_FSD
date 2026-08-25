@@ -8,6 +8,7 @@ import {
   formatCurrency,
   formatTimestamp,
 } from '../services/workspaceService.js'
+import PageState from '../components/PageState.jsx'
 
 const INITIAL_CUSTOMER = {
   name: '',
@@ -19,6 +20,12 @@ const INITIAL_CUSTOMER = {
   deliveryPartnerPhone: '',
 }
 const EMPTY_LIST = []
+
+const STEP_DEFS = [
+  { id: 1, label: 'Customer' },
+  { id: 2, label: 'Items & Cart' },
+  { id: 3, label: 'Fulfillment' },
+]
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').slice(0, 10)
@@ -83,6 +90,7 @@ function CashierPage() {
   const [category, setCategory] = useState('All')
   const [promoCode, setPromoCode] = useState('')
   const [appliedPromo, setAppliedPromo] = useState('')
+  const [promoError, setPromoError] = useState('')
   const [checkoutMode, setCheckoutMode] = useState('takeaway_now')
   const [successSummary, setSuccessSummary] = useState(null)
 
@@ -190,17 +198,31 @@ function CashierPage() {
     setCustomer(INITIAL_CUSTOMER)
     setLookupMessage('Enter a 10-digit phone number to check existing customer records.')
     setCart([])
+    setSearch('')
+    setCategory('All')
     setPromoCode('')
     setAppliedPromo('')
+    setPromoError('')
     setCheckoutMode('takeaway_now')
     setSuccessSummary(null)
   }
 
   const applyPromo = () => {
     const safeCode = String(promoCode || '').trim().toUpperCase()
+    if (!safeCode) return
+
     if (cashierData?.promos?.[safeCode]) {
       setAppliedPromo(safeCode)
+      setPromoError('')
+    } else {
+      setPromoError(`"${safeCode}" is not a valid or active promo code.`)
     }
+  }
+
+  const removePromo = () => {
+    setAppliedPromo('')
+    setPromoError('')
+    setPromoCode('')
   }
 
   const completeCheckout = async () => {
@@ -302,12 +324,44 @@ function CashierPage() {
     setStep(4)
   }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading POS...</div></section>
-  }
+  const renderStepIndicator = () => (
+    <div className="pos-steps">
+      {STEP_DEFS.map((def, index) => (
+        <span key={def.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          {index > 0 ? <span className="pos-step-sep">›</span> : null}
+          <button
+            type="button"
+            className={`pos-step ${step === def.id ? 'current' : ''} ${def.id < step ? 'done' : ''}`}
+            style={{ cursor: def.id < step ? 'pointer' : 'default' }}
+            onClick={def.id < step ? () => setStep(def.id) : undefined}
+            aria-current={step === def.id ? 'step' : undefined}
+          >
+            {def.id < step ? '✓' : def.id}
+            {' '}
+            {def.label}
+          </button>
+        </span>
+      ))}
+    </div>
+  )
 
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+  if (isLoading || error) {
+    return (
+      <main className="main-content" id="mainContent">
+        <header className="top-header">
+          <div className="header-left">
+            <div className="breadcrumb">
+              <span className="bc-app">{activeBusiness?.name || 'BillBhai'}</span>
+              <span className="bc-sep">/</span>
+              <span className="bc-page">{isCustomerTerminal ? 'Self Checkout' : 'POS Terminal'}</span>
+            </div>
+          </div>
+        </header>
+        <div className="content-area">
+          <PageState loading={isLoading} error={error} label="Loading POS…" />
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -336,8 +390,10 @@ function CashierPage() {
       </header>
 
       <div className="content-area" id="contentArea">
+        {step < 4 ? renderStepIndicator() : null}
+
         {step === 1 ? (
-          <div className="step-container active">
+          <div className="step-container">
             <div className="wizard-centered">
               <h3>{isCustomerTerminal ? 'Start Self Checkout' : 'Start New Order'}</h3>
               <p className="text-muted" style={{ marginBottom: '20px', fontSize: '0.9rem' }}>
@@ -354,24 +410,24 @@ function CashierPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="cashierName">Customer Name</label>
-                    <input id="cashierName" className="form-control" value={customer.name} onChange={(event) => setCustomer((prev) => ({ ...prev, name: event.target.value }))} />
+                    <input id="cashierName" className="form-control" required value={customer.name} onChange={(event) => setCustomer((prev) => ({ ...prev, name: event.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="cashierPhone">Phone Number</label>
-                    <input id="cashierPhone" className="form-control" value={customer.phone} onChange={(event) => handlePhoneLookup(event.target.value)} />
+                    <input id="cashierPhone" className="form-control" type="tel" inputMode="numeric" maxLength="10" required value={customer.phone} onChange={(event) => handlePhoneLookup(event.target.value)} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="cashierEmail">Email</label>
-                    <input id="cashierEmail" className="form-control" value={customer.email} onChange={(event) => setCustomer((prev) => ({ ...prev, email: event.target.value }))} />
+                    <input id="cashierEmail" className="form-control" type="email" value={customer.email} onChange={(event) => setCustomer((prev) => ({ ...prev, email: event.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="cashierNotes">Notes</label>
                     <input id="cashierNotes" className="form-control" value={customer.notes} onChange={(event) => setCustomer((prev) => ({ ...prev, notes: event.target.value }))} />
                   </div>
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: '16px' }}>
                   {isCustomerTerminal ? 'Begin Shopping' : 'Begin Scanning / Manual Entry'}
                 </button>
               </form>
@@ -380,18 +436,19 @@ function CashierPage() {
         ) : null}
 
         {step === 2 ? (
-          <div className="step-container active">
+          <div className="step-container">
             <div className="pos-layout">
               <div className="pos-main">
                 <div className="pos-controls">
                   <div className="pos-search">
-                    <input type="text" id="posSearch" placeholder="Search products..." value={search} onChange={(event) => setSearch(event.target.value)} />
+                    <input type="text" id="posSearch" className="form-control" placeholder="Search products…" aria-label="Search products" value={search} onChange={(event) => setSearch(event.target.value)} />
                   </div>
                   <div className="category-filters">
                     {categories.map((item) => (
                       <button
                         key={item}
                         type="button"
+                        aria-pressed={category === item}
                         className={`btn ${category === item ? 'btn-primary' : 'btn-outline'} btn-xs`}
                         onClick={() => setCategory(item)}
                       >
@@ -421,8 +478,11 @@ function CashierPage() {
                 </div>
               </div>
 
-              <div className="pos-sidebar">
-                <div className="cart-header">Active Cart</div>
+              <aside className="pos-sidebar">
+                <div className="cart-header">
+                  <h3>Active Cart</h3>
+                  <span className="badge">{cart.reduce((sum, item) => sum + item.qty, 0)}</span>
+                </div>
                 <div className="cart-body">
                   {cart.length ? cart.map((item) => (
                     <div key={item.key} className="cart-item">
@@ -431,47 +491,59 @@ function CashierPage() {
                         <div className="text-muted">{item.option}</div>
                       </div>
                       <div className="workspace-qty-row">
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => updateCartQty(item.key, -1)}>-</button>
+                        <button type="button" aria-label={`Decrease quantity of ${item.name}`} onClick={() => updateCartQty(item.key, -1)}>−</button>
                         <span>{item.qty}</span>
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => updateCartQty(item.key, 1)}>+</button>
+                        <button type="button" aria-label={`Increase quantity of ${item.name}`} onClick={() => updateCartQty(item.key, 1)}>+</button>
                       </div>
                     </div>
-                  )) : <p className="text-muted">Add products to start billing.</p>}
+                  )) : <p className="cart-empty">Add products to start billing.</p>}
                 </div>
                 <div className="cart-footer">
-                  <div className="promo-block">
-                    <input className="promo-input" placeholder="Promo Code" value={promoCode} onChange={(event) => setPromoCode(event.target.value.toUpperCase())} />
-                    <button type="button" className="btn btn-outline btn-xs" onClick={applyPromo}>Apply</button>
-                  </div>
-                  {appliedPromo ? <div className="text-sm text-muted" style={{ marginBottom: '10px' }}>Promo applied: {appliedPromo}</div> : null}
+                  {appliedPromo ? (
+                    <div className="promo-applied">
+                      <span>Promo {appliedPromo} applied</span>
+                      <button type="button" className="promo-remove" aria-label="Remove promo code" onClick={removePromo}>×</button>
+                    </div>
+                  ) : (
+                    <div className="promo-block">
+                      <div className="promo-input">
+                        <input className="form-control" placeholder="Promo Code" value={promoCode} onChange={(event) => { setPromoCode(event.target.value.toUpperCase()); setPromoError('') }} />
+                        <button type="button" className="btn btn-outline" onClick={applyPromo}>Apply</button>
+                      </div>
+                      {promoError ? <p className="form-error">{promoError}</p> : null}
+                    </div>
+                  )}
                   <div className="cf-row"><span>Subtotal</span><span>{formatCurrency(totals.subtotal)}</span></div>
                   <div className="cf-row"><span>Discount</span><span>- {formatCurrency(totals.discount)}</span></div>
                   <div className="cf-tot"><span>Grand Total</span><span>{formatCurrency(totals.total)}</span></div>
-                  <button type="button" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={!cart.length} onClick={() => setStep(3)}>
+                  <button type="button" className="btn btn-primary btn-block" disabled={!cart.length} onClick={() => setStep(3)}>
                     Continue to Fulfillment
                   </button>
                 </div>
-              </div>
+              </aside>
             </div>
           </div>
         ) : null}
 
         {step === 3 ? (
-          <div className="step-container active">
+          <div className="step-container">
             <div className="wizard-centered fulfillment-centered">
               <h3>{isCustomerTerminal ? 'How would you like to receive this order?' : 'How should this order go out?'}</h3>
-              <div className="checkout-summary-card" style={{ marginBottom: '16px' }}>
-                <div className="checkout-summary-row"><span>Subtotal</span><strong>{formatCurrency(totals.subtotal)}</strong></div>
-                <div className="checkout-summary-row"><span>Discount</span><strong>- {formatCurrency(totals.discount)}</strong></div>
-                <div className="checkout-summary-row"><span>Delivery Charges</span><strong>{formatCurrency(getModeConfig(checkoutMode).deliveryOption === 'delivery' ? deliveryCharge : 0)}</strong></div>
-                <div className="checkout-summary-row"><span>Amount Payable</span><strong>{formatCurrency(totals.total)}</strong></div>
-              </div>
+
+              <section className="card checkout-summary-card">
+                <div className="card-bd">
+                  <div className="checkout-summary-row"><span>Subtotal</span><strong>{formatCurrency(totals.subtotal)}</strong></div>
+                  <div className="checkout-summary-row"><span>Discount</span><strong>- {formatCurrency(totals.discount)}</strong></div>
+                  <div className="checkout-summary-row"><span>Delivery Charges</span><strong>{formatCurrency(getModeConfig(checkoutMode).deliveryOption === 'delivery' ? deliveryCharge : 0)}</strong></div>
+                  <div className="checkout-summary-row"><span>Amount Payable</span><strong>{formatCurrency(totals.total)}</strong></div>
+                </div>
+              </section>
 
               <div className="checkout-mode-grid">
                 {['takeaway_now', 'prepaid_delivery', 'cod_delivery'].map((mode) => {
                   const config = getModeConfig(mode)
                   return (
-                    <label key={mode} className={`checkout-mode-card ${checkoutMode === mode ? 'active' : ''}`}>
+                    <label key={mode} className={`checkout-mode-card ${checkoutMode === mode ? 'selected' : ''}`}>
                       <input type="radio" name="checkoutMode" value={mode} checked={checkoutMode === mode} onChange={() => setCheckoutMode(mode)} />
                       <span className="checkout-mode-title">{config.label}</span>
                       <span className="checkout-mode-copy">{config.deliveryOption === 'pickup' ? 'Hand over immediately at the counter.' : 'Prepare this order for delivery dispatch.'}</span>
@@ -481,9 +553,11 @@ function CashierPage() {
               </div>
 
               {getModeConfig(checkoutMode).deliveryOption === 'delivery' ? (
-                <div className="delivery-details-block" style={{ display: 'block', marginTop: '12px' }}>
-                  <label className="form-label" htmlFor="cashierAddress">Delivery Address</label>
-                  <textarea id="cashierAddress" className="form-control" rows="2" value={customer.address} onChange={(event) => setCustomer((prev) => ({ ...prev, address: event.target.value }))} />
+                <div className="delivery-details-block">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="cashierAddress">Delivery Address</label>
+                    <textarea id="cashierAddress" className="form-control" rows="2" value={customer.address} onChange={(event) => setCustomer((prev) => ({ ...prev, address: event.target.value }))} />
+                  </div>
                   <div className="form-row delivery-contact-row">
                     <div className="form-group">
                       <label className="form-label" htmlFor="cashierPartner">Delivery Partner</label>
@@ -491,7 +565,7 @@ function CashierPage() {
                     </div>
                     <div className="form-group">
                       <label className="form-label" htmlFor="cashierPartnerPhone">Delivery Contact</label>
-                      <input id="cashierPartnerPhone" className="form-control" value={customer.deliveryPartnerPhone} onChange={(event) => setCustomer((prev) => ({ ...prev, deliveryPartnerPhone: event.target.value }))} />
+                      <input id="cashierPartnerPhone" className="form-control" type="tel" value={customer.deliveryPartnerPhone} onChange={(event) => setCustomer((prev) => ({ ...prev, deliveryPartnerPhone: event.target.value }))} />
                     </div>
                   </div>
                 </div>
@@ -513,19 +587,23 @@ function CashierPage() {
         ) : null}
 
         {step === 4 ? (
-          <div className="step-container active">
+          <div className="step-container">
             <div className="wizard-centered success-block">
-              <div className="success-icon">✓</div>
-              <h3>{isCustomerTerminal ? 'Ready for Payment' : 'Checkout Captured'}</h3>
-              <p className="text-muted" style={{ marginBottom: '30px', fontSize: '0.95rem' }}>
+              <div className="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <h2>{isCustomerTerminal ? 'Ready for Payment' : 'Checkout Captured'}</h2>
+              <p className="text-muted">
                 {successSummary ? `${successSummary.orderId} was created for ${successSummary.customer}.` : 'The order was captured successfully.'}
               </p>
               {successSummary ? (
-                <div className="checkout-summary-card" style={{ display: 'block' }}>
-                  <div className="checkout-summary-row"><span>Order</span><strong>{successSummary.orderId}</strong></div>
-                  <div className="checkout-summary-row"><span>Mode</span><strong>{successSummary.mode}</strong></div>
-                  <div className="checkout-summary-row"><span>Amount</span><strong>{formatCurrency(successSummary.amount)}</strong></div>
-                </div>
+                <section className="card checkout-summary-card">
+                  <div className="card-bd">
+                    <div className="checkout-summary-row"><span>Order</span><strong>{successSummary.orderId}</strong></div>
+                    <div className="checkout-summary-row"><span>Mode</span><strong>{successSummary.mode}</strong></div>
+                    <div className="checkout-summary-row"><span>Amount</span><strong>{formatCurrency(successSummary.amount)}</strong></div>
+                  </div>
+                </section>
               ) : null}
               <button type="button" className="btn btn-primary" onClick={resetFlow}>
                 {isCustomerTerminal ? 'Start Another Checkout' : 'Next Customer (Reset POS)'}

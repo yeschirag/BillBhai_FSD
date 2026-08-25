@@ -1,6 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
-import { formatCurrency, setActiveBusiness } from '../services/workspaceService.js'
+import {
+  formatCurrency,
+  getStatusBadgeClass,
+  setActiveBusiness,
+} from '../services/workspaceService.js'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
 
 function SuperuserPage() {
   const { businesses, dataByBusiness, isLoading, error } = useWorkspaceData()
@@ -20,12 +26,15 @@ function SuperuserPage() {
     navigate('/businesses')
   }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading superuser portal...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+  if (isLoading || error) {
+    return (
+      <>
+        <div className="page-header">
+          <h2>Super User Portal</h2>
+        </div>
+        <PageState loading={isLoading} error={error} label="Loading network overview…" />
+      </>
+    )
   }
 
   return (
@@ -49,7 +58,7 @@ function SuperuserPage() {
           <div className="card-hd"><h3>Network Snapshot</h3></div>
           <div className="card-bd workspace-detail-grid">
             <div className="workspace-detail-card">
-              <span>Tracked Revenue</span>
+              <span>Network Revenue</span>
               <strong>{formatCurrency(totals.revenue)}</strong>
             </div>
             <div className="workspace-detail-card">
@@ -82,25 +91,31 @@ function SuperuserPage() {
                 <tr>
                   <th>Business</th>
                   <th>Plan</th>
-                  <th>Stores</th>
+                  <th className="cell-num">Stores</th>
                   <th>Status</th>
-                  <th>Payment Due</th>
-                  <th>Actions</th>
+                  <th className="cell-num">Payment Due</th>
+                  <th className="cell-num">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {businesses.map((business) => (
+                {businesses.length ? businesses.map((business) => (
                   <tr key={business.id}>
                     <td className="cell-main">{business.name}</td>
                     <td>{business.productsPlan}</td>
-                    <td>{business.storesCount}</td>
-                    <td>{business.status}</td>
-                    <td>{formatCurrency(business.paymentDue)}</td>
+                    <td className="cell-num">{business.storesCount}</td>
+                    <td><span className={`badge ${getStatusBadgeClass(business.status)}`}>{business.status}</span></td>
+                    <td className="cell-num">{formatCurrency(business.paymentDue)}</td>
                     <td className="workspace-actions-cell">
                       <button type="button" className="btn btn-outline btn-xs" onClick={() => openBusiness(business)}>Open</button>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan="6">
+                      <EmptyState title="No businesses yet" hint="Add client businesses to see them here." />
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

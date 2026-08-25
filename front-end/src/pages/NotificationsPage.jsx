@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
 import { getStatusBadgeClass } from '../services/workspaceService.js'
+import EmptyState from '../components/EmptyState.jsx'
+import PageState from '../components/PageState.jsx'
 
 function NotificationsPage() {
   const {
@@ -32,12 +34,15 @@ function NotificationsPage() {
     })
   }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading notifications...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+  if (isLoading || error) {
+    return (
+      <>
+        <div className="page-header">
+          <h2>Notifications</h2>
+        </div>
+        <PageState loading={isLoading} error={error} label="Loading notifications…" />
+      </>
+    )
   }
 
   return (
@@ -88,7 +93,7 @@ function NotificationsPage() {
               </article>
             )
           }) : (
-            <p className="text-muted">No notifications are available for this view.</p>
+            <EmptyState title="Inbox zero" hint="Notifications about orders, deliveries, and returns will appear here." />
           )}
         </div>
       </section>

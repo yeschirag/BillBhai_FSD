@@ -4,6 +4,7 @@ import {
   updateStoredCurrentUser,
   upsertAuthOverride,
 } from '../services/workspaceService.js'
+import PageState from '../components/PageState.jsx'
 
 function ProfilePage() {
   const { activeBusiness, currentUser, isLoading, error } = useWorkspaceData()
@@ -30,15 +31,18 @@ function ProfilePage() {
       name: String(name || '').trim(),
       email: String(email || '').trim(),
     })
-    setStatusMessage('Profile settings saved locally for this frontend environment.')
+    setStatusMessage('Profile updated.')
   }
 
-  if (isLoading) {
-    return <section className="card"><div className="card-bd">Loading profile...</div></section>
-  }
-
-  if (error) {
-    return <section className="card"><div className="card-bd">{error}</div></section>
+  if (isLoading || error) {
+    return (
+      <>
+        <div className="page-header">
+          <h2>Profile &amp; Settings</h2>
+        </div>
+        <PageState loading={isLoading} error={error} label="Loading profile…" />
+      </>
+    )
   }
 
   return (
@@ -62,7 +66,7 @@ function ProfilePage() {
               </div>
               <div className="workspace-inline-actions">
                 <button type="submit" className="btn btn-primary">Save Settings</button>
-                {statusMessage ? <span className="text-muted">{statusMessage}</span> : null}
+                {statusMessage ? <span className="form-hint">{statusMessage}</span> : null}
               </div>
             </form>
           </div>
@@ -82,11 +86,11 @@ function ProfilePage() {
       </section>
 
       <section className="card">
-        <div className="card-hd"><h3>Security Notes</h3></div>
+        <div className="card-hd"><h3>Security</h3></div>
         <div className="card-bd">
           <p className="text-muted">
-            Authentication in this migration phase remains JSON and local-storage backed. Password reset, MFA,
-            and backend-issued sessions can be layered in later without replacing these page components.
+            Password reset and multi-factor authentication are not available yet. Ask an administrator
+            if you need your account details changed.
           </p>
         </div>
       </section>
