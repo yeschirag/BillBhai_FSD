@@ -18,10 +18,11 @@ export async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs || apiConfig.timeoutMs || 7000)
   const method = options.method || 'GET'
   const activeRole = options.role || getActiveRole()
+  const authToken = localStorage.getItem('authToken') || ''
   const headers = {
     'Content-Type': 'application/json',
     'x-role': activeRole,
-    Authorization: `Bearer ${activeRole}`,
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     ...(options.headers || {}),
   }
 

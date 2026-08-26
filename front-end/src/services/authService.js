@@ -223,6 +223,7 @@ export function getStoredCurrentUser() {
 }
 
 export function clearSession() {
+  localStorage.removeItem('authToken')
   localStorage.removeItem('userRole')
   localStorage.removeItem('userName')
   localStorage.removeItem('currentUser')
@@ -244,6 +245,12 @@ export async function authenticateUser(identity, password) {
         name: String(remoteUser.name || remoteUser.username || resolvedUsername).trim(),
         role: normalizedRole,
         companyId: String(remoteUser.companyId || '').trim() || undefined,
+      }
+
+      // Persist the JWT so authenticated API calls survive a page reload.
+      const authToken = String(remoteLoginResponse.data.token || '').trim()
+      if (authToken) {
+        localStorage.setItem('authToken', authToken)
       }
 
       localStorage.setItem('userRole', normalizedRole)

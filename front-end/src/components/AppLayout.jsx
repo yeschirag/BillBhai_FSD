@@ -149,7 +149,7 @@ function AppLayout() {
       if (event.key === 'Escape') closeDropdowns()
     }
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   useEffect(() => {
