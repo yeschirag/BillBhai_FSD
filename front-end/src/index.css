@@ -28,10 +28,11 @@
   --text-muted: #6f7683;
   --text-heading: #f7f8fa;
 
-  /* Brand + semantic */
-  --accent: #dc3545;
-  --accent-strong: #e55361;
-  --accent-soft: rgba(220, 53, 69, 0.13);
+  /* Brand + semantic. Accent is "ledger green" — money, go, confirm.
+     Red is reserved for danger (destructive, errors) via --red. */
+  --accent: #148a4e;
+  --accent-strong: #35c26f;
+  --accent-soft: rgba(20, 138, 78, 0.16);
   --green: #3fbf62;
   --green-soft: rgba(63, 191, 98, 0.14);
   --amber: #e8a838;
@@ -130,7 +131,7 @@ button {
 }
 
 ::selection {
-  background: rgba(220, 53, 69, 0.35);
+  background: rgba(53, 194, 111, 0.32);
 }
 
 :focus-visible {
@@ -1530,7 +1531,7 @@ table.dt .cell-main {
   border-radius: var(--radius-sm);
 }
 .workspace-notification.is-unread {
-  background: linear-gradient(to right, rgba(220, 53, 69, 0.05), transparent 40%),
+  background: linear-gradient(to right, rgba(53, 194, 111, 0.06), transparent 40%),
     var(--surface);
 }
 .workspace-notification.is-unread .workspace-notification-topline h4::before {
@@ -2760,7 +2761,7 @@ body.landing-page .cta-glow {
   height: 220px;
   background: radial-gradient(
     ellipse at center,
-    rgba(220, 53, 69, 0.16),
+    rgba(53, 194, 111, 0.14),
     transparent 70%
   );
   pointer-events: none;
