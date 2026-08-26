@@ -11,6 +11,12 @@
         ],
         "createdAt": "2026-08-26T07:26:43.586Z",
         "reason": "Maintainer via polish audit: the only two layout transitions in index.css (L1153 sidebar width, L1258 main-content margin-left) are the intentional pushing-sidebar collapse system; transform-based replacement would change the interaction design to an overlay sidebar, which is out of scope"
+      },
+      {
+        "rule": "overused-font",
+        "value": "instrument sans",
+        "createdAt": "2026-08-26T11:14:00.877Z",
+        "reason": "Design lead via Ledger Modern pass: the interface's personality is intentionally carried by Newsreader (editorial display serif) and IBM Plex Mono (ledger numerals); Instrument Sans is the deliberate neutral UI workhorse selected to replace Inter, so convergence of the sans alone does not dilute the identity"
       }
     ]
   }
