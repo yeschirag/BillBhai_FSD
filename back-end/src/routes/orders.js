@@ -27,6 +27,11 @@ router.post('/bills', authMiddleware(BILLING_ROLES), asyncHandler(async (req, re
   res.status(201).json(bill);
 }));
 
+// Promo codes are validated server-side; the client never computes discounts.
+router.post('/promotions/validate', authMiddleware(WRITE_ROLES), asyncHandler(async (req, res) => {
+  res.json(service.validatePromotion(req.body.code, req.body.subtotal));
+}));
+
 router.get('/payments/all', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
   res.json(await service.listPayments(req.user, req.query));
 }));

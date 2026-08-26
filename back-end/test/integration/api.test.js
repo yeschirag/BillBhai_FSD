@@ -330,6 +330,23 @@ test('WELCOME10 promo applies a 10% discount; junk codes fail', async () => {
     },
   });
   assert.strictEqual(bad.status, 400);
+
+  // POS pre-check endpoint: the client asks the server before quoting a discount.
+  const preview = await json('POST', '/api/orders/promotions/validate', {
+    token: cashier.token,
+    body: { code: 'WELCOME10', subtotal: 200 },
+  });
+  assert.strictEqual(preview.status, 200);
+  assert.strictEqual(preview.body.valid, true);
+  assert.strictEqual(preview.body.discount, 20);
+  assert.strictEqual(preview.body.total, 180);
+
+  const junkPreview = await json('POST', '/api/orders/promotions/validate', {
+    token: cashier.token,
+    body: { code: 'SCAM50', subtotal: 200 },
+  });
+  assert.strictEqual(junkPreview.status, 400);
+  assert.strictEqual(junkPreview.body.valid, undefined);
 });
 
 test('bill then split payments accumulate to settled', async () => {
