@@ -124,8 +124,9 @@ production database.
 
 ## Seeded Demo Logins
 
-Passwords are bcrypt-hashed at rest; these plaintext values exist only as
-seed inputs.
+Login accepts either a **username** or an **email address**
+(`admin` or `admin@billbhai.com`). Passwords are bcrypt-hashed at rest;
+these plaintext values exist only as seed inputs.
 
 | Username | Password | Role |
 |---|---|---|
@@ -136,6 +137,20 @@ seed inputs.
 | `returnhandler` | `return123` | returnhandler |
 | `chirag` | `chirag1234` | superuser |
 | `customer` | `customer123` | customer |
+
+### Self-serve registration
+
+`POST /api/auth/register` creates a company and its admin user in one
+transaction:
+
+```json
+{ "businessName": "Acme Retail", "ownerName": "Priya", "email": "priya@acme.in",
+  "phone": "9876543210", "password": "secret123" }
+```
+
+Returns the same shape as `/login` (including a JWT), so callers can sign in
+immediately. The username is derived from the email's local part; email
+uniqueness is enforced by a partial unique index (migration 002).
 
 ## Security notes
 

@@ -127,6 +127,74 @@ test('login rejects a wrong password without leaking hash material', async () =>
   assert.strictEqual(res.status, 401);
 });
 
+test('seeded accounts can log in with their email alias', async () => {
+  const res = await json('POST', '/api/auth/login', {
+    body: { username: 'admin@billbhai.com', password: 'admin123' },
+  });
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.username, 'admin');
+  assert.strictEqual(res.body.companyId, 'BIZ-101');
+});
+
+test('register provisions a company and its admin user transactionally', async () => {
+  const res = await json('POST', '/api/auth/register', {
+    body: {
+      businessName: 'Dibiz Ventures',
+      ownerName: 'Snigdha',
+      email: 'owner@dibiz.test',
+      phone: '9812345678',
+      password: 'secret123',
+    },
+  });
+  assert.strictEqual(res.status, 201);
+  assert.strictEqual(res.body.role, 'admin');
+  assert.match(res.body.companyId, /^BIZ-\d+$/);
+  assert.ok(res.body.token.split('.').length === 3, 'register did not issue a JWT');
+  assert.strictEqual(res.body.username, 'owner');
+
+  // The returned credentials must work immediately, via both identities.
+  const byEmail = await json('POST', '/api/auth/login', {
+    body: { username: 'owner@dibiz.test', password: 'secret123' },
+  });
+  assert.strictEqual(byEmail.status, 200);
+  const byUsername = await json('POST', '/api/auth/login', {
+    body: { username: 'owner', password: 'secret123' },
+  });
+  assert.strictEqual(byUsername.status, 200);
+  assert.strictEqual(byUsername.body.companyId, res.body.companyId);
+
+  // The new admin is tenant-pinned like any other admin.
+  const forbidden = await json('GET', '/api/users?companyId=BIZ-101', {
+    token: res.body.token,
+  });
+  assert.strictEqual(forbidden.status, 200);
+  for (const user of forbidden.body) {
+    assert.strictEqual(user.companyId, res.body.companyId);
+  }
+});
+
+test('register rejects duplicate emails, weak passwords and bad input', async () => {
+  const dup = await json('POST', '/api/auth/register', {
+    body: { businessName: 'Again', email: 'owner@dibiz.test', password: 'secret123' },
+  });
+  assert.strictEqual(dup.status, 409);
+
+  const weak = await json('POST', '/api/auth/register', {
+    body: { businessName: 'Weak Co', email: 'weak@test.io', password: '123' },
+  });
+  assert.strictEqual(weak.status, 400);
+
+  const noEmail = await json('POST', '/api/auth/register', {
+    body: { businessName: 'No Email Co', password: 'secret123' },
+  });
+  assert.strictEqual(noEmail.status, 400);
+
+  const noName = await json('POST', '/api/auth/register', {
+    body: { email: 'noname@test.io', password: 'secret123' },
+  });
+  assert.strictEqual(noName.status, 400);
+});
+
 test('user listings never expose password hashes', async () => {
   const admin = await login('admin', 'admin123');
   const res = await json('GET', '/api/users', { token: admin.token });

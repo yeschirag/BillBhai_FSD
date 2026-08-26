@@ -21,10 +21,16 @@ function toUser(row) {
   };
 }
 
-/** Internal use only (login): includes the password hash. */
+/** Internal use only (login): includes the password hash.
+ * Accepts a username OR an email address (the README's "email aliases").
+ * An exact username match always wins over an email match. */
 async function findCredentialsByUsername(db, username) {
   const result = await db.query(
-    'SELECT id, company_id, name, role, email, mobile_no, username, password_hash, status FROM users WHERE lower(username) = lower($1)',
+    `SELECT id, company_id, name, role, email, mobile_no, username, password_hash, status
+       FROM users
+      WHERE lower(username) = lower($1) OR lower(email) = lower($1)
+      ORDER BY (lower(username) = lower($1)) DESC, id
+      LIMIT 1`,
     [username],
   );
   return result.rows[0] || null;
