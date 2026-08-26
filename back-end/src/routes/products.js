@@ -1,0 +1,40 @@
+const express = require('express');
+const authMiddleware = require('../middleware/auth');
+const service = require('../services/products.service');
+const { asyncHandler } = require('../utils/http');
+
+const router = express.Router();
+const READ_ROLES = ['superuser', 'admin', 'cashier', 'inventorymanager', 'customer'];
+const WRITE_ROLES = ['superuser', 'admin', 'inventorymanager'];
+
+router.get('/', authMiddleware(READ_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.list(req.query));
+}));
+
+// Static segments before /:id.
+router.get('/categories', authMiddleware(READ_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.categories());
+}));
+
+router.get('/barcode/:barcode', authMiddleware(READ_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.getByBarcode(req.params.barcode));
+}));
+
+router.get('/:id', authMiddleware(READ_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.getById(req.params.id));
+}));
+
+router.post('/', authMiddleware(WRITE_ROLES), asyncHandler(async (req, res) => {
+  const product = await service.create(req.body);
+  res.status(201).json(product);
+}));
+
+router.put('/:id', authMiddleware(WRITE_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.update(req.params.id, req.body));
+}));
+
+router.delete('/:id', authMiddleware(['superuser', 'admin']), asyncHandler(async (req, res) => {
+  res.json(await service.remove(req.params.id));
+}));
+
+module.exports = router;

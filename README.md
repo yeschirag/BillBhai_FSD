@@ -1,6 +1,6 @@
 # BillBhai - Full-Stack Order and Billing System
 
-BillBhai is a production-grade full-stack billing, inventory, delivery, and operations web application built with **React 19** and **NestJS**.
+BillBhai is a full-stack billing, inventory, delivery, and operations web application built with **React 19**, **Express 5**, and **PostgreSQL**.
 
 For detailed task documentation, port troubleshooting, and developer guides, see [TASK_GUIDE.md](./TASK_GUIDE.md).
 
@@ -8,12 +8,22 @@ For detailed task documentation, port troubleshooting, and developer guides, see
 
 ## Getting Started
 
+### 0. Backend prerequisites (one-time)
+
+The API persists to PostgreSQL. See [back-end/README.md](./back-end/README.md) for the
+full setup guide — in short: install PostgreSQL, create a `billbhai` database,
+copy `back-end/.env.example` to `back-end/.env`, then run:
+
+```bash
+cd back-end && npm install && npm run db:setup
+```
+
 ### 1. Run full-stack dev server (Backend + Frontend):
 ```bash
 npm run dev
 ```
 - **React Frontend**: [http://localhost:5173](http://localhost:5173)
-- **NestJS Backend API**: [http://localhost:3000/api](http://localhost:3000/api)
+- **Express Backend API**: [http://localhost:3000/api](http://localhost:3000/api)
 
 ### 2. If port 3000 is blocked (`EADDRINUSE`):
 ```bash
@@ -25,7 +35,7 @@ Then run `npm run dev` again.
 
 ## Folder Structure
 
-- `back-end/` - NestJS REST API Server (Port 3000)
+- `back-end/` - Express REST API Server (Port 3000) + PostgreSQL schema/migrations
 - `front-end/` - React 19 + Vite Frontend SPA (Port 5173)
 - `package.json` - Root dev runner (`npm run dev`, `npm run build`)
 - `TASK_GUIDE.md` - Complete task documentation and API guide

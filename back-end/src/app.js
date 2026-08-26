@@ -5,9 +5,10 @@ const rateLimit = require('express-rate-limit');
 const { notFoundHandler, errorHandler } = require('./middleware/error');
 const routes = require('./routes');
 
-const app = express();
+// Environment loading lives in src/config.js (single source of truth).
+const config = require('./config');
 
-require('dotenv').config();
+const app = express();
 
 app.use(
   helmet({

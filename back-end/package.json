@@ -10,8 +10,13 @@
     "start": "node server.js",
     "start:prod": "NODE_ENV=production node server.js",
     "dev": "node --watch server.js",
+    "db:migrate": "node src/db/migrate.js",
+    "db:seed": "node src/db/seed.js",
+    "db:setup": "npm run db:migrate && npm run db:seed",
     "build": "node -e \"console.log('Express backend has no build step required')\"",
-    "test": "node ./test/smoke.test.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:integration": "node --test \"test/integration/*.test.js\"",
     "test:smoke": "node ./test/smoke.test.js"
   },
   "dependencies": {
@@ -21,6 +26,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "helmet": "^8.3.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0"
   }
 }
