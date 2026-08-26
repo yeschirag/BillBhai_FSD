@@ -1009,18 +1009,26 @@ table.dt .cell-main {
   padding: 12px 14px;
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--blue);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   font-size: 0.84rem;
   color: var(--text-primary);
   animation: bb-toast-in var(--t-med) ease-out;
 }
-.toast.success {
-  border-left-color: var(--green);
+.toast::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: var(--radius-full);
+  background: var(--blue);
 }
-.toast.error {
-  border-left-color: var(--red);
+.toast.success::before {
+  background: var(--green);
+}
+.toast.error::before {
+  background: var(--red);
 }
 
 @keyframes bb-toast-in {
