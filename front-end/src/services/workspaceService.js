@@ -440,11 +440,31 @@ export function formatCurrency(amount) {
   return `₹${Math.max(0, Number(amount || 0)).toLocaleString()}`
 }
 
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 export function formatTimestamp(date = new Date()) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${date.getDate()} ${months[date.getMonth()]} ${hours}:${minutes}`
+  return `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]} ${hours}:${minutes}`
+}
+
+// Human-readable date for table cells and chart labels. Accepts ISO strings
+// from the API as well as legacy "25 Aug 20:42" strings (returned unchanged).
+export function formatDisplayDateTime(value) {
+  if (value === null || value === undefined || value === '') return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return String(value)
+  const hours = String(parsed.getHours()).padStart(2, '0')
+  const minutes = String(parsed.getMinutes()).padStart(2, '0')
+  return `${parsed.getDate()} ${MONTHS_SHORT[parsed.getMonth()]} ${parsed.getFullYear()}, ${hours}:${minutes}`
+}
+
+// Compact axis tick: 340 / 4.2k — keeps Y-axis labels inside narrow gutters.
+export function formatCompactNumber(value) {
+  const n = Number(value || 0)
+  if (Math.abs(n) >= 100000) return `${(n / 100000).toFixed(n % 100000 ? 1 : 0)}L`
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(n % 1000 ? 1 : 0)}k`
+  return `${n}`
 }
 
 export function deriveInventoryStatus(stock) {

@@ -2,10 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Area,
   AreaChart,
-  Cell,
   CartesianGrid,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
@@ -15,21 +12,39 @@ import {
   buildDashboardSnapshot,
   getActiveBusinessDashboardData,
 } from '../services/dataService.js'
-import { formatCurrency } from '../services/workspaceService.js'
+import { formatCompactNumber, formatCurrency, formatDisplayDateTime } from '../services/workspaceService.js'
+import DonutBreakdown from '../components/DonutBreakdown.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PageState from '../components/PageState.jsx'
 
-const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#ff9f0a']
+// Color follows the entity: status segments keep their badge colors regardless
+// of how many statuses exist or how their counts change.
+const STATUS_CHART_COLORS = {
+  processing: '#64b5f6',
+  pending: '#e8a838',
+  delivered: '#3fbf62',
+  completed: '#3fbf62',
+  cancelled: '#ef6a74',
+}
 
-function ChartTooltip({ active, payload, label }) {
+function statusChartColor(name) {
+  const key = String(name || '').toLowerCase().replace(/\s+/g, '')
+  return STATUS_CHART_COLORS[key] || '#a78bfa'
+}
+
+function ChartTooltip({ active, payload, label, labelFormatter, valueFormatter }) {
   if (!active || !payload?.length) return null
 
-  const title = label || payload[0].payload?.name || payload[0].name || 'Value'
+  const title = labelFormatter && label
+    ? labelFormatter(label)
+    : (label || payload[0].payload?.name || payload[0].name || 'Value')
 
   return (
     <div className="chart-tooltip">
       <p className="chart-tooltip-label">{title}</p>
-      <p className="chart-tooltip-value">{payload[0].value}</p>
+      <p className="chart-tooltip-value">
+        {valueFormatter ? valueFormatter(payload[0].value) : payload[0].value}
+      </p>
     </div>
   )
 }
@@ -82,10 +97,10 @@ function DashboardPage() {
   )
 
   const statusChartData = useMemo(
-    () => (snapshot ? snapshot.statusBreakdown.map((item, index) => ({
+    () => (snapshot ? snapshot.statusBreakdown.map((item) => ({
       name: item.label,
       value: Number(item.value || 0),
-      fill: CHART_COLORS[index % CHART_COLORS.length],
+      fill: statusChartColor(item.label),
     })) : []),
     [snapshot],
   )
@@ -141,7 +156,7 @@ function DashboardPage() {
       <section className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon si-green">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12"/><path d="M6 8h12"/><path d="m6 13 8.5 8"/><path d="M6 13h3"/><path d="M9 13c6.667 0 6.667-10 0-10"/></svg>
           </div>
           <div className="stat-info">
             <span className="stat-label">Revenue</span>
@@ -187,26 +202,41 @@ function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={salesChartData}
-                  margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+                  margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
                 >
                   <defs>
                     <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#dc3545" stopOpacity={0.34} />
+                      <stop offset="0%" stopColor="#dc3545" stopOpacity={0.16} />
                       <stop offset="100%" stopColor="#dc3545" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} strokeDasharray="4 8" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tickLine={false} axisLine={false} width={32} />
-                  <RechartsTooltip content={<ChartTooltip />} />
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    interval="preserveStartEnd"
+                    tickFormatter={formatDisplayDateTime}
+                    minTickGap={48}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={46}
+                    tickFormatter={formatCompactNumber}
+                    allowDecimals={false}
+                  />
+                  <RechartsTooltip
+                    content={<ChartTooltip labelFormatter={formatDisplayDateTime} valueFormatter={formatCurrency} />}
+                  />
                   <Area
                     type="monotone"
                     dataKey="value"
                     stroke="#dc3545"
-                    strokeWidth={3}
+                    strokeWidth={2}
                     fill="url(#salesGradient)"
                     dot={false}
-                    activeDot={{ r: 5 }}
+                    activeDot={{ r: 4, strokeWidth: 2, stroke: '#14161b' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -221,25 +251,11 @@ function DashboardPage() {
           </div>
           <div className="card-bd" style={{ position: 'relative', height: '260px' }}>
             {statusChartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={62}
-                    outerRadius={94}
-                    paddingAngle={3}
-                    stroke="rgba(255,255,255,0.06)"
-                    strokeWidth={1}
-                  >
-                    {statusChartData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <DonutBreakdown
+                data={statusChartData}
+                centerValue={snapshot.ordersCount}
+                centerLabel={snapshot.ordersCount === 1 ? 'order' : 'orders'}
+              />
             ) : (
               <EmptyState title="No orders yet" hint="Status breakdown appears once orders exist." />
             )}

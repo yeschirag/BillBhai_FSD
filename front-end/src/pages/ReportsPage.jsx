@@ -2,28 +2,34 @@ import { useMemo } from 'react'
 import {
   Bar,
   BarChart,
-  Cell,
   CartesianGrid,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   XAxis,
   YAxis,
   Tooltip as RechartsTooltip,
 } from 'recharts'
 import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
-import { formatCurrency } from '../services/workspaceService.js'
+import { formatCompactNumber, formatCurrency } from '../services/workspaceService.js'
+import DonutBreakdown from '../components/DonutBreakdown.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PageState from '../components/PageState.jsx'
 
 const EMPTY_LIST = []
-const CHART_COLORS = ['#dc3545', '#34c759', '#e8a838', '#64b5f6', '#ff9f0a']
 
-function ChartTooltip({ active, payload, label }) {
+// Color follows the entity: each operations category keeps its hue regardless
+// of how the counts change.
+const OPS_CHART_COLORS = {
+  Orders: '#dc3545',
+  Returns: '#e8a838',
+  'Low Stock': '#64b5f6',
+  Delivered: '#3fbf62',
+}
+
+function ChartTooltip({ active, payload, valueFormatter }) {
   if (!active || !payload?.length) return null
 
-  const title = label || payload[0].payload?.name || payload[0].name || 'Value'
-  const value = payload[0].dataKey === 'total' ? formatCurrency(payload[0].value) : payload[0].value
+  const title = payload[0].payload?.name || payload[0].name || 'Value'
+  const value = valueFormatter ? valueFormatter(payload[0].value) : payload[0].value
 
   return (
     <div className="chart-tooltip">
@@ -66,12 +72,17 @@ function ReportsPage() {
 
   const opsMixData = useMemo(
     () => [
-      { name: 'Orders', value: orders.length, fill: CHART_COLORS[0] },
-      { name: 'Returns', value: returns.length, fill: CHART_COLORS[1] },
-      { name: 'Low Stock', value: metrics.lowStock, fill: CHART_COLORS[2] },
-      { name: 'Delivered', value: metrics.completedDeliveries, fill: CHART_COLORS[3] },
+      { name: 'Orders', value: orders.length, fill: OPS_CHART_COLORS.Orders },
+      { name: 'Returns', value: returns.length, fill: OPS_CHART_COLORS.Returns },
+      { name: 'Low Stock', value: metrics.lowStock, fill: OPS_CHART_COLORS['Low Stock'] },
+      { name: 'Delivered', value: metrics.completedDeliveries, fill: OPS_CHART_COLORS.Delivered },
     ],
     [metrics.completedDeliveries, metrics.lowStock, orders.length, returns.length],
+  )
+
+  const opsTotal = useMemo(
+    () => opsMixData.reduce((sum, item) => sum + item.value, 0),
+    [opsMixData],
   )
 
   if (isLoading || error) {
@@ -104,12 +115,27 @@ function ReportsPage() {
           <div className="card-bd" style={{ height: '280px' }}>
             {revenueData.length ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="4 8" />
-                  <XAxis dataKey="id" tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tickLine={false} axisLine={false} width={42} />
-                  <RechartsTooltip content={<ChartTooltip />} />
-                  <Bar dataKey="total" fill="#dc3545" radius={[6, 6, 0, 0]} />
+                <BarChart data={revenueData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="id"
+                    tickLine={false}
+                    axisLine={false}
+                    interval="preserveStartEnd"
+                    minTickGap={32}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={46}
+                    tickFormatter={formatCompactNumber}
+                    allowDecimals={false}
+                  />
+                  <RechartsTooltip
+                    cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                    content={<ChartTooltip valueFormatter={formatCurrency} />}
+                  />
+                  <Bar dataKey="total" fill="#dc3545" radius={[4, 4, 0, 0]} maxBarSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyState title="No revenue to chart yet" hint="Revenue per order appears once orders are recorded." />}
@@ -120,25 +146,11 @@ function ReportsPage() {
           <div className="card-bd" style={{ height: '280px' }}>
             {(orders.length || returns.length || inventory.length || deliveries.length)
               ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={opsMixData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={58}
-                      outerRadius={94}
-                      paddingAngle={4}
-                      stroke="rgba(255,255,255,0.06)"
-                      strokeWidth={1}
-                    >
-                      {opsMixData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip content={<ChartTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <DonutBreakdown
+                  data={opsMixData}
+                  centerValue={opsTotal}
+                  centerLabel="records"
+                />
               )
               : <EmptyState title="No operational activity yet" hint="The operations mix fills in as you record work." />}
           </div>

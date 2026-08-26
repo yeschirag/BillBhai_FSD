@@ -4,6 +4,7 @@ import {
   buildNextId,
   buildNotification,
   formatCurrency,
+  formatDisplayDateTime,
   formatTimestamp,
   getPaymentBadgeClass,
   getStatusBadgeClass,
@@ -198,7 +199,7 @@ function OrdersPage() {
                       <td className="cell-num">{formatCurrency(order.total)}</td>
                       <td><span className={`badge ${getPaymentBadgeClass(order.payment)}`}>{order.payment}</span></td>
                       <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{order.status}</span></td>
-                      <td>{order.date}</td>
+                      <td>{formatDisplayDateTime(order.date)}</td>
                       {canEdit ? (
                         <td className="workspace-actions-cell">
                           <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(order)}>Edit</button>

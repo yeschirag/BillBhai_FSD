@@ -1498,13 +1498,24 @@ table.dt .cell-main {
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
 .workspace-notification.is-unread {
-  border-left-color: var(--accent);
   background: linear-gradient(to right, rgba(220, 53, 69, 0.05), transparent 40%),
     var(--surface);
+}
+.workspace-notification.is-unread .workspace-notification-topline h4::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  vertical-align: 2px;
+}
+.workspace-notification > .btn {
+  align-self: flex-end;
 }
 .workspace-notification-topline {
   display: flex;
@@ -1582,6 +1593,83 @@ table.dt .cell-main {
 .recharts-cartesian-axis-line,
 .recharts-cartesian-axis-tick-line {
   stroke: var(--border);
+}
+.recharts-cartesian-grid line {
+  stroke: var(--border);
+}
+
+/* Donut with center figure and count legend (DonutBreakdown) */
+.donut-with-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 100%;
+}
+.donut-chart-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  min-height: 180px;
+}
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+.donut-center-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  letter-spacing: -0.02em;
+}
+.donut-center-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+.donut-legend {
+  flex: 0 0 auto;
+  max-width: 44%;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.donut-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+.donut-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.donut-legend-name {
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.donut-legend-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --------------------------------------------------------------------------
@@ -2067,6 +2155,12 @@ table.dt .cell-main {
   max-width: 720px;
   margin-inline: auto;
   width: 100%;
+}
+
+/* Step-1 customer form containment — the only wizard step without its own cards */
+.wizard-form-card {
+  max-width: 620px;
+  padding: 26px 24px;
 }
 
 .step-container {
@@ -2828,6 +2922,9 @@ body.landing-page .step-connector {
 @media (max-width: 640px) {
   .content-area {
     padding: 18px 16px 40px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .top-header {
     padding: 0 14px;

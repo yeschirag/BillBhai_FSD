@@ -3,6 +3,7 @@ import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
 import {
   buildNextId,
   buildNotification,
+  formatDisplayDateTime,
   formatTimestamp,
   getStatusBadgeClass,
 } from '../services/workspaceService.js'
@@ -178,7 +179,7 @@ function DeliveryPage() {
                       <td>{item.partner || 'Unassigned'}</td>
                       <td><span className={`badge ${getStatusBadgeClass(item.status)}`}>{item.status}</span></td>
                       <td className="cell-num">{item.etaMin ? `${item.etaMin} mins` : '-'}</td>
-                      <td>{item.updatedAt || item.time || '-'}</td>
+                      <td>{formatDisplayDateTime(item.updatedAt || item.time)}</td>
                       <td className="workspace-actions-cell">
                         <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(item)}>Edit</button>
                         <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>

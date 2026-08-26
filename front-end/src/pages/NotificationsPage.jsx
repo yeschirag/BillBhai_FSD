@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
-import { getStatusBadgeClass } from '../services/workspaceService.js'
 import EmptyState from '../components/EmptyState.jsx'
 import PageState from '../components/PageState.jsx'
 
@@ -67,7 +66,10 @@ function NotificationsPage() {
                 <div className="workspace-notification-copy">
                   <div className="workspace-notification-topline">
                     <h4>{item.title}</h4>
-                    <span className={`badge ${getStatusBadgeClass(item.priority || 'medium')}`}>{item.priority || 'medium'}</span>
+                    {item.priority === 'high' ? (
+                      <span className="badge b-cancelled">High priority</span>
+                    ) : null}
+                    {item.unread ? <span className="badge b-processing">New</span> : null}
                   </div>
                   <p>{item.desc}</p>
                   <div className="workspace-meta-row">

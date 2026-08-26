@@ -394,7 +394,7 @@ function CashierPage() {
 
         {step === 1 ? (
           <div className="step-container">
-            <div className="wizard-centered">
+            <div className="wizard-centered card wizard-form-card">
               <h3>{isCustomerTerminal ? 'Start Self Checkout' : 'Start New Order'}</h3>
               <p className="text-muted" style={{ marginBottom: '20px', fontSize: '0.9rem' }}>
                 Existing shoppers auto-fill once you enter a 10-digit phone number.
