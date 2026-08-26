@@ -21,6 +21,15 @@ module.exports = {
     return customer;
   },
 
+  /** Customer detail view: identity + lifetime aggregates in one call. */
+  async getProfile(actor, id) {
+    const profile = await repo.findProfile(db, String(id).trim());
+    if (!profile || !belongsToScope(profile, actor)) {
+      throw notFound('Customer', id);
+    }
+    return profile;
+  },
+
   /** Lookup is tenant-scoped: a phone shared across businesses stays private. */
   async getByPhone(actor, phone) {
     const companyId = resolveCompanyScope(actor, null);

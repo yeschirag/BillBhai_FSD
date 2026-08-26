@@ -20,6 +20,13 @@ router.get('/barcode/:barcode', authMiddleware(READ_ROLES), asyncHandler(async (
   res.json(await service.getByBarcode(req.params.barcode));
 }));
 
+// Bulk import: valid rows insert in one transaction; bad rows are reported
+// per line. Declared before /:id.
+router.post('/import', authMiddleware(WRITE_ROLES), asyncHandler(async (req, res) => {
+  const result = await service.importCsv(req.user, req.body);
+  res.status(201).json(result);
+}));
+
 router.get('/:id', authMiddleware(READ_ROLES), asyncHandler(async (req, res) => {
   res.json(await service.getById(req.params.id));
 }));

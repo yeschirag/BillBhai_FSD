@@ -31,8 +31,36 @@ router.get('/payments/all', authMiddleware(BILLING_ROLES), asyncHandler(async (r
   res.json(await service.listPayments(req.user, req.query));
 }));
 
+// Split-payment summary: every payment row for the bill plus running totals.
+router.get('/payments/bill/:billNo', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.getBillPaymentSummary(req.user, req.params.billNo));
+}));
+
 router.get('/payments/:billNo', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
   res.json(await service.getPaymentByBillNo(req.user, req.params.billNo));
+}));
+
+// ── Held bills ──
+
+router.get('/holds', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.listHolds(req.user, req.query));
+}));
+
+router.post('/holds', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
+  const hold = await service.createHold(req.user, req.body);
+  res.status(201).json(hold);
+}));
+
+router.get('/holds/:id', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.getHold(req.user, req.params.id));
+}));
+
+router.put('/holds/:id', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.updateHold(req.user, req.params.id, req.body));
+}));
+
+router.delete('/holds/:id', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.discardHold(req.user, req.params.id));
 }));
 
 router.post('/payments', authMiddleware(BILLING_ROLES), asyncHandler(async (req, res) => {

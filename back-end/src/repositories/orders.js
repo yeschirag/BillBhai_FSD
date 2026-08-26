@@ -71,7 +71,7 @@ module.exports = {
   toBill,
   toPayment,
 
-  async findOrders(db, { companyId, status, limit, offset } = {}) {
+  async findOrders(db, { companyId, status, customerId, limit, offset } = {}) {
     const clauses = [];
     const values = [];
     if (companyId) {
@@ -81,6 +81,10 @@ module.exports = {
     if (status) {
       values.push(status);
       clauses.push(`lower(status) LIKE lower($${values.length})`);
+    }
+    if (customerId) {
+      values.push(customerId);
+      clauses.push(`customer_id = $${values.length}`);
     }
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
     let sql = `${ORDER_SELECT}${where} ORDER BY order_date DESC`;
@@ -312,11 +316,25 @@ module.exports = {
   },
 
   async findPaymentByBillNo(db, billNo, { companyId } = {}) {
+    // Bills may carry several payment rows (splits); the legacy single-payment
+    // getter keeps returning the most recent one.
     const result = await db.query(
-      `SELECT * FROM payments WHERE bill_no = $1${companyId ? ' AND company_id = $2' : ''}`,
+      `SELECT * FROM payments
+        WHERE bill_no = $1${companyId ? ' AND company_id = $2' : ''}
+        ORDER BY payment_date DESC, created_at DESC
+        LIMIT 1`,
       companyId ? [billNo, companyId] : [billNo],
     );
     return toPayment(result.rows[0]);
+  },
+
+  /** Every payment row for a bill, oldest first (split payments). */
+  async findPaymentsByBillNo(db, billNo) {
+    const result = await db.query(
+      `SELECT * FROM payments WHERE bill_no = $1 ORDER BY payment_date ASC, created_at ASC`,
+      [billNo],
+    );
+    return result.rows.map(toPayment);
   },
 
   async insertPayment(db, payment) {

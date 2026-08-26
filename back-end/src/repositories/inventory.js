@@ -80,6 +80,18 @@ module.exports = {
     return toInventoryItem(result.rows[0]);
   },
 
+  /** New shelf row (CSV import with a stock column; future bulk tools). */
+  async insert(db, item) {
+    const inserted = await db.query(
+      `INSERT INTO inventory (company_id, product_id, stock, reorder_level, location)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id`,
+      [item.companyId, item.productId, item.stock ?? 0, item.reorderLevel ?? 0, item.location || ''],
+    );
+    const result = await db.query(`${SELECT} WHERE inv.id = $1`, [inserted.rows[0].id]);
+    return toInventoryItem(result.rows[0]);
+  },
+
   /**
    * Race-safe adjustment. MUST run inside the caller's transaction: the row
    * is locked with FOR UPDATE first, so two concurrent adjustments can never

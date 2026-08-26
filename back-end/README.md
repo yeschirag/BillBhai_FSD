@@ -97,11 +97,22 @@ PostgreSQL database is fully reproducible with `db:migrate`.
   `GET /api/inventory/product/:productId/movements` reads it newest-first.
 - **products** also carry `gst_rate` / `purchase_price` for GST line items
   and profit reporting; `GET /api/reports/top-products?days=30&limit=10`
-  aggregates best sellers from order history.
+  aggregates best sellers from order history; `POST /api/products/import`
+  bulk-imports CSV (valid rows commit in one transaction, bad rows are
+  reported per line, a stock column seeds inventory).
+- **customers** expose `GET /api/customers/:id/profile` — lifetime order
+  count, total spend, last purchase, and outstanding amount computed in SQL
+  from orders → bills → payments; `GET /api/orders?customerId=` filters
+  history.
 - **orders / order_items** — order history keeps customer name/address
   snapshots, so deleting a customer never rewrites history.
-- **bills** (1:1 orders) / **payments** (1:1 bills) — billed orders cannot be
-  deleted; payments cascade only from their bill.
+- **bills** (1:1 orders) / **payments** (N:1 bills) — billed orders cannot be
+  deleted; a bill may be settled across several payment rows (cash + UPI,
+  partial deposits), with `GET /api/orders/payments/bill/:billNo` returning
+  the split summary (`amountDue`, `paidSoFar`, `balanceDue`, `settled`).
+- **held_bills** — parked POS carts as JSONB envelopes
+  (`POST/GET/PUT/DELETE /api/orders/holds`), tenant-scoped like everything
+  else; resume by reading the cart back, discard with DELETE.
 - **deliveries** — cascade from their order.
 - **returns** — financial audit records; survive order deletion (`SET NULL`).
 

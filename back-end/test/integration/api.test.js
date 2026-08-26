@@ -332,45 +332,188 @@ test('WELCOME10 promo applies a 10% discount; junk codes fail', async () => {
   assert.strictEqual(bad.status, 400);
 });
 
-test('bill then payment flow enforces one-per-order/bill', async () => {
+test('bill then split payments accumulate to settled', async () => {
   const cashier = await login('cashier', 'cashier123');
   const order = await json('POST', '/api/orders', {
     token: cashier.token,
     body: { items: [{ productId: 'P007', quantity: 2, itemPrice: 54 }] },
   });
   assert.strictEqual(order.status, 201);
+  assert.strictEqual(order.body.total, 108);
 
   const bill = await json('POST', '/api/orders/bills', {
     token: cashier.token,
-    body: { orderId: order.body.id, taxAmount: 19.44 },
+    body: { orderId: order.body.id },
   });
   assert.strictEqual(bill.status, 201);
   assert.ok(bill.body.billNo.startsWith('BILL-'));
 
+  // One bill per order is still the rule.
   const dupBill = await json('POST', '/api/orders/bills', {
     token: cashier.token,
     body: { orderId: order.body.id },
   });
   assert.strictEqual(dupBill.status, 409);
 
-  const payment = await json('POST', '/api/orders/payments', {
+  // First split payment: partial coverage leaves a balance.
+  const partial = await json('POST', '/api/orders/payments', {
     token: cashier.token,
-    body: { billNo: bill.body.billNo, paymentMethod: 'UPI', amountPaid: 127.44 },
+    body: { billNo: bill.body.billNo, paymentMethod: 'UPI', amountPaid: 50 },
   });
-  assert.strictEqual(payment.status, 201);
-  assert.strictEqual(payment.body.paymentStatus, 'Paid');
+  assert.strictEqual(partial.status, 201);
+  assert.strictEqual(partial.body.paymentStatus, 'Partial');
+  assert.strictEqual(partial.body.paidSoFar, 50);
+  assert.strictEqual(partial.body.balanceDue, 58);
 
-  const dupPayment = await json('POST', '/api/orders/payments', {
+  // Second split settles it (cash covers the remainder).
+  const settle = await json('POST', '/api/orders/payments', {
     token: cashier.token,
-    body: { billNo: bill.body.billNo, paymentMethod: 'Cash', amountPaid: 1 },
+    body: { billNo: bill.body.billNo, paymentMethod: 'Cash', amountPaid: 58 },
   });
-  assert.strictEqual(dupPayment.status, 409);
+  assert.strictEqual(settle.status, 201);
+  assert.strictEqual(settle.body.paymentStatus, 'Paid');
+  assert.strictEqual(settle.body.balanceDue, 0);
+
+  // Summary view shows both rows and the settled flag.
+  const summary = await json('GET', `/api/orders/payments/bill/${bill.body.billNo}`, {
+    token: cashier.token,
+  });
+  assert.strictEqual(summary.status, 200);
+  assert.strictEqual(summary.body.payments.length, 2);
+  assert.strictEqual(summary.body.amountDue, 108);
+  assert.strictEqual(summary.body.settled, true);
+
+  // Legacy single-payment getter still answers with the most recent row.
+  const latest = await json('GET', `/api/orders/payments/${bill.body.billNo}`, {
+    token: cashier.token,
+  });
+  assert.strictEqual(latest.status, 200);
+  assert.strictEqual(latest.body.paymentMethod, 'Cash');
 
   // A billed order is financially significant — deletion must be blocked.
   const deleteAttempt = await json('DELETE', `/api/orders/${order.body.id}`, {
     token: (await login('admin', 'admin123')).token,
   });
   assert.strictEqual(deleteAttempt.status, 409);
+});
+
+test('held bills persist, resume-ready, and stay tenant-scoped', async () => {
+  const cashier = await login('cashier', 'cashier123');
+  const cart = {
+    items: [{ productId: 'P006', name: 'Bread Loaf', quantity: 2, itemPrice: 45 }],
+    customerName: 'Meera Shah',
+  };
+  const created = await json('POST', '/api/orders/holds', {
+    token: cashier.token,
+    body: { label: 'Counter 2 — waiting on UPI', cart, total: 90 },
+  });
+  assert.strictEqual(created.status, 201);
+  assert.ok(created.body.id.startsWith('HOLD-'));
+  assert.deepStrictEqual(created.body.cart, cart);
+
+  const listed = await json('GET', '/api/orders/holds', { token: cashier.token });
+  assert.strictEqual(listed.status, 200);
+  assert.ok(listed.body.some((hold) => hold.id === created.body.id));
+
+  // Resume prep: update the cart (quantity bumped), then read it back.
+  const updated = await json('PUT', `/api/orders/holds/${created.body.id}`, {
+    token: cashier.token,
+    body: { total: 135, cart: { ...cart, items: [{ ...cart.items[0], quantity: 3 }] } },
+  });
+  assert.strictEqual(updated.status, 200);
+  assert.strictEqual(updated.body.total, 135);
+  assert.strictEqual(updated.body.cart.items[0].quantity, 3);
+
+  // Tenant pinning: an admin from a different company (registered fresh)
+  // cannot see or discard another tenant's hold.
+  const outsiderAdmin = await json('POST', '/api/auth/register', {
+    body: { businessName: 'Outsider Traders', email: `outsider-admin@test.io`, password: 'secret123' },
+  });
+  assert.strictEqual(outsiderAdmin.status, 201);
+  assert.notStrictEqual(outsiderAdmin.body.companyId, created.body.companyId);
+  const foreignGet = await json('GET', `/api/orders/holds/${created.body.id}`, {
+    token: outsiderAdmin.body.token,
+  });
+  assert.strictEqual(foreignGet.status, 404);
+  const foreignList = await json('GET', '/api/orders/holds', {
+    token: outsiderAdmin.body.token,
+  });
+  assert.strictEqual(foreignList.status, 200);
+  assert.ok(!foreignList.body.some((hold) => hold.id === created.body.id));
+
+  const discarded = await json('DELETE', `/api/orders/holds/${created.body.id}`, {
+    token: cashier.token,
+  });
+  assert.strictEqual(discarded.status, 200);
+
+  const badCart = await json('POST', '/api/orders/holds', {
+    token: cashier.token,
+    body: { label: 'no cart' },
+  });
+  assert.strictEqual(badCart.status, 400);
+});
+
+test('customer profile aggregates spend and outstanding from real orders', async () => {
+  const admin = await login('admin', 'admin123');
+  const profile = await json('GET', '/api/customers/CUS-001/profile', { token: admin.token });
+  assert.strictEqual(profile.status, 200);
+  assert.strictEqual(profile.body.id, 'CUS-001');
+  assert.ok(profile.body.orderCount >= 1, 'earlier tests placed orders for CUS-001');
+  assert.ok(profile.body.totalSpend > 0);
+  assert.ok(profile.body.lastPurchaseAt);
+
+  // The split-payment test above left CUS-007-free bills fully settled;
+  // outstanding must never go negative even with over-tendered cash.
+  assert.ok(profile.body.outstanding >= 0);
+
+  const history = await json('GET', '/api/orders?customerId=CUS-001', { token: admin.token });
+  assert.strictEqual(history.status, 200);
+  assert.ok(Array.isArray(history.body));
+  for (const order of history.body) {
+    assert.strictEqual(order.customerId, 'CUS-001');
+  }
+
+  // Unknown customer → clean 404.
+  const missing = await json('GET', '/api/customers/CUS-99999/profile', { token: admin.token });
+  assert.strictEqual(missing.status, 404);
+});
+
+test('CSV bulk import creates products and skips bad rows with reasons', async () => {
+  const manager = await login('inventorymanager', 'inventory123');
+  const csv = [
+    'name,category,barcode,price,gstRate,purchasePrice,size,stock,reorderLevel',
+    'Imported Basmati 5kg,Groceries,BAR-IMP-1,380,5,300,5kg,10,4',
+    'Duplicate Barcode Item,Groceries,BAR-IMP-1,100,,,',
+    'Bad Price Item,Groceries,BAR-IMP-2,-5,,,',
+    'No Stock Item,Groceries,,25,,,pack',
+    '"Quoted, Comma Name",Snacks,BAR-IMP-3,45,12,30,,,',
+  ].join('\n');
+
+  const imported = await json('POST', '/api/products/import', {
+    token: manager.token,
+    body: { csv },
+  });
+  assert.strictEqual(imported.status, 201);
+  assert.strictEqual(imported.body.imported, 3);
+  assert.strictEqual(imported.body.failed.length, 2);
+  assert.ok(imported.body.failed.some((f) => f.message.includes('duplicate barcode')));
+  assert.ok(imported.body.failed.some((f) => f.message.includes('price cannot be negative')));
+
+  // Stock column produced a live inventory row for the manager's company.
+  const firstProduct = imported.body.products.find((p) => p.barcode === 'BAR-IMP-1');
+  assert.ok(firstProduct);
+  assert.strictEqual(firstProduct.gstRate, 5);
+  assert.strictEqual(firstProduct.purchasePrice, 300);
+  const invRow = await json('GET', `/api/inventory/product/${firstProduct.id}`, {
+    token: manager.token,
+  });
+  assert.strictEqual(invRow.status, 200);
+  assert.strictEqual(invRow.body.stock, 10);
+  assert.strictEqual(invRow.body.reorderLevel, 4);
+
+  // Quoted-name product round-trips intact.
+  const quoted = imported.body.products.find((p) => p.name === 'Quoted, Comma Name');
+  assert.ok(quoted, 'quoted CSV cell must parse correctly');
 });
 
 test('inventory adjustments guard against negative stock', async () => {

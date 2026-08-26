@@ -1,15 +1,21 @@
 const db = require('../db/pool');
 const repo = require('../repositories/orders');
+const holdsRepo = require('../repositories/holds');
 const { HttpError, notFound, conflict } = require('../utils/http');
 const { resolveCompanyScope, resolveCreateCompany, belongsToScope } = require('./scope');
 
 // Same promotion as the legacy NestJS service — kept for contract parity.
 const PROMO_CODE = 'WELCOME10';
 const PROMO_RATE = 0.1;
+const MAX_CART_BYTES = 100_000;
 
 function toNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : NaN;
+}
+
+function round2(value) {
+  return Number(Number(value).toFixed(2));
 }
 
 function normalizeItems(rawItems) {
@@ -89,6 +95,7 @@ module.exports = {
     const orders = await repo.findOrders(db, {
       companyId,
       status: query.status ? String(query.status).trim() : undefined,
+      customerId: query.customerId ? String(query.customerId).trim() : undefined,
     });
     return attachItems(orders);
   },
@@ -266,6 +273,36 @@ module.exports = {
     return payment;
   },
 
+  /**
+   * Split-payment view: every row recorded against the bill plus the
+   * running totals. The amount due is the order total; overpayments are
+   * allowed (change given) but never make the balance negative.
+   */
+  async getBillPaymentSummary(actor, billNo) {
+    const trimmed = String(billNo).trim();
+    const bill = await repo.findBillByNo(db, trimmed);
+    if (!bill || !belongsToScope(bill, actor)) {
+      throw notFound('Bill', billNo);
+    }
+    const order = await repo.findOrderById(db, bill.orderId);
+    if (!order || !belongsToScope(order, actor)) {
+      throw notFound('Order', bill.orderId);
+    }
+    const payments = await repo.findPaymentsByBillNo(db, bill.billNo);
+    const paidSoFar = round2(payments.reduce((sum, p) => sum + Number(p.amountPaid), 0));
+    const total = Number(order.total);
+    return {
+      billNo: bill.billNo,
+      orderId: order.id,
+      companyId: bill.companyId,
+      amountDue: total,
+      paidSoFar,
+      balanceDue: Math.max(0, round2(total - paidSoFar)),
+      settled: paidSoFar >= total,
+      payments,
+    };
+  },
+
   async createPayment(actor, payload = {}) {
     if (!payload.billNo) {
       throw new HttpError(400, 'billNo is required', 'Bad Request');
@@ -278,12 +315,97 @@ module.exports = {
     if (!bill || !belongsToScope(bill, actor)) {
       throw notFound('Bill', payload.billNo);
     }
-    return repo.insertPayment(db, {
+    const order = await repo.findOrderById(db, bill.orderId);
+    if (!order || !belongsToScope(order, actor)) {
+      throw notFound('Order', bill.orderId);
+    }
+
+    // Splits: accumulate against prior rows for this bill.
+    const prior = await repo.findPaymentsByBillNo(db, bill.billNo);
+    const paidSoFar = prior.reduce((sum, p) => sum + Number(p.amountPaid), 0);
+    const total = Number(order.total);
+    const remainingBefore = Math.max(0, round2(total - paidSoFar));
+    const paymentStatus = amountPaid + 0.001 >= remainingBefore ? 'Paid' : 'Partial';
+
+    const payment = await repo.insertPayment(db, {
       billNo: bill.billNo,
       companyId: bill.companyId,
       paymentMethod: String(payload.paymentMethod || 'Cash').trim(),
-      paymentStatus: 'Paid',
+      paymentStatus,
       amountPaid,
     });
+
+    return {
+      ...payment,
+      amountDue: total,
+      paidSoFar: round2(paidSoFar + amountPaid),
+      balanceDue: Math.max(0, round2(total - paidSoFar - amountPaid)),
+    };
+  },
+
+  // ── Held bills ──
+  // A hold is a parked cart. The client owns the cart's shape; the server
+  // validates only the envelope and keeps holds tenant-scoped.
+
+  async createHold(actor, payload = {}) {
+    if (!payload.cart || typeof payload.cart !== 'object') {
+      throw new HttpError(400, 'cart must be a JSON object or array', 'Bad Request');
+    }
+    if (JSON.stringify(payload.cart).length > MAX_CART_BYTES) {
+      throw new HttpError(400, 'Cart is too large to hold', 'Bad Request');
+    }
+    const companyId = resolveCreateCompany(actor, payload.companyId);
+    if (!companyId) throw new HttpError(400, 'companyId is required', 'Bad Request');
+    return holdsRepo.insert(db, {
+      companyId,
+      staffId: actor?.userId,
+      label: String(payload.label || '').trim(),
+      cart: payload.cart,
+      total: Math.max(0, Number(payload.total ?? 0) || 0),
+    });
+  },
+
+  async listHolds(actor, query = {}) {
+    const companyId = resolveCompanyScope(actor, query.companyId);
+    return holdsRepo.findAll(db, { companyId });
+  },
+
+  async getHold(actor, id) {
+    const hold = await holdsRepo.findById(db, String(id).trim());
+    if (!hold || !belongsToScope(hold, actor)) {
+      throw notFound('Held bill', id);
+    }
+    return hold;
+  },
+
+  async updateHold(actor, id, payload = {}) {
+    const existing = await holdsRepo.findById(db, String(id).trim());
+    if (!existing || !belongsToScope(existing, actor)) {
+      throw notFound('Held bill', id);
+    }
+    const fields = {};
+    if (payload.label !== undefined) fields.label = String(payload.label).trim();
+    if (payload.total !== undefined) fields.total = Math.max(0, Number(payload.total ?? 0) || 0);
+    if (payload.cart !== undefined) {
+      if (!payload.cart || typeof payload.cart !== 'object') {
+        throw new HttpError(400, 'cart must be a JSON object or array', 'Bad Request');
+      }
+      if (JSON.stringify(payload.cart).length > MAX_CART_BYTES) {
+        throw new HttpError(400, 'Cart is too large to hold', 'Bad Request');
+      }
+      fields.cart = payload.cart;
+    }
+    const updated = await holdsRepo.update(db, existing.id, fields);
+    if (!updated) throw notFound('Held bill', id);
+    return updated;
+  },
+
+  async discardHold(actor, id) {
+    const existing = await holdsRepo.findById(db, String(id).trim());
+    if (!existing || !belongsToScope(existing, actor)) {
+      throw notFound('Held bill', id);
+    }
+    await holdsRepo.remove(db, existing.id);
+    return { message: `Held bill ${existing.id} discarded` };
   },
 };

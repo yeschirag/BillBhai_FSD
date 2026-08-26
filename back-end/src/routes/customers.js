@@ -15,6 +15,10 @@ router.get('/phone/:phone', authMiddleware(ROLES), asyncHandler(async (req, res)
   res.json(await service.getByPhone(req.user, req.params.phone));
 }));
 
+router.get('/:id/profile', authMiddleware(ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.getProfile(req.user, req.params.id));
+}));
+
 router.get('/:id', authMiddleware(ROLES), asyncHandler(async (req, res) => {
   res.json(await service.getById(req.user, req.params.id));
 }));
