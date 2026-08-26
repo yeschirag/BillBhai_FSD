@@ -57,6 +57,29 @@ function LoginPage() {
   return (
     <>
       <div className="login-wrapper">
+        <div className="login-side">
+          <img src="/logo.png" alt="BillBhai" className="brand-logo-img" />
+          <h2>One workspace for the whole counter.</h2>
+          <p>
+            Billing, inventory, and delivery for Indian retail — wired together so
+            nothing falls out of sync.
+          </p>
+          <ul className="login-side-list">
+            <li>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              GST-compliant invoices from the POS terminal
+            </li>
+            <li>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Stock that updates with every bill — and restores on returns
+            </li>
+            <li>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Role-based logins for cashiers, inventory, and delivery staff
+            </li>
+          </ul>
+          <p className="login-side-note">Free to use while in beta · No credit card required</p>
+        </div>
         <div className="login-card" id="loginCard">
             <div className="brand-header">
               <img src="/logo.png" alt="BillBhai Logo" className="brand-logo-img" />

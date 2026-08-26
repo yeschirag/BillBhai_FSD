@@ -1596,6 +1596,56 @@ table.dt .cell-main {
   padding: 40px 20px;
 }
 
+/* Product context panel — desktop only, sits beside the login card */
+.login-side {
+  display: none;
+}
+.login-side-list {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.login-side-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.login-side-list li svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-strong);
+}
+.login-side-note {
+  margin-top: 24px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+@media (min-width: 980px) {
+  .login-wrapper {
+    gap: 76px;
+  }
+  .login-side {
+    display: block;
+    max-width: 400px;
+  }
+  .login-side h2 {
+    margin: 18px 0 10px;
+    font-size: 1.72rem;
+    letter-spacing: -0.02em;
+  }
+  .login-side > p {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+  }
+}
+
 .login-card,
 .register-card {
   width: min(420px, 100%);
@@ -2318,12 +2368,21 @@ body.landing-page .preview-sidebar {
   border-right: 1px solid var(--border);
 }
 body.landing-page .ps-item {
+  display: flex;
+  align-items: center;
   height: 22px;
+  padding: 0 9px;
   border-radius: var(--radius-xs);
   background: var(--surface-raised);
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
 }
-body.landing-page .ps-item:first-child {
+body.landing-page .ps-item.active {
   background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 body.landing-page .preview-content {
   display: flex;
@@ -2422,6 +2481,23 @@ body.landing-page .pc-row {
   font-size: 0.72rem;
   color: var(--text-secondary);
 }
+body.landing-page .pc-order {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+body.landing-page .pc-customer {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.landing-page .pc-amount {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
 body.landing-page .pc-badge {
   padding: 1px 8px;
   border-radius: var(--radius-full);
@@ -2473,7 +2549,7 @@ body.landing-page .section-desc {
 /* Features */
 body.landing-page .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 14px;
 }
 body.landing-page .feature-card {
@@ -2544,110 +2620,6 @@ body.landing-page .step-content p {
   color: var(--text-secondary);
 }
 
-/* Stats band */
-body.landing-page .stats {
-  border-block: 1px solid var(--border);
-  background: var(--surface);
-}
-body.landing-page .stats-row {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 0;
-}
-body.landing-page .stat-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 20px;
-  text-align: center;
-}
-body.landing-page .stat-number {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-heading);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-body.landing-page .stat-suffix {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--accent-strong);
-}
-body.landing-page .stat-divider {
-  width: 1px;
-  background: var(--border);
-}
-body.landing-page .stat-item .stat-label {
-  white-space: normal;
-  text-overflow: clip;
-}
-
-/* Testimonials */
-body.landing-page .testimonials-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-  gap: 14px;
-}
-body.landing-page .testimonial-card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 24px 22px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-body.landing-page .testimonial-card.featured {
-  border-color: rgba(220, 53, 69, 0.4);
-}
-body.landing-page .testimonial-stars {
-  color: var(--amber);
-  font-size: 0.85rem;
-  letter-spacing: 2px;
-}
-body.landing-page .testimonial-text {
-  flex: 1;
-  font-size: 0.9rem;
-  line-height: 1.65;
-  color: var(--text-secondary);
-}
-body.landing-page .testimonial-author {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-body.landing-page .author-info {
-  min-width: 0;
-}
-body.landing-page .author-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: var(--radius-full);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
-  color: var(--text-primary);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-body.landing-page .author-name {
-  display: block;
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-body.landing-page .author-role {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-}
-
 /* CTA */
 body.landing-page .cta-section {
   padding-top: 20px;
@@ -2703,7 +2675,7 @@ body.landing-page .footer {
 }
 body.landing-page .footer-grid {
   display: grid;
-  grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1.4fr minmax(0, 1fr);
   gap: 36px;
   padding-bottom: 40px;
 }
@@ -2713,6 +2685,7 @@ body.landing-page .footer-brand {
   gap: 14px;
 }
 body.landing-page .footer-logo-img {
+  align-self: flex-start;
   height: 32px;
   width: auto;
 }
@@ -2789,12 +2762,6 @@ body.landing-page .step-connector {
   .pos-layout {
     grid-template-columns: minmax(0, 1fr) 320px;
   }
-  body.landing-page .footer-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  body.landing-page .footer-brand {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 900px) {
@@ -2808,15 +2775,6 @@ body.landing-page .step-connector {
   }
   body.landing-page .steps-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  body.landing-page .stats-row {
-    flex-direction: column;
-    gap: 18px;
-    padding: 24px 0;
-  }
-  body.landing-page .stat-divider {
-    width: 100%;
-    height: 1px;
   }
 
   /* Sidebar becomes an off-canvas drawer */
