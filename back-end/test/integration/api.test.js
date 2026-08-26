@@ -750,6 +750,12 @@ test('hold validation: array carts are fine, oversized labels are not', async ()
     body: { label: 'x'.repeat(201), cart: {} },
   });
   assert.strictEqual(longLabel.status, 400);
+
+  // Regression: a hold id that does not exist is a 404, not a mapper crash.
+  const missing = await json('GET', '/api/orders/holds/HOLD-9999', {
+    token: cashier.token,
+  });
+  assert.strictEqual(missing.status, 404);
 });
 
 test('CSV import without a stock column skips inventory creation', async () => {

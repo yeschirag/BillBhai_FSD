@@ -2,6 +2,7 @@
 // verbatim — the client owns its schema; the server owns the envelope.
 
 function toHold(row) {
+  if (!row) return null;
   return {
     id: row.id,
     companyId: row.company_id,
@@ -56,7 +57,10 @@ module.exports = {
       values.push(fields.total);
       clauses.push(`total = $${values.length}`);
     }
-    if (!clauses.length) return findById(db, id);
+    if (!clauses.length) {
+      const existing = await db.query('SELECT * FROM held_bills WHERE id = $1', [id]);
+      return toHold(existing.rows[0]);
+    }
     values.push(id);
     const result = await db.query(
       `UPDATE held_bills SET ${clauses.join(', ')} WHERE id = $${values.length} RETURNING *`,
