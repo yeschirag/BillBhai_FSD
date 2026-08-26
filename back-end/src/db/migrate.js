@@ -74,6 +74,13 @@ if (require.main === module) {
     .then(() => process.exit(0))
     .catch((err) => {
       console.error('[migrate] FAILED:', err.message);
+      // 3D000 = invalid_catalog_name ("database X does not exist"): auth was
+      // fine, so the path segment of DATABASE_URL is the usual culprit.
+      if (err.code === '3D000') {
+        console.error("[migrate] Hint: DATABASE_URL's path (after :PORT/) names a");
+        console.error('[migrate] database that does not exist. For Supabase pooler URLs');
+        console.error('[migrate] it must end in /postgres — e.g. ...pooler.supabase.com:5432/postgres.');
+      }
       process.exit(1);
     });
 }
