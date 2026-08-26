@@ -1,5 +1,7 @@
 /* eslint-disable no-console */
 
+const util = require('util');
+
 const app = require('./src/app');
 const config = require('./src/config');
 const db = require('./src/db/pool');
@@ -15,8 +17,12 @@ async function main() {
     console.log(`[db] connected to PostgreSQL (server time ${now.toISOString()})`);
   } catch (err) {
     console.error('[db] FATAL: cannot reach PostgreSQL.');
-    console.error('[db] Check DATABASE_URL in back-end/.env and that PostgreSQL is running.');
-    console.error(`[db] Underlying error: ${err.message}`);
+    console.error('[db] Check DATABASE_URL in back-end/.env (local) or the service');
+    console.error('[db] environment on Render (production), and that the database');
+    console.error('[db] instance is running and in the same region as the service.');
+    const detail = [err.code, err.errno, err.message].filter(Boolean).join(' ');
+    console.error(`[db] Underlying error: ${detail || String(err)}`);
+    if (!detail) console.error('[db] Raw error object:', util.inspect(err, { depth: 2 }));
     process.exit(1);
   }
 

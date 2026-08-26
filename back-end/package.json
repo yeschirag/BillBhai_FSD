@@ -7,9 +7,10 @@
   "license": "UNLICENSED",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "start:prod": "NODE_ENV=production node server.js",
-    "dev": "node --watch server.js",
+    "start": "npm run db:migrate && npm run db:seed && node server.js",
+    "start:only": "node server.js",
+    "start:prod": "NODE_ENV=production npm start",
+    "dev": "npm run db:migrate && npm run db:seed && node --watch server.js",
     "db:migrate": "node src/db/migrate.js",
     "db:seed": "node src/db/seed.js",
     "db:setup": "npm run db:migrate && npm run db:seed",

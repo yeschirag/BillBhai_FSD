@@ -34,10 +34,17 @@ npm run db:setup
 ## Run
 
 ```bash
-npm run dev         # development with watch
-npm start           # standard start
-npm run start:prod  # production mode
+npm run dev         # development with watch (migrates + seeds first)
+npm start           # migrate + seed + serve — safe on every boot
+npm run start:only  # just the server, no migration/seed step
+npm run start:prod  # NODE_ENV=production npm start
 ```
+
+`npm start` applies pending migrations and the idempotent seed before serving,
+so a fresh environment (or a fresh hosted database) self-configures on first
+boot. Set `SKIP_DB_SEED=1` to skip demo data for real deployments. Both steps
+are safe to re-run: migrations are tracked in `schema_migrations`, and the seed
+never touches existing rows.
 
 The API runs on `http://localhost:3000` by default. `GET /api/health` reports
 `database: "up"|"down"` alongside process liveness.
@@ -45,6 +52,20 @@ The API runs on `http://localhost:3000` by default. `GET /api/health` reports
 The server verifies database connectivity at boot and exits with a clear
 error if PostgreSQL is unreachable. SIGINT/SIGTERM drain HTTP connections and
 close the pool before exiting.
+
+## Deploying to Render (or any host)
+
+1. Create a managed **PostgreSQL** instance in the same region as the web
+   service.
+2. In the web service → **Environment**, set:
+   - `DATABASE_URL` — the database's *Internal* connection string.
+   - `JWT_SECRET` — e.g. `openssl rand -hex 32`. Required; no fallback warning
+     becomes an error you want to avoid.
+   - `SKIP_DB_SEED=1` — optional, to deploy without demo accounts/data.
+3. Start command: `npm start` (default). First boot runs migrations + seed
+   against the hosted database automatically; later boots are no-ops.
+4. If your provider requires TLS on external URLs (`PGSSL=require`) — not
+   needed for internal Render URLs.
 
 ## Database
 

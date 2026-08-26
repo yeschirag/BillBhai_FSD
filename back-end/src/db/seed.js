@@ -174,18 +174,24 @@ async function seed(client) {
 }
 
 if (require.main === module) {
-  (async () => {
-    const client = await connectDirect();
-    try {
-      await seed(client);
-      console.log('[seed] done (existing rows left untouched)');
-    } finally {
-      await client.end();
-    }
-  })().catch((err) => {
-    console.error('[seed] FAILED:', err.message);
-    process.exit(1);
-  });
+  // SKIP_DB_SEED=1 opts out of demo data at boot — for real deployments that
+  // want an empty database. Migrations always run.
+  if (process.env.SKIP_DB_SEED === '1') {
+    console.log('[seed] skipped (SKIP_DB_SEED=1)');
+  } else {
+    (async () => {
+      const client = await connectDirect();
+      try {
+        await seed(client);
+        console.log('[seed] done (existing rows left untouched)');
+      } finally {
+        await client.end();
+      }
+    })().catch((err) => {
+      console.error('[seed] FAILED:', err.message);
+      process.exit(1);
+    });
+  }
 }
 
 module.exports = { seed };
