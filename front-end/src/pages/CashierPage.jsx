@@ -90,7 +90,7 @@ function CashierPage() {
 
   useEffect(() => {
     document.title = 'BillBhai - Cashier POS'
-    document.body.setAttribute('data-page', 'cashier')
+    document.body.setAttribute('data-page', 'componentDidMount')
     document.body.setAttribute('data-app-ready', 'true')
     document.body.classList.add('no-sidebar')
     return () => {
