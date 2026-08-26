@@ -92,6 +92,12 @@ PostgreSQL database is fully reproducible with `db:migrate`.
 - **inventory** — one row per (product, company); `stock >= 0` enforced;
   partial index serves `/inventory/low-stock`; derived stock *status* is
   computed at read time, never stored.
+- **stock_movements** — append-only ledger of why stock changed (`sale`,
+  `adjustment`, …), written in the same transaction as the change itself.
+  `GET /api/inventory/product/:productId/movements` reads it newest-first.
+- **products** also carry `gst_rate` / `purchase_price` for GST line items
+  and profit reporting; `GET /api/reports/top-products?days=30&limit=10`
+  aggregates best sellers from order history.
 - **orders / order_items** — order history keeps customer name/address
   snapshots, so deleting a customer never rewrites history.
 - **bills** (1:1 orders) / **payments** (1:1 bills) — billed orders cannot be

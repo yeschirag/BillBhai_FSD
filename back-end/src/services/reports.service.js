@@ -18,4 +18,12 @@ module.exports = {
   async returnsSummary(actor, query = {}) {
     return reportsRepo.returnsSummary(db, scopeFrom(actor, query.companyId));
   },
+
+  async topProducts(actor, query = {}) {
+    return reportsRepo.topProducts(db, {
+      ...scopeFrom(actor, query.companyId),
+      days: Number(query.days) || 30,
+      limit: Number(query.limit) || 10,
+    });
+  },
 };

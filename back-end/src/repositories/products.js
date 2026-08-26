@@ -11,6 +11,8 @@ function toProduct(row) {
     category: row.category,
     barcode: row.barcode || '',
     price: Number(row.price),
+    gstRate: Number(row.gst_rate ?? 0),
+    purchasePrice: Number(row.purchase_price ?? 0),
     size: row.size,
     description: row.description,
     companyId: row.company_id || '',
@@ -57,8 +59,8 @@ module.exports = {
 
   async insert(db, product) {
     const result = await db.query(
-      `INSERT INTO products (supplier_id, name, category, barcode, price, size, description, company_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO products (supplier_id, name, category, barcode, price, gst_rate, purchase_price, size, description, company_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         product.supplierId || null,
@@ -66,6 +68,8 @@ module.exports = {
         product.category,
         product.barcode || null,
         product.price,
+        product.gstRate ?? 0,
+        product.purchasePrice ?? 0,
         product.size,
         product.description,
         product.companyId || null,
@@ -81,6 +85,8 @@ module.exports = {
       category: 'category',
       barcode: 'barcode',
       price: 'price',
+      gstRate: 'gst_rate',
+      purchasePrice: 'purchase_price',
       size: 'size',
       description: 'description',
       companyId: 'company_id',

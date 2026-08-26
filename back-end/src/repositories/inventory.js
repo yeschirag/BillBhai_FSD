@@ -81,10 +81,12 @@ module.exports = {
   },
 
   /**
-   * Race-safe adjustment: for deltas the "cannot go below zero" guard lives
-   * in the UPDATE's WHERE clause, so two concurrent adjustments can never
+   * Race-safe adjustment. MUST run inside the caller's transaction: the row
+   * is locked with FOR UPDATE first, so two concurrent adjustments can never
    * interleave their way into negative stock.
-   * Returns { outcome: 'ok' | 'not-found' | 'below-zero', id }.
+   * Returns { outcome: 'ok', id, companyId, productId, deltaApplied,
+   * balanceAfter } — everything the stock-movements ledger needs — or
+   * { outcome: 'not-found' | 'below-zero' }.
    */
   async adjustStock(db, { id, productId, companyId, absoluteStock, delta }) {
     const baseConditions = [];
@@ -104,30 +106,31 @@ module.exports = {
     if (!baseConditions.length) return { outcome: 'not-found' };
 
     const whereBase = `WHERE ${baseConditions.join(' AND ')}`;
-
-    let result;
-    if (absoluteStock !== undefined) {
-      result = await db.query(
-        `UPDATE inventory SET stock = $${baseValues.length + 1}, last_updated = now()
-         ${whereBase} RETURNING id`,
-        [...baseValues, absoluteStock],
-      );
-    } else {
-      result = await db.query(
-        `UPDATE inventory SET stock = inventory.stock + $${baseValues.length + 1}, last_updated = now()
-         ${whereBase} AND inventory.stock + $${baseValues.length + 1} >= 0 RETURNING id`,
-        [...baseValues, delta],
-      );
-    }
-
-    if (result.rowCount > 0) return { outcome: 'ok', id: result.rows[0].id };
-
-    // Distinguish "row missing" from "guard rejected" for error messaging.
-    const exists = await db.query(
-      `SELECT id FROM inventory ${whereBase}`,
+    const locked = await db.query(
+      `SELECT id, company_id, product_id, stock FROM inventory ${whereBase} FOR UPDATE`,
       baseValues,
     );
-    return exists.rowCount > 0 ? { outcome: 'below-zero' } : { outcome: 'not-found' };
+    if (!locked.rowCount) return { outcome: 'not-found' };
+
+    const row = locked.rows[0];
+    const target = absoluteStock !== undefined
+      ? Math.trunc(absoluteStock)
+      : row.stock + Math.trunc(delta);
+    if (target < 0) return { outcome: 'below-zero' };
+
+    const updated = await db.query(
+      `UPDATE inventory SET stock = $1, last_updated = now()
+       WHERE id = $2 RETURNING stock`,
+      [target, row.id],
+    );
+    return {
+      outcome: 'ok',
+      id: row.id,
+      companyId: row.company_id,
+      productId: row.product_id,
+      deltaApplied: target - row.stock,
+      balanceAfter: updated.rows[0].stock,
+    };
   },
 
   async update(db, id, fields) {

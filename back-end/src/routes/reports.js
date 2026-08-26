@@ -18,4 +18,8 @@ router.get('/returns', authMiddleware(['superuser', 'admin', 'returnhandler']), 
   res.json(await service.returnsSummary(req.user, req.query));
 }));
 
+router.get('/top-products', authMiddleware(['superuser', 'admin']), asyncHandler(async (req, res) => {
+  res.json(await service.topProducts(req.user, req.query));
+}));
+
 module.exports = router;

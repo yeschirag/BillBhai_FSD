@@ -463,3 +463,86 @@ test('suppliers CRUD round-trips', async () => {
   });
   assert.strictEqual(removed.status, 200);
 });
+
+test('stock movements ledger records sales and adjustments', async () => {
+  const admin = await login('admin', 'admin123');
+
+  // A sale writes a 'sale' movement referencing the order id.
+  const order = await json('POST', '/api/orders', {
+    token: admin.token,
+    body: { items: [{ productId: 'P001', quantity: 2, itemPrice: 380 }] },
+  });
+  assert.strictEqual(order.status, 201);
+
+  const saleMoves = await json('GET', '/api/inventory/product/P001/movements?limit=50', {
+    token: admin.token,
+  });
+  assert.strictEqual(saleMoves.status, 200);
+  const saleEntry = saleMoves.body.find(
+    (m) => m.reason === 'sale' && m.referenceId === order.body.id,
+  );
+  assert.ok(saleEntry, 'no sale movement recorded for the order');
+  assert.strictEqual(saleEntry.delta, -2);
+  assert.ok(Number.isInteger(saleEntry.balanceAfter) && saleEntry.balanceAfter >= 0);
+
+  // An adjustment appends a movement whose balance matches live stock.
+  const adjusted = await json('POST', '/api/inventory/adjust', {
+    token: admin.token,
+    body: { productId: 'P001', delta: 5 },
+  });
+  assert.strictEqual(adjusted.status, 200);
+  const afterAdjust = await json('GET', '/api/inventory/product/P001/movements', {
+    token: admin.token,
+  });
+  const newest = afterAdjust.body[0];
+  assert.strictEqual(newest.reason, 'adjustment');
+  assert.strictEqual(newest.delta, 5);
+  assert.strictEqual(newest.balanceAfter, adjusted.body.stock);
+
+  // Tenant pinning applies to the ledger too.
+  const cashier = await login('cashier', 'cashier123');
+  const pinned = await json('GET', '/api/inventory/product/P001/movements?companyId=BIZ-102', {
+    token: cashier.token,
+  });
+  assert.strictEqual(pinned.status, 200);
+  for (const movement of pinned.body) {
+    assert.strictEqual(movement.companyId, 'BIZ-101');
+  }
+});
+
+test('top products report aggregates sold units', async () => {
+  const admin = await login('admin', 'admin123');
+  const res = await json('GET', '/api/reports/top-products?days=30&limit=10', {
+    token: admin.token,
+  });
+  assert.strictEqual(res.status, 200);
+  assert.ok(Array.isArray(res.body));
+  const p1 = res.body.find((row) => row.productId === 'P001');
+  assert.ok(p1, 'P001 has been sold in earlier tests and must appear');
+  assert.ok(p1.unitsSold >= 2, `expected P001 unitsSold >= 2, got ${p1.unitsSold}`);
+});
+
+test('products accept gstRate and purchasePrice and round-trip them', async () => {
+  const admin = await login('admin', 'admin123');
+  const created = await json('POST', '/api/products', {
+    token: admin.token,
+    body: { name: 'GST Test Item', category: 'Snacks', price: 100, gstRate: 18, purchasePrice: 70 },
+  });
+  assert.strictEqual(created.status, 201);
+  assert.strictEqual(created.body.gstRate, 18);
+  assert.strictEqual(created.body.purchasePrice, 70);
+
+  const fetched = await json('GET', `/api/products/${created.body.id}`, { token: admin.token });
+  assert.strictEqual(fetched.status, 200);
+  assert.strictEqual(fetched.body.gstRate, 18);
+  assert.strictEqual(fetched.body.purchasePrice, 70);
+
+  // Legacy payloads without the new fields keep working (defaults apply).
+  const legacy = await json('POST', '/api/products', {
+    token: admin.token,
+    body: { name: 'Legacy Item', category: 'Snacks', price: 10 },
+  });
+  assert.strictEqual(legacy.status, 201);
+  assert.strictEqual(legacy.body.gstRate, 0);
+  assert.strictEqual(legacy.body.purchasePrice, 0);
+});

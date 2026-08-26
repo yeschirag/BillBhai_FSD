@@ -53,4 +53,35 @@ module.exports = {
       totalRefunded: row.total_refunded,
     };
   },
+
+  /** Best-selling products over a trailing window. Cancelled orders excluded. */
+  async topProducts(db, { companyId, days = 30, limit = 10 } = {}) {
+    const values = [Math.max(1, Math.trunc(days) || 30)];
+    let companyClause = '';
+    if (companyId) {
+      values.push(companyId);
+      companyClause = ` AND o.company_id = $${values.length}`;
+    }
+    values.push(Math.min(Math.max(1, Math.trunc(limit) || 10), 100));
+    const result = await db.query(
+      `SELECT oi.product_id AS product_id,
+              MAX(oi.product_name) AS product_name,
+              SUM(oi.quantity)::int AS units_sold,
+              ROUND(SUM(oi.quantity * oi.item_price), 2)::float AS revenue
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+        WHERE o.status <> 'Cancelled'
+          AND o.order_date >= now() - make_interval(days => $1)${companyClause}
+        GROUP BY oi.product_id
+        ORDER BY units_sold DESC
+        LIMIT $${values.length}`,
+      values,
+    );
+    return result.rows.map((row) => ({
+      productId: row.product_id,
+      name: row.product_name,
+      unitsSold: row.units_sold,
+      revenue: row.revenue,
+    }));
+  },
 };

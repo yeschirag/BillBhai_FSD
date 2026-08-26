@@ -55,6 +55,8 @@ module.exports = {
       category: payload.category || 'General',
       barcode: payload.barcode ? String(payload.barcode).trim() : '',
       price,
+      gstRate: Math.max(0, toNumber(payload.gstRate, 0)),
+      purchasePrice: Math.max(0, toNumber(payload.purchasePrice, 0)),
       size: String(payload.size || '').trim(),
       description: String(payload.description || '').trim(),
       companyId: payload.companyId || null,
@@ -70,6 +72,8 @@ module.exports = {
     if (payload.category !== undefined) fields.category = String(payload.category).trim();
     if (payload.barcode !== undefined) fields.barcode = String(payload.barcode).trim();
     if (payload.price !== undefined) fields.price = Math.max(0, toNumber(payload.price));
+    if (payload.gstRate !== undefined) fields.gstRate = Math.max(0, toNumber(payload.gstRate));
+    if (payload.purchasePrice !== undefined) fields.purchasePrice = Math.max(0, toNumber(payload.purchasePrice));
     if (payload.size !== undefined) fields.size = String(payload.size).trim();
     if (payload.description !== undefined) fields.description = String(payload.description).trim();
     return repo.update(db, id, fields);

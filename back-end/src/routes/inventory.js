@@ -20,6 +20,10 @@ router.get('/product/:productId', authMiddleware(ROLES), asyncHandler(async (req
   res.json(await service.getByProduct(req.user, req.params.productId));
 }));
 
+router.get('/product/:productId/movements', authMiddleware(ROLES), asyncHandler(async (req, res) => {
+  res.json(await service.listMovements(req.user, req.params.productId, req.query));
+}));
+
 router.post('/adjust', authMiddleware(WRITE_ROLES), asyncHandler(async (req, res) => {
   res.json(await service.adjust(req.user, req.body));
 }));

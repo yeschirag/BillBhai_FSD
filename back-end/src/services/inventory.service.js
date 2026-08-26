@@ -1,5 +1,6 @@
 const db = require('../db/pool');
 const repo = require('../repositories/inventory');
+const movementsRepo = require('../repositories/stockMovements');
 const { HttpError, notFound } = require('../utils/http');
 const { resolveCompanyScope, belongsToScope } = require('./scope');
 
@@ -44,7 +45,8 @@ module.exports = {
 
   /**
    * POST /inventory/adjust — accepts either an absolute `stock` or a signed
-   * `delta`. The below-zero guard is enforced atomically in SQL.
+   * `delta`. The stock change and its ledger entry commit together, so the
+   * movement history can never drift from the current balance.
    */
   async adjust(actor, payload = {}) {
     let target;
@@ -58,26 +60,53 @@ module.exports = {
     }
     assertVisible(target, actor);
 
-    let result;
-    if (payload.stock !== undefined) {
-      const absolute = toInt(payload.stock);
-      if (Number.isNaN(absolute) || absolute < 0) {
-        throw new HttpError(400, 'Stock must be a non-negative integer', 'Bad Request');
+    const reason = ['adjustment', 'correction'].includes(payload.reason)
+      ? payload.reason
+      : 'adjustment';
+
+    const result = await db.withTransaction(async (tx) => {
+      let outcome;
+      if (payload.stock !== undefined) {
+        const absolute = toInt(payload.stock);
+        if (Number.isNaN(absolute) || absolute < 0) {
+          throw new HttpError(400, 'Stock must be a non-negative integer', 'Bad Request');
+        }
+        outcome = await repo.adjustStock(tx, { id: target.id, absoluteStock: absolute });
+      } else {
+        const delta = toInt(payload.delta);
+        if (Number.isNaN(delta)) {
+          throw new HttpError(400, 'Delta must be an integer', 'Bad Request');
+        }
+        outcome = await repo.adjustStock(tx, { id: target.id, delta });
       }
-      result = await repo.adjustStock(db, { id: target.id, absoluteStock: absolute });
-    } else {
-      const delta = toInt(payload.delta);
-      if (Number.isNaN(delta)) {
-        throw new HttpError(400, 'Delta must be an integer', 'Bad Request');
+
+      if (outcome.outcome === 'ok') {
+        await movementsRepo.insert(tx, {
+          companyId: outcome.companyId,
+          productId: outcome.productId,
+          delta: outcome.deltaApplied,
+          balanceAfter: outcome.balanceAfter,
+          reason,
+        });
       }
-      result = await repo.adjustStock(db, { id: target.id, delta });
-    }
+      return outcome;
+    });
 
     if (result.outcome === 'not-found') throw notFound('Inventory item', payload.id || payload.productId);
     if (result.outcome === 'below-zero') {
       throw new HttpError(400, 'Stock cannot go below 0', 'Bad Request');
     }
     return repo.findById(db, result.id);
+  },
+
+  /** GET /inventory/product/:productId/movements — newest-first ledger. */
+  async listMovements(actor, productId, query = {}) {
+    const companyId = resolveCompanyScope(actor, query.companyId);
+    return movementsRepo.findRecent(db, {
+      companyId,
+      productId: String(productId).trim(),
+      limit: Number(query.limit) || 50,
+    });
   },
 
   async update(actor, id, payload = {}) {

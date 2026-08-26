@@ -120,13 +120,8 @@ module.exports = {
 
     try {
       return await db.withTransaction(async (tx) => {
-        const shortages = await repo.decrementStockForItems(tx, companyId, items);
-        if (shortages.length) {
-          const first = shortages[0];
-          throw conflict(
-            `Insufficient stock for product ${first.productId} (requested ${first.requested}, available ${first.available})`,
-          );
-        }
+        // Order first so stock ledger movements can reference it. A shortage
+        // below still aborts the whole transaction (order included).
         const order = await repo.insertOrder(tx, {
           companyId,
           customerId: payload.customerId,
@@ -144,6 +139,15 @@ module.exports = {
           itemsCount: items.reduce((sum, item) => sum + item.quantity, 0),
           notes: payload.notes || '',
         });
+        const shortages = await repo.decrementStockForItems(tx, companyId, items, {
+          referenceId: order.id,
+        });
+        if (shortages.length) {
+          const first = shortages[0];
+          throw conflict(
+            `Insufficient stock for product ${first.productId} (requested ${first.requested}, available ${first.available})`,
+          );
+        }
         const insertedItems = [];
         const nameMap = await repo.findProductNamesByIds(
           tx,

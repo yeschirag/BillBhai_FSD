@@ -1,4 +1,5 @@
 const { mapRow } = require('./mappers');
+const movements = require('./stockMovements');
 
 function toOrder(row) {
   if (!row) return null;
@@ -208,11 +209,12 @@ module.exports = {
 
   /**
    * Locks inventory rows for the given products within the tenant and
-   * decrements stock. Must run inside the caller's transaction.
+   * decrements stock, writing a 'sale' movement per product to the ledger.
+   * Must run inside the caller's transaction; `referenceId` is the order id.
    * Returns array of { productId, requested, available } for rows where
    * stock was insufficient (empty array = all good).
    */
-  async decrementStockForItems(db, companyId, items) {
+  async decrementStockForItems(db, companyId, items, { referenceId = '' } = {}) {
     const shortages = [];
     for (const item of items) {
       // FOR UPDATE serializes concurrent checkouts on the same shelf row.
@@ -228,10 +230,19 @@ module.exports = {
         shortages.push({ productId: item.productId, requested: item.quantity, available });
         continue;
       }
-      await db.query(
-        `UPDATE inventory SET stock = stock - $1, last_updated = now() WHERE id = $2`,
+      const updated = await db.query(
+        `UPDATE inventory SET stock = stock - $1, last_updated = now()
+         WHERE id = $2 RETURNING stock`,
         [item.quantity, locked.rows[0].id],
       );
+      await movements.insert(db, {
+        companyId,
+        productId: item.productId,
+        delta: -item.quantity,
+        balanceAfter: updated.rows[0].stock,
+        reason: 'sale',
+        referenceId,
+      });
     }
     return shortages;
   },
