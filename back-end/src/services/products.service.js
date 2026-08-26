@@ -15,6 +15,9 @@ function normalizeHeader(cell) {
   return String(cell).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Imports are a shopkeeper pasting a supplier sheet, not a data pipeline.
+const MAX_IMPORT_ROWS = 2000;
+
 /** Parse ?limit/&offset; invalid values are ignored, caps prevent abuse. */
 function parsePaging(query = {}) {
   const limitRaw = Number(query.limit);
@@ -106,6 +109,9 @@ module.exports = {
     if (!text.trim()) throw new HttpError(400, 'csv text is required', 'Bad Request');
     const rows = parseCsv(text);
     if (!rows.length) throw new HttpError(400, 'CSV must include a header row', 'Bad Request');
+    if (rows.length - 1 > MAX_IMPORT_ROWS) {
+      throw new HttpError(400, `CSV exceeds the maximum of ${MAX_IMPORT_ROWS} data rows`, 'Bad Request');
+    }
 
     const header = rows[0].map(normalizeHeader);
     const at = (name) => header.indexOf(name);

@@ -110,9 +110,17 @@ PostgreSQL database is fully reproducible with `db:migrate`.
   deleted; a bill may be settled across several payment rows (cash + UPI,
   partial deposits), with `GET /api/orders/payments/bill/:billNo` returning
   the split summary (`amountDue`, `paidSoFar`, `balanceDue`, `settled`).
+  Payment rules: `amountPaid` must be positive; tenders are serialized per
+  order (row lock) so concurrent terminals cannot double-count; over-tender
+  is allowed (change given) but `balanceDue` never goes negative; payments
+  against a cancelled order are refused (409) — take a return instead.
 - **held_bills** — parked POS carts as JSONB envelopes
   (`POST/GET/PUT/DELETE /api/orders/holds`), tenant-scoped like everything
-  else; resume by reading the cart back, discard with DELETE.
+  else; resume by reading the cart back, discard with DELETE. Labels cap at
+  200 chars; carts at 100 KB.
+- **CSV import** (`POST /api/products/import`) accepts at most 2000 data
+  rows per call; a `stock` column seeds inventory rows, its absence creates
+  products only.
 - **deliveries** — cascade from their order.
 - **returns** — financial audit records; survive order deletion (`SET NULL`).
 

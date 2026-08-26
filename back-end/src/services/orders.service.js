@@ -8,6 +8,13 @@ const { resolveCompanyScope, resolveCreateCompany, belongsToScope } = require('.
 const PROMO_CODE = 'WELCOME10';
 const PROMO_RATE = 0.1;
 const MAX_CART_BYTES = 100_000;
+const MAX_HOLD_LABEL = 200;
+
+function rejectHoldLabel(label) {
+  if (label.length > MAX_HOLD_LABEL) {
+    throw new HttpError(400, `Label must be at most ${MAX_HOLD_LABEL} characters`, 'Bad Request');
+  }
+}
 
 function toNumber(value) {
   const n = Number(value);
@@ -308,39 +315,49 @@ module.exports = {
       throw new HttpError(400, 'billNo is required', 'Bad Request');
     }
     const amountPaid = toNumber(payload.amountPaid);
-    if (Number.isNaN(amountPaid) || amountPaid < 0) {
-      throw new HttpError(400, 'amountPaid must be a non-negative number', 'Bad Request');
-    }
-    const bill = await repo.findBillByNo(db, String(payload.billNo).trim());
-    if (!bill || !belongsToScope(bill, actor)) {
-      throw notFound('Bill', payload.billNo);
-    }
-    const order = await repo.findOrderById(db, bill.orderId);
-    if (!order || !belongsToScope(order, actor)) {
-      throw notFound('Order', bill.orderId);
+    if (Number.isNaN(amountPaid) || amountPaid <= 0) {
+      throw new HttpError(400, 'amountPaid must be a positive number', 'Bad Request');
     }
 
-    // Splits: accumulate against prior rows for this bill.
-    const prior = await repo.findPaymentsByBillNo(db, bill.billNo);
-    const paidSoFar = prior.reduce((sum, p) => sum + Number(p.amountPaid), 0);
-    const total = Number(order.total);
-    const remainingBefore = Math.max(0, round2(total - paidSoFar));
-    const paymentStatus = amountPaid + 0.001 >= remainingBefore ? 'Paid' : 'Partial';
+    // Serialize concurrent tenders on the same order: both terminals lock
+    // the order row before reading prior payments, so splits can never
+    // double-count and silently overpay.
+    return db.withTransaction(async (tx) => {
+      const bill = await repo.findBillByNo(tx, String(payload.billNo).trim());
+      if (!bill || !belongsToScope(bill, actor)) {
+        throw notFound('Bill', payload.billNo);
+      }
+      await repo.lockOrderById(tx, bill.orderId);
+      const order = await repo.findOrderById(tx, bill.orderId);
+      if (!order || !belongsToScope(order, actor)) {
+        throw notFound('Order', bill.orderId);
+      }
+      if (order.status === 'Cancelled') {
+        throw conflict(`Order ${order.id} is cancelled — take a return instead of a payment`);
+      }
 
-    const payment = await repo.insertPayment(db, {
-      billNo: bill.billNo,
-      companyId: bill.companyId,
-      paymentMethod: String(payload.paymentMethod || 'Cash').trim(),
-      paymentStatus,
-      amountPaid,
+      // Splits: accumulate against prior rows for this bill.
+      const prior = await repo.findPaymentsByBillNo(tx, bill.billNo);
+      const paidSoFar = prior.reduce((sum, p) => sum + Number(p.amountPaid), 0);
+      const total = Number(order.total);
+      const remainingBefore = Math.max(0, round2(total - paidSoFar));
+      const paymentStatus = round2(amountPaid) >= remainingBefore ? 'Paid' : 'Partial';
+
+      const payment = await repo.insertPayment(tx, {
+        billNo: bill.billNo,
+        companyId: bill.companyId,
+        paymentMethod: String(payload.paymentMethod || 'Cash').trim(),
+        paymentStatus,
+        amountPaid,
+      });
+
+      return {
+        ...payment,
+        amountDue: total,
+        paidSoFar: round2(paidSoFar + amountPaid),
+        balanceDue: Math.max(0, round2(total - paidSoFar - amountPaid)),
+      };
     });
-
-    return {
-      ...payment,
-      amountDue: total,
-      paidSoFar: round2(paidSoFar + amountPaid),
-      balanceDue: Math.max(0, round2(total - paidSoFar - amountPaid)),
-    };
   },
 
   // ── Held bills ──
@@ -356,10 +373,12 @@ module.exports = {
     }
     const companyId = resolveCreateCompany(actor, payload.companyId);
     if (!companyId) throw new HttpError(400, 'companyId is required', 'Bad Request');
+    const label = String(payload.label || '').trim();
+    rejectHoldLabel(label);
     return holdsRepo.insert(db, {
       companyId,
       staffId: actor?.userId,
-      label: String(payload.label || '').trim(),
+      label,
       cart: payload.cart,
       total: Math.max(0, Number(payload.total ?? 0) || 0),
     });
@@ -384,7 +403,10 @@ module.exports = {
       throw notFound('Held bill', id);
     }
     const fields = {};
-    if (payload.label !== undefined) fields.label = String(payload.label).trim();
+    if (payload.label !== undefined) {
+      fields.label = String(payload.label).trim();
+      rejectHoldLabel(fields.label);
+    }
     if (payload.total !== undefined) fields.total = Math.max(0, Number(payload.total ?? 0) || 0);
     if (payload.cart !== undefined) {
       if (!payload.cart || typeof payload.cart !== 'object') {

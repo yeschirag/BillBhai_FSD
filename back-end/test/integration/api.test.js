@@ -689,3 +689,108 @@ test('products accept gstRate and purchasePrice and round-trip them', async () =
   assert.strictEqual(legacy.body.gstRate, 0);
   assert.strictEqual(legacy.body.purchasePrice, 0);
 });
+
+test('payment guards: positive amounts, cancelled orders, over-tender clamps', async () => {
+  const cashier = await login('cashier', 'cashier123');
+  const order = await json('POST', '/api/orders', {
+    token: cashier.token,
+    body: { items: [{ productId: 'P008', quantity: 1, itemPrice: 160 }] },
+  });
+  assert.strictEqual(order.status, 201);
+
+  const bill = await json('POST', '/api/orders/bills', {
+    token: cashier.token,
+    body: { orderId: order.body.id },
+  });
+  assert.strictEqual(bill.status, 201);
+
+  // Zero and negative tenders are noise — rejected outright.
+  const zero = await json('POST', '/api/orders/payments', {
+    token: cashier.token,
+    body: { billNo: bill.body.billNo, amountPaid: 0 },
+  });
+  assert.strictEqual(zero.status, 400);
+
+  // Over-tender is allowed (change given) but never creates negative dues.
+  const generous = await json('POST', '/api/orders/payments', {
+    token: cashier.token,
+    body: { billNo: bill.body.billNo, paymentMethod: 'Cash', amountPaid: 500 },
+  });
+  assert.strictEqual(generous.status, 201);
+  assert.strictEqual(generous.body.paymentStatus, 'Paid');
+  assert.strictEqual(generous.body.balanceDue, 0);
+
+  // Cancelling the order closes its money movement surface.
+  const cancelled = await json('PUT', `/api/orders/${order.body.id}`, {
+    token: (await login('admin', 'admin123')).token,
+    body: { status: 'Cancelled' },
+  });
+  assert.strictEqual(cancelled.status, 200);
+
+  const afterCancel = await json('POST', '/api/orders/payments', {
+    token: cashier.token,
+    body: { billNo: bill.body.billNo, paymentMethod: 'UPI', amountPaid: 10 },
+  });
+  assert.strictEqual(afterCancel.status, 409);
+});
+
+test('hold validation: array carts are fine, oversized labels are not', async () => {
+  const cashier = await login('cashier', 'cashier123');
+
+  const arrayCart = await json('POST', '/api/orders/holds', {
+    token: cashier.token,
+    body: { label: 'Array cart', cart: [{ productId: 'P009' }], total: 5 },
+  });
+  assert.strictEqual(arrayCart.status, 201);
+  assert.ok(Array.isArray(arrayCart.body.cart));
+  await json('DELETE', `/api/orders/holds/${arrayCart.body.id}`, { token: cashier.token });
+
+  const longLabel = await json('POST', '/api/orders/holds', {
+    token: cashier.token,
+    body: { label: 'x'.repeat(201), cart: {} },
+  });
+  assert.strictEqual(longLabel.status, 400);
+});
+
+test('CSV import without a stock column skips inventory creation', async () => {
+  const manager = await login('inventorymanager', 'inventory123');
+  const imported = await json('POST', '/api/products/import', {
+    token: manager.token,
+    body: { csv: 'name,category,barcode,price\nStockless Wonder,Groceries,BAR-IMP-9,42' },
+  });
+  assert.strictEqual(imported.status, 201);
+  assert.strictEqual(imported.body.imported, 1);
+  const product = imported.body.products[0];
+  const invRow = await json('GET', `/api/inventory/product/${product.id}`, {
+    token: manager.token,
+  });
+  assert.strictEqual(invRow.status, 404, 'no stock column means no inventory row');
+});
+
+test('CSV import rejects oversized batches up front', async () => {
+  const manager = await login('inventorymanager', 'inventory123');
+  const header = 'name,category,price';
+  const rows = Array.from({ length: 2001 }, (_, i) => `Bulk ${i},Snacks,${i + 1}`);
+  const res = await json('POST', '/api/products/import', {
+    token: manager.token,
+    body: { csv: `${header}\n${rows.join('\n')}` },
+  });
+  assert.strictEqual(res.status, 400);
+});
+
+test('customer profile for a customer without orders reports zeros', async () => {
+  const admin = await login('admin', 'admin123');
+  const created = await json('POST', '/api/customers', {
+    token: admin.token,
+    body: { name: 'Fresh Signup', phone: '9820000001' },
+  });
+  assert.strictEqual(created.status, 201);
+  const profile = await json('GET', `/api/customers/${created.body.id}/profile`, {
+    token: admin.token,
+  });
+  assert.strictEqual(profile.status, 200);
+  assert.strictEqual(profile.body.orderCount, 0);
+  assert.strictEqual(profile.body.totalSpend, 0);
+  assert.strictEqual(profile.body.outstanding, 0);
+  assert.strictEqual(profile.body.lastPurchaseAt, null);
+});

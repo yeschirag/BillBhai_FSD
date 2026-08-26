@@ -337,6 +337,11 @@ module.exports = {
     return result.rows.map(toPayment);
   },
 
+  /** Serializes money movement against one order inside a transaction. */
+  async lockOrderById(db, orderId) {
+    await db.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+  },
+
   async insertPayment(db, payment) {
     const result = await db.query(
       `INSERT INTO payments (bill_no, company_id, payment_method, payment_status, amount_paid)
