@@ -138,11 +138,11 @@ function LandingPage() {
                       <svg viewBox="0 0 300 80" className="chart-line" preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="rgba(220,53,69,0.3)" />
-                            <stop offset="100%" stopColor="rgba(220,53,69,0)" />
+                            <stop offset="0%" stopColor="rgba(53,194,111,0.3)" />
+                            <stop offset="100%" stopColor="rgba(53,194,111,0)" />
                           </linearGradient>
                         </defs>
-                        <path className="chart-stroke" d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20" fill="none" stroke="#dc3545" strokeWidth="2" />
+                        <path className="chart-stroke" d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20" fill="none" stroke="#35c26f" strokeWidth="2" />
                         <path className="chart-fill" d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20 L300,80 L0,80 Z" fill="url(#chartGrad)" />
                       </svg>
                     </div>

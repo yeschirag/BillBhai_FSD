@@ -19,7 +19,7 @@ const EMPTY_LIST = []
 // Color follows the entity: each operations category keeps its hue regardless
 // of how the counts change.
 const OPS_CHART_COLORS = {
-  Orders: '#dc3545',
+  Orders: '#35c26f',
   Returns: '#e8a838',
   'Low Stock': '#64b5f6',
   Delivered: '#3fbf62',
@@ -135,7 +135,7 @@ function ReportsPage() {
                     cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                     content={<ChartTooltip valueFormatter={formatCurrency} />}
                   />
-                  <Bar dataKey="total" fill="#dc3545" radius={[4, 4, 0, 0]} maxBarSize={24} />
+                  <Bar dataKey="total" fill="#35c26f" radius={[4, 4, 0, 0]} maxBarSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyState title="No revenue to chart yet" hint="Revenue per order appears once orders are recorded." />}

@@ -206,8 +206,8 @@ function DashboardPage() {
                 >
                   <defs>
                     <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#dc3545" stopOpacity={0.16} />
-                      <stop offset="100%" stopColor="#dc3545" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="#35c26f" stopOpacity={0.16} />
+                      <stop offset="100%" stopColor="#35c26f" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -232,7 +232,7 @@ function DashboardPage() {
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="#dc3545"
+                    stroke="#35c26f"
                     strokeWidth={2}
                     fill="url(#salesGradient)"
                     dot={false}

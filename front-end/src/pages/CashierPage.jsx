@@ -1,75 +1,92 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useWorkspaceData } from '../hooks/useWorkspaceData.js'
+import { apiProvider } from '../api/index.js'
 import { useAuth } from '../context/useAuth.js'
-import {
-  buildNextId,
-  buildNotification,
-  formatCurrency,
-  formatTimestamp,
-} from '../services/workspaceService.js'
+import { formatCurrency } from '../services/workspaceService.js'
 import PageState from '../components/PageState.jsx'
+import { toast } from '../components/toastBus.js'
 
-const INITIAL_CUSTOMER = {
-  name: '',
-  phone: '',
-  email: '',
-  notes: '',
-  address: '',
-  deliveryPartner: '',
-  deliveryPartnerPhone: '',
-}
-const EMPTY_LIST = []
+/**
+ * POS Terminal — the product's core loop:
+ * scan → cart → payment → real order/bill/payment rows in PostgreSQL.
+ *
+ * Everything here hits the live API. There is no local mock: if the
+ * backend is unreachable the terminal says so instead of pretending.
+ */
 
-const STEP_DEFS = [
-  { id: 1, label: 'Customer' },
-  { id: 2, label: 'Items & Cart' },
-  { id: 3, label: 'Fulfillment' },
+const PAYMENT_METHODS = ['Cash', 'UPI', 'Card']
+
+const MODES = [
+  {
+    id: 'takeaway',
+    label: 'Take Away',
+    hint: 'Hand over at the counter',
+    orderType: 'pickup',
+    checkoutMode: 'takeaway_now',
+    cod: false,
+  },
+  {
+    id: 'delivery_upfront',
+    label: 'Delivery · Pay Now',
+    hint: 'Collect full amount at billing',
+    orderType: 'delivery',
+    checkoutMode: 'prepaid_delivery',
+    cod: false,
+    needsAddress: true,
+    delivery: true,
+  },
+  {
+    id: 'delivery_cod',
+    label: 'Delivery · COD',
+    hint: 'Collect cash on delivery',
+    orderType: 'delivery',
+    checkoutMode: 'cod_delivery',
+    cod: true,
+    needsAddress: true,
+    delivery: true,
+  },
 ]
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').slice(0, 10)
 }
 
-function getModeConfig(mode) {
-  if (mode === 'prepaid_delivery') {
-    return {
-      label: 'Delivery + Pay Upfront',
-      deliveryOption: 'delivery',
-      payment: 'Paid Upfront',
-      status: 'Processing',
-    }
-  }
-
-  if (mode === 'cod_delivery') {
-    return {
-      label: 'Delivery + COD',
-      deliveryOption: 'delivery',
-      payment: 'COD',
-      status: 'Processing',
-    }
-  }
-
-  return {
-    label: 'Take Away Now',
-    deliveryOption: 'pickup',
-    payment: 'Counter Paid',
-    status: 'Delivered',
-  }
+function round2(value) {
+  return Number(Math.round(Number(value || 0) * 100) / 100)
 }
 
 function CashierPage() {
   const navigate = useNavigate()
-  const { signOut } = useAuth()
-  const {
-    activeBusiness,
-    cashierData,
-    customers,
-    currentUser,
-    isLoading,
-    error,
-    mutateWorkspace,
-  } = useWorkspaceData()
+  const { user, signOut } = useAuth()
+  const isCustomerTerminal = user?.role === 'customer'
+
+  const [loadState, setLoadState] = useState('loading') // loading | ready | error
+  const [products, setProducts] = useState([])
+  const [stockByProduct, setStockByProduct] = useState({})
+
+  const [step, setStep] = useState(1) // 1 cart → 2 pay → 3 done
+  const [cart, setCart] = useState([])
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('All')
+  const [promoInput, setPromoInput] = useState('WELCOME10')
+  const [promo, setPromo] = useState(null) // { code, discount } from the server
+  const [promoError, setPromoError] = useState('')
+  const [holds, setHolds] = useState([])
+  const [holdsOpen, setHoldsOpen] = useState(false)
+  const [holdsLoading, setHoldsLoading] = useState(false)
+
+  const [payMode, setPayMode] = useState('takeaway')
+  const [payMethod, setPayMethod] = useState('Cash')
+  const [tendered, setTendered] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [customerAddress, setCustomerAddress] = useState('')
+  const [savedCustomer, setSavedCustomer] = useState(null)
+  const [lookupState, setLookupState] = useState('idle') // idle | found | new
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const searchRef = useRef(null)
 
   useEffect(() => {
     document.title = 'BillBhai - Cashier POS'
@@ -82,283 +99,432 @@ function CashierPage() {
     }
   }, [])
 
-  const [step, setStep] = useState(1)
-  const [customer, setCustomer] = useState(INITIAL_CUSTOMER)
-  const [lookupMessage, setLookupMessage] = useState('Enter a 10-digit phone number to check existing customer records.')
-  const [cart, setCart] = useState([])
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('All')
-  const [promoCode, setPromoCode] = useState('')
-  const [appliedPromo, setAppliedPromo] = useState('')
-  const [promoError, setPromoError] = useState('')
-  const [checkoutMode, setCheckoutMode] = useState('takeaway_now')
-  const [successSummary, setSuccessSummary] = useState(null)
+  const businessName = localStorage.getItem('activeBusinessName') || 'BillBhai'
 
-  const isCustomerTerminal = currentUser?.role === 'customer'
-  const deliveryCharge = Number(cashierData?.settings?.deliveryCharge || 0)
-  const catalog = Array.isArray(cashierData?.catalog) ? cashierData.catalog : EMPTY_LIST
+  const loadCatalog = async () => {
+    setLoadState('loading')
+    try {
+      const [products, inventory] = await Promise.all([
+        apiProvider.getProducts(),
+        apiProvider.getInventory(),
+      ])
+      const list = Array.isArray(products) ? products : []
+      const stockMap = {}
+      for (const item of Array.isArray(inventory) ? inventory : []) {
+        if (item?.productId) stockMap[item.productId] = Number(item.stock || 0)
+      }
+      setProducts(list)
+      setStockByProduct(stockMap)
+      setLoadState(list.length ? 'ready' : 'error')
+      if (!list.length) console.error('POS: empty catalog returned by the API')
+    } catch (err) {
+      console.error('POS: failed to load catalog', err)
+      setLoadState('error')
+    }
+  }
+
+  useEffect(() => {
+    loadCatalog()
+  }, [])
+
+  // ── Derived catalog ──
+
   const categories = useMemo(
-    () => ['All', ...Array.from(new Set(catalog.map((item) => item.category))).sort()],
-    [catalog],
+    () => ['All', ...Array.from(new Set(products.map((p) => p.category))).sort()],
+    [products],
   )
 
-  const filteredCatalog = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return catalog.filter((item) => {
-      const matchesCategory = category === 'All' || item.category === category
+    return products.filter((product) => {
+      const matchesCategory = category === 'All' || product.category === category
       const matchesSearch =
         !query
-        || String(item.name || '').toLowerCase().includes(query)
-        || String(item.id || '').toLowerCase().includes(query)
+        || String(product.name || '').toLowerCase().includes(query)
+        || String(product.id || '').toLowerCase().includes(query)
+        || String(product.barcode || '').toLowerCase().includes(query)
       return matchesCategory && matchesSearch
     })
-  }, [catalog, category, search])
+  }, [products, category, search])
 
-  const totals = useMemo(() => {
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
-    const promo = cashierData?.promos?.[appliedPromo]
-    let discount = 0
+  const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
+  const discount = promo ? Math.min(promo.discount, subtotal) : 0
+  const total = round2(Math.max(0, subtotal - discount))
 
-    if (promo?.type === 'percent') {
-      discount = subtotal * (Number(promo.value || 0) / 100)
-    } else if (promo?.type === 'fixed') {
-      discount = Number(promo.value || 0)
-    }
-
-    const itemTotal = Math.max(0, subtotal - discount)
-    const modeConfig = getModeConfig(checkoutMode)
-    const deliveryFee = modeConfig.deliveryOption === 'delivery' ? deliveryCharge : 0
-    return {
-      subtotal,
-      discount,
-      deliveryFee,
-      total: itemTotal + deliveryFee,
-    }
-  }, [appliedPromo, cart, cashierData?.promos, checkoutMode, deliveryCharge])
-
-  const handlePhoneLookup = (value) => {
-    const phone = normalizePhone(value)
-    setCustomer((prev) => ({ ...prev, phone }))
-    if (phone.length !== 10) {
-      setLookupMessage('Enter a valid 10-digit phone number to auto-fill saved details.')
-      return
-    }
-
-    const existing = customers[phone]
-    if (!existing) {
-      setLookupMessage('No saved profile found yet. We will create one after checkout.')
-      return
-    }
-
-    setCustomer((prev) => ({
-      ...prev,
-      phone,
-      name: existing.name || prev.name,
-      email: existing.email || prev.email,
-      notes: existing.notes || prev.notes,
-      address: existing.address || prev.address,
-      deliveryPartner: existing.deliveryPartner || prev.deliveryPartner,
-      deliveryPartnerPhone: existing.deliveryPartnerPhone || prev.deliveryPartnerPhone,
-    }))
-    setLookupMessage(`Welcome back, ${existing.name}. Saved checkout details are ready.`)
+  const stockOf = (productId) => {
+    const value = stockByProduct[productId]
+    return value === undefined ? null : value
   }
 
-  const addToCart = (product, option) => {
-    const key = `${product.id}-${option.label}`
+  const addToCart = (product) => {
+    const stock = stockOf(product.id)
+    const existing = cart.find((item) => item.productId === product.id)
+    const nextQty = (existing?.qty || 0) + 1
+    if (stock !== null && nextQty > stock) {
+      toast.error(`Only ${stock} × ${product.name} in stock`)
+      return
+    }
     setCart((prev) => {
-      const index = prev.findIndex((item) => item.key === key)
-      if (index >= 0) {
-        const next = [...prev]
-        next[index] = { ...next[index], qty: next[index].qty + 1 }
-        return next
+      if (existing) {
+        return prev.map((item) => (item.productId === product.id
+          ? { ...item, qty: item.qty + 1 }
+          : item))
       }
-
-      return [
-        ...prev,
-        {
-          key,
-          id: product.id,
-          name: product.name,
-          option: option.label,
-          price: Number(option.price || 0),
-          qty: 1,
-        },
-      ]
+      return [...prev, {
+        productId: product.id,
+        name: product.name,
+        price: Number(product.price || 0),
+        qty: 1,
+      }]
     })
   }
 
-  const updateCartQty = (key, delta) => {
+  const changeQty = (productId, delta) => {
     setCart((prev) => prev
-      .map((item) => item.key === key ? { ...item, qty: item.qty + delta } : item)
+      .map((item) => {
+        if (item.productId !== productId) return item
+        const stock = stockOf(productId)
+        const next = item.qty + delta
+        if (delta > 0 && stock !== null && next > stock) {
+          toast.error(`Only ${stock} × ${item.name} in stock`)
+          return item
+        }
+        return { ...item, qty: next }
+      })
       .filter((item) => item.qty > 0))
   }
 
-  const resetFlow = () => {
-    setStep(1)
-    setCustomer(INITIAL_CUSTOMER)
-    setLookupMessage('Enter a 10-digit phone number to check existing customer records.')
-    setCart([])
-    setSearch('')
-    setCategory('All')
-    setPromoCode('')
-    setAppliedPromo('')
-    setPromoError('')
-    setCheckoutMode('takeaway_now')
-    setSuccessSummary(null)
+  const handleSearchEnter = async () => {
+    const term = search.trim()
+    if (!term) return
+    // Barcode scanners "type" the code and press Enter — treat an exact
+    // barcode hit (local catalog first, then the API) as an instant add.
+    const localMatch = products.find(
+      (p) => p.barcode && p.barcode.toLowerCase() === term.toLowerCase(),
+    )
+    const product = localMatch || await apiProvider.getProductByBarcode(term)
+    if (product) {
+      addToCart(product)
+      setSearch('')
+      searchRef.current?.focus()
+      toast.success(`${product.name} added`)
+    } else {
+      toast.error(`No product with barcode "${term}"`)
+    }
+    searchRef.current?.focus()
   }
 
-  const applyPromo = () => {
-    const safeCode = String(promoCode || '').trim().toUpperCase()
-    if (!safeCode) return
+  // ── Promo ──
 
-    if (cashierData?.promos?.[safeCode]) {
-      setAppliedPromo(safeCode)
-      setPromoError('')
-    } else {
-      setPromoError(`"${safeCode}" is not a valid or active promo code.`)
+  const applyPromo = async () => {
+    const code = promoInput.trim().toUpperCase()
+    if (!code) return
+    setPromoError('')
+    try {
+      const res = await apiProvider.validatePromotion(code, round2(subtotal))
+      if (!res.ok) {
+        setPromo(null)
+        setPromoError(res.error || 'Invalid promo code')
+        return
+      }
+      setPromo({ code: res.data.code, discount: Number(res.data.discount || 0) })
+      toast.success(`Promo ${res.data.code} applied`)
+    } catch {
+      setPromoError('Could not validate the promo code right now')
     }
   }
 
   const removePromo = () => {
-    setAppliedPromo('')
+    setPromo(null)
+    setPromoInput('')
     setPromoError('')
-    setPromoCode('')
   }
 
-  const completeCheckout = async () => {
-    if (!activeBusiness) return
+  // ── Held bills ──
 
-    const modeConfig = getModeConfig(checkoutMode)
-    const orderId = await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
-      const target = draft.dataByBusiness[businessId]
-      const nextOrderId = buildNextId('ORD', target.orders, 551)
-      const order = {
-        id: nextOrderId,
-        customer: String(customer.name || '').trim() || 'Walk-in',
-        items: cart.reduce((sum, item) => sum + item.qty, 0),
-        total: totals.total,
-        payment: modeConfig.payment,
-        status: modeConfig.status,
-        date: formatTimestamp(),
-        phone: customer.phone,
-        email: customer.email,
-        address: customer.address,
-        notes: customer.notes,
-        deliveryOption: modeConfig.deliveryOption,
-        deliveryPartner: customer.deliveryPartner,
-        deliveryPartnerPhone: customer.deliveryPartnerPhone,
+  const refreshHolds = async () => {
+    setHoldsLoading(true)
+    try {
+      const res = await apiProvider.getHolds()
+      setHolds(res.ok && Array.isArray(res.data) ? res.data : [])
+    } finally {
+      setHoldsLoading(false)
+    }
+  }
+
+  const toggleHolds = () => {
+    const next = !holdsOpen
+    setHoldsOpen(next)
+    if (next) refreshHolds()
+  }
+
+  const holdCart = async () => {
+    if (!cart.length) return
+    try {
+      const res = await apiProvider.createHold({
+        label: `${customerName || savedCustomer?.name || 'Walk-in'} · ${cartCount} item${cartCount === 1 ? '' : 's'} · ${formatCurrency(total)}`,
+        cart: {
+          items: cart,
+          customer: { phone: customerPhone, name: customerName, address: customerAddress },
+          promoCode: promo?.code || '',
+        },
+        total,
+      })
+      if (!res.ok) {
+        toast.error(res.error || 'Could not park this cart')
+        return
       }
+      toast.success('Cart parked')
+      setCart([])
+      setPromo(null)
+      setPromoInput('')
+      refreshHolds()
+    } catch {
+      toast.error('Could not park this cart')
+    }
+  }
 
-      target.orders.unshift(order)
+  const resumeHold = async (hold) => {
+    const envelope = hold?.cart
+    if (!envelope || !Array.isArray(envelope.items)) {
+      toast.error('This parked cart is empty')
+      return
+    }
+    setCart(envelope.items)
+    setCustomerPhone(envelope.customer?.phone || '')
+    setCustomerName(envelope.customer?.name || '')
+    setCustomerAddress(envelope.customer?.address || '')
+    if (envelope.promoCode) {
+      setPromoInput(envelope.promoCode)
+      setPromo({ code: envelope.promoCode, discount: 0 })
+    }
+    setHoldsOpen(false)
+    setStep(1)
+    toast.success(`Resumed "${hold.label}"`)
+    await apiProvider.discardHold(hold.id)
+    refreshHolds()
+    // Re-validate the promo against the restored subtotal.
+    if (envelope.promoCode) applyPromo()
+  }
 
-      if (modeConfig.deliveryOption === 'delivery') {
-        target.deliveries.unshift({
-          id: buildNextId('DEL', target.deliveries, 551),
-          oid: nextOrderId,
-          customer: order.customer,
-          address: customer.address || 'Address to be confirmed',
-          partner: customer.deliveryPartner,
-          partnerPhone: customer.deliveryPartnerPhone,
-          status: customer.deliveryPartner ? 'In Transit' : 'Pending',
-          etaMin: 40,
-          time: formatTimestamp().slice(-5),
-          updatedAt: formatTimestamp(),
+  const discardHold = async (hold) => {
+    const res = await apiProvider.discardHold(hold.id)
+    if (!res.ok) {
+      toast.error(res.error || 'Could not discard the parked cart')
+      return
+    }
+    refreshHolds()
+  }
+
+  // ── Customer lookup (payment step) ──
+
+  const handlePhoneLookup = async (value) => {
+    const phone = normalizePhone(value)
+    setCustomerPhone(phone)
+    setSavedCustomer(null)
+    setLookupState('idle')
+    if (phone.length !== 10) return
+    const existing = await apiProvider.getCustomerByPhone(phone)
+    if (existing) {
+      setSavedCustomer(existing)
+      setLookupState('found')
+      setCustomerName((prev) => prev || existing.name || '')
+      if (existing.address) setCustomerAddress(existing.address)
+    } else {
+      setLookupState('new')
+    }
+  }
+
+  // ── Checkout ──
+
+  const payModeDef = MODES.find((m) => m.id === payMode) || MODES[0]
+  const modeNeedsAddress = Boolean(payModeDef?.needsAddress)
+  const modeIsCod = Boolean(payModeDef?.cod)
+  const tenderAmount = payMethod === 'Cash' && tendered !== ''
+    ? round2(Number(tendered))
+    : total
+  const changeDue = Math.max(0, round2(tenderAmount - total))
+
+  const completeSale = async () => {
+    if (!cart.length || submitting) return
+    setSubmitting(true)
+    try {
+      // 1. Save a new customer so lifetime stats start accruing.
+      let customerId = savedCustomer?.id || ''
+      if (!customerId && customerPhone.length === 10 && customerName.trim()) {
+        const created = await apiProvider.createCustomer({
+          phone: customerPhone,
+          name: customerName.trim(),
+          address: customerAddress.trim(),
         })
+        if (created.ok) {
+          customerId = created.data?.id || ''
+          setSavedCustomer(created.data)
+        } else if (created.status !== 409) {
+          // 409 = phone already registered: proceed without the profile link.
+          toast.error(created.error || 'Could not save the customer profile')
+        }
+        if (created.status === 409) {
+          const existing = await apiProvider.getCustomerByPhone(customerPhone)
+          if (existing) {
+            customerId = existing.id
+            setSavedCustomer(existing)
+          }
+        }
       }
 
-      draft.customers[customer.phone] = {
-        phone: customer.phone,
-        name: order.customer,
-        email: customer.email,
-        address: customer.address,
-        notes: customer.notes,
-        preferredDeliveryOption: modeConfig.deliveryOption,
-        deliveryPartner: customer.deliveryPartner,
-        deliveryPartnerPhone: customer.deliveryPartnerPhone,
-        lastOrderId: nextOrderId,
-        lastOrderAt: order.date,
-        orderCount: Number(draft.customers[customer.phone]?.orderCount || 0) + 1,
+      // 2. Order — the server computes the total and decrements stock.
+      const mode = MODES.find((m) => m.id === payMode) || MODES[0]
+      const orderRes = await apiProvider.createOrder({
+        items: cart.map((item) => ({
+          productId: item.productId,
+          quantity: item.qty,
+          itemPrice: item.price,
+        })),
+        customerId,
+        customerName: customerName.trim() || savedCustomer?.name || 'Walk-in',
+        customerAddress: mode.delivery ? customerAddress.trim() : '',
+        notes: '',
+        orderType: mode.orderType,
+        checkoutMode: mode.checkoutMode,
+        paymentMethod: mode.cod ? 'COD' : payMethod,
+        promoCode: promo?.code || '',
+      })
+      if (!orderRes.ok) {
+        toast.error(orderRes.error || 'Checkout failed')
+        return
+      }
+      const order = orderRes.data
+
+      // 3. Bill (find-or-create keeps retries from stacking bills).
+      let billNo = ''
+      const billsRes = await apiProvider.getBills()
+      const existingBill = (Array.isArray(billsRes) ? billsRes : [])
+        .find((bill) => bill.orderId === order.id)
+      if (existingBill) {
+        billNo = existingBill.billNo
+      } else {
+        const billRes = await apiProvider.createBill({ orderId: order.id })
+        if (!billRes.ok) {
+          toast.error(billRes.error || `Order ${order.id} saved but billing failed`)
+          setResult({ order, stage: 'bill-failed' })
+          setStep(3)
+          return
+        }
+        billNo = billRes.data.billNo
       }
 
-      draft.notifications.unshift(
-        buildNotification({
-          title: `${nextOrderId} created`,
-          desc: `${order.customer} checkout recorded for ${formatCurrency(order.total)} at ${draft.activeBusiness.name}.`,
-          type: 'order',
-          color: 'blue',
-          scopeBusinessId: businessId,
-          detailRows: [
-            { label: 'Customer', value: order.customer },
-            { label: 'Payment', value: order.payment },
-            { label: 'Delivery Option', value: modeConfig.label },
-          ],
-        }),
-      )
-
-      if (modeConfig.deliveryOption === 'delivery') {
-        draft.notifications.unshift(
-          buildNotification({
-            title: `${nextOrderId} queued for delivery`,
-            desc: `${customer.deliveryPartner || 'Store delivery team'} will handle dispatch for ${order.customer}.`,
-            type: 'delivery',
-            color: 'green',
-            scopeBusinessId: businessId,
-            detailRows: [
-              { label: 'Address', value: customer.address || '-' },
-              { label: 'Partner', value: customer.deliveryPartner || 'Pending assignment' },
-            ],
-          }),
-        )
+      // 4. Payment (skipped for COD — collected at the doorstep).
+      let paymentInfo = null
+      if (!mode.cod) {
+        const payRes = await apiProvider.createPayment({
+          billNo,
+          amountPaid: tenderAmount,
+          paymentMethod: payMethod,
+        })
+        if (!payRes.ok) {
+          toast.error(payRes.error || `Order ${order.id} billed but payment failed`)
+          setResult({ order, billNo, stage: 'payment-failed' })
+          setStep(3)
+          return
+        }
+        paymentInfo = payRes.data
       }
 
-      return nextOrderId
-    })
-
-    setSuccessSummary({
-      orderId,
-      amount: totals.total,
-      mode: getModeConfig(checkoutMode).label,
-      customer: customer.name,
-    })
-    setStep(4)
+      setResult({
+        order,
+        billNo,
+        stage: 'complete',
+        mode,
+        method: mode.cod ? 'COD' : payMethod,
+        tendered: mode.cod ? 0 : tenderAmount,
+        change: mode.cod ? 0 : changeDue,
+        balanceDue: paymentInfo?.balanceDue ?? total,
+      })
+      setStep(3)
+    } catch (err) {
+      toast.error(err?.message || 'Checkout failed')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const renderStepIndicator = () => (
+  const resetFlow = () => {
+    setStep(1)
+    setCart([])
+    setSearch('')
+    setCategory('All')
+    setPromo(null)
+    setPromoInput('')
+    setPromoError('')
+    setPayMode('takeaway')
+    setPayMethod('Cash')
+    setTendered('')
+    setCustomerPhone('')
+    setCustomerName('')
+    setCustomerAddress('')
+    setSavedCustomer(null)
+    setLookupState('idle')
+    setResult(null)
+    searchRef.current?.focus()
+  }
+
+  // ── Step indicator ──
+
+  const renderSteps = () => (
     <div className="pos-steps">
-      {STEP_DEFS.map((def, index) => (
-        <span key={def.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+      {[{ id: 1, label: 'Cart' }, { id: 2, label: 'Payment' }].map((def, index) => (
+        <span key={def.id} className="pos-step-wrap">
           {index > 0 ? <span className="pos-step-sep">›</span> : null}
           <button
             type="button"
             className={`pos-step ${step === def.id ? 'current' : ''} ${def.id < step ? 'done' : ''}`}
-            style={{ cursor: def.id < step ? 'pointer' : 'default' }}
             onClick={def.id < step ? () => setStep(def.id) : undefined}
+            style={{ cursor: def.id < step ? 'pointer' : 'default' }}
             aria-current={step === def.id ? 'step' : undefined}
           >
-            {def.id < step ? '✓' : def.id}
-            {' '}
-            {def.label}
+            {def.id < step ? '✓' : def.id} {def.label}
           </button>
         </span>
       ))}
     </div>
   )
 
-  if (isLoading || error) {
+  if (isCustomerTerminal) {
     return (
       <main className="main-content" id="mainContent">
-        <header className="top-header">
-          <div className="header-left">
-            <div className="breadcrumb">
-              <span className="bc-app">{activeBusiness?.name || 'BillBhai'}</span>
-              <span className="bc-sep">/</span>
-              <span className="bc-page">{isCustomerTerminal ? 'Self Checkout' : 'POS Terminal'}</span>
-            </div>
-          </div>
-        </header>
         <div className="content-area">
-          <PageState loading={isLoading} error={error} label="Loading POS…" />
+          <PageState
+            error="Self-checkout is not available yet. Our staff will be happy to bill you at the counter."
+            label="POS Terminal"
+          />
+        </div>
+      </main>
+  )
+  }
+
+  if (loadState === 'loading') {
+    return (
+      <main className="main-content" id="mainContent">
+        <div className="content-area">
+          <PageState loading label="Loading products…" />
+        </div>
+      </main>
+    )
+  }
+
+  if (loadState === 'error') {
+    return (
+      <main className="main-content" id="mainContent">
+        <div className="content-area">
+          <PageState
+            error="The product catalog could not be loaded. Is the server reachable?"
+            label="POS Terminal"
+          />
+          <div className="wizard-centered">
+            <button type="button" className="btn btn-primary btn-block" onClick={loadCatalog}>Retry</button>
+          </div>
         </div>
       </main>
     )
@@ -368,11 +534,11 @@ function CashierPage() {
     <main className="main-content" id="mainContent">
       <header className="top-header">
         <div className="header-left">
-          <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>Back</button>
+          <button type="button" className="btn btn-outline" onClick={() => navigate('/dashboard')}>Done</button>
           <div className="breadcrumb">
-            <span className="bc-app">{activeBusiness?.name || 'BillBhai'}</span>
+            <span className="bc-app">{businessName}</span>
             <span className="bc-sep">/</span>
-            <span className="bc-page">{isCustomerTerminal ? 'Self Checkout' : 'POS Terminal'}</span>
+            <span className="bc-page">POS Terminal</span>
           </div>
         </div>
         <div className="header-right">
@@ -381,7 +547,7 @@ function CashierPage() {
             className="btn btn-outline"
             onClick={() => {
               signOut()
-              navigate('/login', { replace: true })
+              navigate('/login')
             }}
           >
             Logout
@@ -390,58 +556,29 @@ function CashierPage() {
       </header>
 
       <div className="content-area" id="contentArea">
-        {step < 4 ? renderStepIndicator() : null}
+        {step < 3 ? renderSteps() : null}
 
         {step === 1 ? (
-          <div className="step-container">
-            <div className="wizard-centered card wizard-form-card">
-              <h3>{isCustomerTerminal ? 'Start Self Checkout' : 'Start New Order'}</h3>
-              <p className="text-muted" style={{ marginBottom: '20px', fontSize: '0.9rem' }}>
-                Existing shoppers auto-fill once you enter a 10-digit phone number.
-              </p>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  if (normalizePhone(customer.phone).length !== 10 || !String(customer.name || '').trim()) return
-                  setStep(2)
-                }}
-              >
-                <div className="text-sm text-muted" style={{ marginBottom: '12px' }}>{lookupMessage}</div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cashierName">Customer Name</label>
-                    <input id="cashierName" className="form-control" required value={customer.name} onChange={(event) => setCustomer((prev) => ({ ...prev, name: event.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cashierPhone">Phone Number</label>
-                    <input id="cashierPhone" className="form-control" type="tel" inputMode="numeric" maxLength="10" required value={customer.phone} onChange={(event) => handlePhoneLookup(event.target.value)} />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cashierEmail">Email</label>
-                    <input id="cashierEmail" className="form-control" type="email" value={customer.email} onChange={(event) => setCustomer((prev) => ({ ...prev, email: event.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cashierNotes">Notes</label>
-                    <input id="cashierNotes" className="form-control" value={customer.notes} onChange={(event) => setCustomer((prev) => ({ ...prev, notes: event.target.value }))} />
-                  </div>
-                </div>
-                <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: '16px' }}>
-                  {isCustomerTerminal ? 'Begin Shopping' : 'Begin Scanning / Manual Entry'}
-                </button>
-              </form>
-            </div>
-          </div>
-        ) : null}
-
-        {step === 2 ? (
           <div className="step-container">
             <div className="pos-layout">
               <div className="pos-main">
                 <div className="pos-controls">
                   <div className="pos-search">
-                    <input type="text" id="posSearch" className="form-control" placeholder="Search products…" aria-label="Search products" value={search} onChange={(event) => setSearch(event.target.value)} />
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      className="form-control"
+                      placeholder="Scan barcode or search products…"
+                      aria-label="Scan barcode or search products"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          handleSearchEnter()
+                        }
+                      }}
+                    />
                   </div>
                   <div className="category-filters">
                     {categories.map((item) => (
@@ -459,155 +596,278 @@ function CashierPage() {
                 </div>
 
                 <div className="product-grid">
-                  {filteredCatalog.map((product) => (
-                    <article key={product.id} className="product-card">
-                      <div className="product-visual">{product.image || '🛍️'}</div>
-                      <div className="product-meta">
-                        <strong>{product.name}</strong>
-                        <span>{product.category}</span>
-                      </div>
-                      <div className="workspace-option-list">
-                        {(product.options || []).map((option) => (
-                          <button key={`${product.id}-${option.label}`} type="button" className="btn btn-outline btn-xs" onClick={() => addToCart(product, option)}>
-                            {option.label} · {formatCurrency(option.price)}
-                          </button>
-                        ))}
-                      </div>
-                    </article>
-                  ))}
+                  {filteredProducts.map((product) => {
+                    const stock = stockOf(product.id)
+                    const out = stock !== null && stock <= 0
+                    return (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="product-card"
+                        onClick={() => addToCart(product)}
+                        disabled={out}
+                      >
+                        <div className="product-meta">
+                          <strong>{product.name}</strong>
+                          <span className="product-cat">{product.category}</span>
+                          <span className="product-price">{formatCurrency(product.price)}</span>
+                        </div>
+                        <div className="product-foot">
+                          <span className={`stock-badge ${out ? 'out' : stock !== null && stock < 5 ? 'low' : ''}`}>
+                            {stock === null ? 'untracked' : out ? 'out of stock' : `${stock} in stock`}
+                          </span>
+                          {product.size ? <span className="product-size">{product.size}</span> : null}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               <aside className="pos-sidebar">
                 <div className="cart-header">
-                  <h3>Active Cart</h3>
-                  <span className="badge">{cart.reduce((sum, item) => sum + item.qty, 0)}</span>
+                  <h3>Current Bill</h3>
+                  <div className="cart-header-actions">
+                    <button type="button" className="btn btn-outline btn-xs" onClick={toggleHolds}>
+                      Parked ({holds.length})
+                    </button>
+                    <span className="badge">{cartCount}</span>
+                  </div>
                 </div>
+
+                {holdsOpen ? (
+                  <div className="held-panel">
+                    {holdsLoading ? <p className="cart-empty">Loading…</p> : null}
+                    {!holdsLoading && !holds.length ? <p className="cart-empty">No parked bills.</p> : null}
+                    {holds.map((hold) => (
+                      <div key={hold.id} className="held-row">
+                        <div className="held-info">
+                          <strong>{hold.label}</strong>
+                          <span className="text-muted">{hold.id}</span>
+                        </div>
+                        <div className="held-actions">
+                          <button type="button" className="btn btn-outline btn-xs" onClick={() => resumeHold(hold)}>Resume</button>
+                          <button type="button" className="btn btn-outline btn-xs" onClick={() => discardHold(hold)}>Discard</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
                 <div className="cart-body">
                   {cart.length ? cart.map((item) => (
-                    <div key={item.key} className="cart-item">
+                    <div key={item.productId} className="cart-item">
                       <div>
                         <strong>{item.name}</strong>
-                        <div className="text-muted">{item.option}</div>
+                        <div className="text-muted cart-item-price">
+                          {formatCurrency(item.price)} × {item.qty}
+                        </div>
                       </div>
                       <div className="workspace-qty-row">
-                        <button type="button" aria-label={`Decrease quantity of ${item.name}`} onClick={() => updateCartQty(item.key, -1)}>−</button>
+                        <button type="button" aria-label={`Decrease ${item.name}`} onClick={() => changeQty(item.productId, -1)}>−</button>
                         <span>{item.qty}</span>
-                        <button type="button" aria-label={`Increase quantity of ${item.name}`} onClick={() => updateCartQty(item.key, 1)}>+</button>
+                        <button type="button" aria-label={`Increase ${item.name}`} onClick={() => changeQty(item.productId, 1)}>+</button>
                       </div>
                     </div>
-                  )) : <p className="cart-empty">Add products to start billing.</p>}
+                  )) : <p className="cart-empty">Scan or tap a product to start.</p>}
                 </div>
+
                 <div className="cart-footer">
-                  {appliedPromo ? (
+                  {promo ? (
                     <div className="promo-applied">
-                      <span>Promo {appliedPromo} applied</span>
-                      <button type="button" className="promo-remove" aria-label="Remove promo code" onClick={removePromo}>×</button>
+                      <span>Promo {promo.code} — {formatCurrency(promo.discount)} off</span>
+                      <button type="button" className="promo-remove" aria-label="Remove promo" onClick={removePromo}>×</button>
                     </div>
                   ) : (
                     <div className="promo-block">
                       <div className="promo-input">
-                        <input className="form-control" placeholder="Promo Code" value={promoCode} onChange={(event) => { setPromoCode(event.target.value.toUpperCase()); setPromoError('') }} />
+                        <input
+                          className="form-control"
+                          placeholder="Promo code"
+                          value={promoInput}
+                          onChange={(event) => { setPromoInput(event.target.value.toUpperCase()); setPromoError('') }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyPromo() } }}
+                        />
                         <button type="button" className="btn btn-outline" onClick={applyPromo}>Apply</button>
                       </div>
                       {promoError ? <p className="form-error">{promoError}</p> : null}
                     </div>
                   )}
-                  <div className="cf-row"><span>Subtotal</span><span>{formatCurrency(totals.subtotal)}</span></div>
-                  <div className="cf-row"><span>Discount</span><span>- {formatCurrency(totals.discount)}</span></div>
-                  <div className="cf-tot"><span>Grand Total</span><span>{formatCurrency(totals.total)}</span></div>
-                  <button type="button" className="btn btn-primary btn-block" disabled={!cart.length} onClick={() => setStep(3)}>
-                    Continue to Fulfillment
-                  </button>
+                  <div className="cf-row"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+                  {discount > 0 ? (
+                    <div className="cf-row cf-discount"><span>Discount</span><span>− {formatCurrency(discount)}</span></div>
+                  ) : null}
+                  <div className="cf-tot"><span>Total</span><span>{formatCurrency(total)}</span></div>
+                  <div className="cart-actions">
+                    <button type="button" className="btn btn-outline" disabled={!cart.length || submitting} onClick={holdCart}>Park</button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={!cart.length || submitting}
+                      onClick={() => {
+                        setTendered('')
+                        setStep(2)
+                      }}
+                    >
+                      Charge {formatCurrency(total)}
+                    </button>
+                  </div>
                 </div>
               </aside>
             </div>
           </div>
         ) : null}
 
-        {step === 3 ? (
+        {step === 2 ? (
           <div className="step-container">
-            <div className="wizard-centered fulfillment-centered">
-              <h3>{isCustomerTerminal ? 'How would you like to receive this order?' : 'How should this order go out?'}</h3>
-
-              <section className="card checkout-summary-card">
-                <div className="card-bd">
-                  <div className="checkout-summary-row"><span>Subtotal</span><strong>{formatCurrency(totals.subtotal)}</strong></div>
-                  <div className="checkout-summary-row"><span>Discount</span><strong>- {formatCurrency(totals.discount)}</strong></div>
-                  <div className="checkout-summary-row"><span>Delivery Charges</span><strong>{formatCurrency(getModeConfig(checkoutMode).deliveryOption === 'delivery' ? deliveryCharge : 0)}</strong></div>
-                  <div className="checkout-summary-row"><span>Amount Payable</span><strong>{formatCurrency(totals.total)}</strong></div>
+            <div className="pay-grid">
+              <div className="pay-form">
+                <h3>Fulfillment</h3>
+                <div className="seg">
+                  {MODES.map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      className={`seg-btn ${payMode === mode.id ? 'active' : ''}`}
+                      aria-pressed={payMode === mode.id}
+                      onClick={() => setPayMode(mode.id)}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
                 </div>
-              </section>
+                {modeNeedsAddress ? (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="posAddress">Delivery Address</label>
+                    <textarea id="posAddress" className="form-control" rows="2" value={customerAddress} onChange={(event) => setCustomerAddress(event.target.value)} />
+                  </div>
+                ) : null}
 
-              <div className="checkout-mode-grid">
-                {['takeaway_now', 'prepaid_delivery', 'cod_delivery'].map((mode) => {
-                  const config = getModeConfig(mode)
-                  return (
-                    <label key={mode} className={`checkout-mode-card ${checkoutMode === mode ? 'selected' : ''}`}>
-                      <input type="radio" name="checkoutMode" value={mode} checked={checkoutMode === mode} onChange={() => setCheckoutMode(mode)} />
-                      <span className="checkout-mode-title">{config.label}</span>
-                      <span className="checkout-mode-copy">{config.deliveryOption === 'pickup' ? 'Hand over immediately at the counter.' : 'Prepare this order for delivery dispatch.'}</span>
-                    </label>
-                  )
-                })}
+                <h3>Payment</h3>
+                <div className="seg">
+                  {PAYMENT_METHODS.map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      className={`seg-btn ${payMethod === method ? 'active' : ''}`}
+                      aria-pressed={payMethod === method}
+                      onClick={() => { setPayMethod(method); setTendered('') }}
+                    >
+                      {method}
+                    </button>
+                  ))}
+                </div>
+
+                {payMethod === 'Cash' && !modeIsCod ? (
+                  <div className="tender-row">
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label" htmlFor="posTendered">Cash Received</label>
+                      <input
+                        id="posTendered"
+                        className="form-control"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder={String(total)}
+                        value={tendered}
+                        onChange={(event) => setTendered(event.target.value)}
+                      />
+                    </div>
+                    <button type="button" className="btn btn-outline" onClick={() => setTendered(String(total))}>Exact</button>
+                    {tendered !== '' && Number(tendered) >= total ? (
+                      <div className="change-chip">Change: <strong>{formatCurrency(changeDue)}</strong></div>
+                    ) : null}
+                    {tendered !== '' && Number(tendered) < total ? (
+                      <div className="change-chip short">Short: {formatCurrency(total - Number(tendered))}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <h3>Customer <span className="text-muted">(optional)</span></h3>
+                <div className="customer-row">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="posPhone">Phone (10 digits)</label>
+                    <input
+                      id="posPhone"
+                      className="form-control"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength="10"
+                      value={customerPhone}
+                      onChange={(event) => handlePhoneLookup(event.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="posName">Name</label>
+                    <input id="posName" className="form-control" value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
+                  </div>
+                </div>
+                {lookupState === 'found' ? (
+                  <p className="lookup-note found">Saved customer — details filled from their profile.</p>
+) : null}
+                {lookupState === 'new' ? (
+                  <p className="lookup-note">New customer — a profile will be created with this sale.</p>
+                ) : null}
               </div>
 
-              {getModeConfig(checkoutMode).deliveryOption === 'delivery' ? (
-                <div className="delivery-details-block">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cashierAddress">Delivery Address</label>
-                    <textarea id="cashierAddress" className="form-control" rows="2" value={customer.address} onChange={(event) => setCustomer((prev) => ({ ...prev, address: event.target.value }))} />
-                  </div>
-                  <div className="form-row delivery-contact-row">
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="cashierPartner">Delivery Partner</label>
-                      <input id="cashierPartner" className="form-control" value={customer.deliveryPartner} onChange={(event) => setCustomer((prev) => ({ ...prev, deliveryPartner: event.target.value }))} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="cashierPartnerPhone">Delivery Contact</label>
-                      <input id="cashierPartnerPhone" className="form-control" type="tel" value={customer.deliveryPartnerPhone} onChange={(event) => setCustomer((prev) => ({ ...prev, deliveryPartnerPhone: event.target.value }))} />
-                    </div>
-                  </div>
+              <aside className="pay-summary">
+                <div className="pay-summary-card">
+                  <div className="checkout-summary-row"><span>{cartCount} item{cartCount === 1 ? '' : 's'}</span><span /></div>
+                  <div className="checkout-summary-row"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+                  {discount > 0 ? (
+                    <div className="checkout-summary-row cf-discount"><span>Discount ({promo?.code})</span><span>− {formatCurrency(discount)}</span></div>
+                  ) : null}
+                  <div className="checkout-summary-row total"><span>To Pay</span><span>{formatCurrency(total)}</span></div>
+                  {modeIsCod ? <div className="checkout-summary-row"><span>Collection</span><span>Cash on delivery</span></div> : null}
+                  {payMethod !== 'Cash' || modeIsCod ? null : (
+                    <div className="checkout-summary-row"><span>Change to return</span><span>{formatCurrency(changeDue)}</span></div>
+                  )}
                 </div>
-              ) : null}
-
-              <div className="fulfillment-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setStep(2)}>Back to Cart</button>
                 <button
                   type="button"
-                  className="btn btn-primary"
-                  onClick={completeCheckout}
-                  disabled={getModeConfig(checkoutMode).deliveryOption === 'delivery' && !String(customer.address || '').trim()}
+                  className="btn btn-primary btn-block pay-cta"
+                  disabled={submitting || (modeNeedsAddress && !customerAddress.trim())}
+                  onClick={completeSale}
                 >
-                  {isCustomerTerminal ? 'Proceed to Secure Payment' : 'Proceed to Payment Gateway'}
+                  {submitting ? 'Completing…' : `Complete Sale — ${formatCurrency(total)}`}
                 </button>
-              </div>
+                <button type="button" className="btn btn-outline btn-block" onClick={() => setStep(1)}>Back to Cart</button>
+              </aside>
             </div>
           </div>
         ) : null}
 
-        {step === 4 ? (
+        {step === 3 && result ? (
           <div className="step-container">
             <div className="wizard-centered success-block">
-              <div className="success-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-              <h2>{isCustomerTerminal ? 'Ready for Payment' : 'Checkout Captured'}</h2>
+              <div className="success-icon">✓</div>
+              <h2>Sale Complete</h2>
               <p className="text-muted">
-                {successSummary ? `${successSummary.orderId} was created for ${successSummary.customer}.` : 'The order was captured successfully.'}
+                {result.stage === 'complete' ? 'Stock updated and payment recorded.' : 'The sale was saved with an issue — see below.'}
               </p>
-              {successSummary ? (
-                <section className="card checkout-summary-card">
-                  <div className="card-bd">
-                    <div className="checkout-summary-row"><span>Order</span><strong>{successSummary.orderId}</strong></div>
-                    <div className="checkout-summary-row"><span>Mode</span><strong>{successSummary.mode}</strong></div>
-                    <div className="checkout-summary-row"><span>Amount</span><strong>{formatCurrency(successSummary.amount)}</strong></div>
-                  </div>
-                </section>
+              <section className="card checkout-summary-card">
+                <div className="card-bd">
+                  <div className="checkout-summary-row"><span>Order</span><span className="mono-num">{result.order.id}</span></div>
+                  {result.billNo ? <div className="checkout-summary-row"><span>Bill</span><span className="mono-num">{result.billNo}</span></div> : null}
+                  <div className="checkout-summary-row"><span>Amount</span><span className="mono-num">{formatCurrency(result.order.total)}</span></div>
+                  <div className="checkout-summary-row"><span>Method</span><span>{result.method}</span></div>
+                  {!modeIsCod && result.stage === 'complete' ? (
+                    <>
+                      <div className="checkout-summary-row"><span>Tendered</span><span className="mono-num">{formatCurrency(result.tendered)}</span></div>
+                      {result.change > 0 ? (
+                        <div className="checkout-summary-row"><span>Change due</span><span className="mono-num">{formatCurrency(result.change)}</span></div>
+                      ) : null}
+                    </>
+                  ) : null}
+                  {result.stage === 'complete' && result.balanceDue > 0 ? (
+                    <div className="checkout-summary-row"><span>Balance</span><span className="mono-num">{formatCurrency(result.balanceDue)}</span></div>
+                  ) : null}
+                </div>
+              </section>
+              {result.stage !== 'complete' ? (
+                <p className="form-error">Payment could not be recorded. Order {result.order.id} exists — settle it from Orders → Payments.</p>
               ) : null}
-              <button type="button" className="btn btn-primary" onClick={resetFlow}>
-                {isCustomerTerminal ? 'Start Another Checkout' : 'Next Customer (Reset POS)'}
-              </button>
+              <button type="button" className="btn btn-primary" onClick={resetFlow}>New Sale</button>
             </div>
           </div>
         ) : null}

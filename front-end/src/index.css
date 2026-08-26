@@ -28,10 +28,11 @@
   --text-muted: #6f7683;
   --text-heading: #f7f8fa;
 
-  /* Brand + semantic */
-  --accent: #dc3545;
-  --accent-strong: #e55361;
-  --accent-soft: rgba(220, 53, 69, 0.13);
+  /* Brand + semantic. Accent is "ledger green" — money, go, confirm.
+     Red is reserved for danger (destructive, errors) via --red. */
+  --accent: #148a4e;
+  --accent-strong: #35c26f;
+  --accent-soft: rgba(20, 138, 78, 0.16);
   --green: #3fbf62;
   --green-soft: rgba(63, 191, 98, 0.14);
   --amber: #e8a838;
@@ -130,7 +131,7 @@ button {
 }
 
 ::selection {
-  background: rgba(220, 53, 69, 0.35);
+  background: rgba(53, 194, 111, 0.32);
 }
 
 :focus-visible {
@@ -1530,7 +1531,7 @@ table.dt .cell-main {
   border-radius: var(--radius-sm);
 }
 .workspace-notification.is-unread {
-  background: linear-gradient(to right, rgba(220, 53, 69, 0.05), transparent 40%),
+  background: linear-gradient(to right, rgba(53, 194, 111, 0.06), transparent 40%),
     var(--surface);
 }
 .workspace-notification.is-unread .workspace-notification-topline h4::before {
@@ -2244,10 +2245,274 @@ table.dt .cell-main {
 .pos-steps .pos-step-sep {
   color: var(--border-strong);
 }
+.pos-step-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* POS cart sidebar extensions */
+.cart-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cart-item-price {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.cart-actions {
+  display: flex;
+  gap: 8px;
+}
+.cart-actions .btn {
+  flex: 1;
+}
+.cf-discount {
+  color: var(--green);
+}
+
+.held-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.015);
+}
+.held-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.held-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.held-info strong {
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.held-info .text-muted {
+  font-size: 0.72rem;
+}
+.held-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* POS step 2 — payment grid */
+.pay-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+.pay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.pay-form h3 {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+}
+.seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.seg-btn {
+  padding: 9px 12px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--t-fast), color var(--t-fast);
+  white-space: nowrap;
+}
+.seg-btn:hover {
+  color: var(--text-primary);
+}
+.seg-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.tender-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.change-chip {
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.change-chip strong {
+  font-variant-numeric: tabular-nums;
+}
+.change-chip.short {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.customer-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+  gap: 10px;
+}
+.lookup-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.lookup-note.found {
+  color: var(--accent-strong);
+}
+
+.pay-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pay-summary-card {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.checkout-summary-card {
+  width: min(420px, 100%);
+  margin-inline: auto;
+}
+.card-bd {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+.checkout-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.checkout-summary-row span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.checkout-summary-row.total {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.checkout-summary-row.cf-discount {
+  color: var(--green);
+}
+.mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.pay-cta {
+  padding-block: 14px;
+  font-size: 0.95rem;
+}
+
+/* Sale-complete screen */
+.success-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 20px;
+  max-width: 560px;
+  margin-inline: auto;
+}
+.wizard-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.stock-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.stock-badge.low {
+  background: rgba(232, 168, 56, 0.15);
+  color: var(--amber);
+}
+.stock-badge.out {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.product-cat {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.product-price {
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.product-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.product-size {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
 
 /* --------------------------------------------------------------------------
    18. Landing page — scoped to body.landing-page
    -------------------------------------------------------------------------- */
+
 body.landing-page {
   background: var(--bg-page);
 }
@@ -2760,7 +3025,7 @@ body.landing-page .cta-glow {
   height: 220px;
   background: radial-gradient(
     ellipse at center,
-    rgba(220, 53, 69, 0.16),
+    rgba(53, 194, 111, 0.14),
     transparent 70%
   );
   pointer-events: none;

@@ -465,6 +465,30 @@ export const remoteProvider = {
     return request('/orders/payments', { method: 'POST', body: data })
   },
 
+  // Held bills — parked carts that survive page reloads and staff shifts.
+  // These return the raw {ok, data} envelope: the POS needs error details
+  // (e.g. oversized labels) surfaced verbatim alongside the data.
+  async getHolds(companyId = null) {
+    const path = companyId ? `/orders/holds?companyId=${companyId}` : '/orders/holds'
+    return request(path)
+  },
+
+  async getHold(id) {
+    return request(`/orders/holds/${id}`)
+  },
+
+  async createHold(data) {
+    return request('/orders/holds', { method: 'POST', body: data })
+  },
+
+  async updateHold(id, data) {
+    return request(`/orders/holds/${id}`, { method: 'PUT', body: data })
+  },
+
+  async discardHold(id) {
+    return request(`/orders/holds/${id}`, { method: 'DELETE' })
+  },
+
   async getDeliveries(status = null) {
     const path = status ? `/deliveries?status=${encodeURIComponent(status)}` : '/deliveries'
     const res = await request(path)
