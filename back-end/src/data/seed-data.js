@@ -137,8 +137,127 @@ const seedOrders = [
   },
 ];
 
+const seedCompanies = [
+  {
+    id: 'BIZ-101',
+    name: 'FreshKart Central',
+    owner: 'Arjun Mehta',
+    adminName: 'Arjun Mehta',
+    type: 'Grocery',
+    email: 'owner@freshkart.in',
+    phone: '9870011201',
+    status: 'Active',
+    productsPlan: 'Core POS',
+    tenureMonths: 14,
+    storesCount: 2,
+    profit: 182000,
+    paymentDue: 0,
+  },
+  {
+    id: 'BIZ-102',
+    name: 'QuickStop Mart',
+    owner: 'Hemant Rawat',
+    adminName: 'Hemant Rawat',
+    type: 'Convenience',
+    email: 'owner@quickstop.in',
+    phone: '9870011205',
+    status: 'Trial',
+    productsPlan: 'Core POS',
+    tenureMonths: 1,
+    storesCount: 1,
+    profit: 41500,
+    paymentDue: 2500,
+  },
+];
+
+const seedInventory = [
+  {
+    id: 'SKU-001',
+    productId: 'P001',
+    name: 'Fresh Apples',
+    cat: 'Fruits',
+    supplier: 'SUP-001',
+    stock: 140,
+    price: 120,
+    reorderLevel: 40,
+    location: 'Aisle A1',
+    lastUpdated: new Date().toISOString(),
+    companyId: 'BIZ-101',
+  },
+  {
+    id: 'SKU-002',
+    productId: 'P002',
+    name: 'Rice 5kg',
+    cat: 'Groceries',
+    supplier: 'SUP-002',
+    stock: 72,
+    price: 340,
+    reorderLevel: 30,
+    location: 'Aisle B2',
+    lastUpdated: new Date().toISOString(),
+    companyId: 'BIZ-101',
+  },
+  {
+    id: 'SKU-003',
+    productId: 'P003',
+    name: 'Milk 1L',
+    cat: 'Dairy',
+    supplier: 'SUP-003',
+    stock: 18,
+    price: 68,
+    reorderLevel: 36,
+    location: 'Chiller C1',
+    lastUpdated: new Date().toISOString(),
+    companyId: 'BIZ-101',
+  },
+];
+
+const seedCustomers = [
+  {
+    id: 'CUS-001',
+    companyId: 'BIZ-101',
+    phone: '9810001001',
+    name: 'Meera Shah',
+    email: 'meera@example.in',
+    address: '12 Rose Villa, Andheri West, Mumbai',
+    notes: 'Prefers cash payment',
+  },
+  {
+    id: 'CUS-002',
+    companyId: 'BIZ-101',
+    phone: '9810001002',
+    name: 'Arjun Rao',
+    email: 'arjun.rao@example.in',
+    address: '4 Lake View Road, Powai, Mumbai',
+    notes: '',
+  },
+];
+
+const seedDeliveries = [
+  {
+    id: 'DLV-001',
+    oid: 'ORD-4802',
+    customer: 'Arjun Rao',
+    address: '4 Lake View Road, Powai, Mumbai',
+    partner: 'Dunzo',
+    partnerPhone: '9822004411',
+    status: 'In Transit',
+    etaMin: 35,
+    time: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    companyId: 'BIZ-101',
+  },
+];
+
+const seedReturns = [];
+
 module.exports = {
   seedUsers,
   seedProducts,
   seedOrders,
+  seedCompanies,
+  seedInventory,
+  seedCustomers,
+  seedDeliveries,
+  seedReturns,
 };
