@@ -43,9 +43,14 @@
   --purple: #a78bfa;
   --purple-soft: rgba(167, 139, 250, 0.14);
 
-  /* Typography */
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Space Grotesk', var(--font-body);
+  /* Typography — Ledger Modern: Newsreader (editorial serif voice),
+     Instrument Sans (UI), IBM Plex Mono (money + record numerals) */
+  --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Radii */
   --radius-xs: 6px;
@@ -85,7 +90,7 @@ body {
   margin: 0;
   font-family: var(--font-body);
   font-size: 0.9rem;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--text-primary);
   background-color: var(--bg-page);
   -webkit-font-smoothing: antialiased;
@@ -99,9 +104,10 @@ h4,
 h5 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
   color: var(--text-heading);
 }
 
@@ -193,13 +199,17 @@ button {
   text-decoration: underline;
 }
 
-/* Numeric cells: aligned right with tabular figures */
+/* Numeric cells: aligned right with tabular figures — ledger numerals */
 .cell-num {
   text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
 }
 th.cell-num {
   text-align: right;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -220,7 +230,10 @@ th.cell-num {
   cursor: pointer;
   white-space: nowrap;
   transition: background-color var(--t-fast), border-color var(--t-fast),
-    color var(--t-fast), opacity var(--t-fast);
+    color var(--t-fast), opacity var(--t-fast), transform var(--t-fast);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn:disabled {
   opacity: 0.55;
@@ -797,7 +810,10 @@ table.dt tbody tr:hover {
 table.dt td strong,
 table.dt .cell-main {
   color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
   font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .workspace-actions-cell {
@@ -1295,18 +1311,21 @@ table.dt .cell-main {
   min-width: 0;
 }
 .bc-app {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
   color: var(--text-muted);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .bc-sep {
   color: var(--border-strong);
 }
 .bc-page {
   font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 500;
   color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
@@ -1416,7 +1435,9 @@ table.dt .cell-main {
   gap: 12px;
 }
 .page-header h2 {
-  font-size: 1.3rem;
+  font-size: 1.55rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .page-header-actions {
   display: flex;
@@ -2379,16 +2400,18 @@ body.landing-page .badge-dot {
 
 body.landing-page .hero-title {
   margin: 20px 0 0;
-  font-size: clamp(2.1rem, 4.6vw, 3.1rem);
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  font-size: clamp(2.3rem, 5vw, 3.5rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
 }
 body.landing-page .hero-line {
   display: block;
 }
 body.landing-page .hero-accent-line {
   display: block;
+  font-style: italic;
+  font-weight: 400;
   color: var(--accent-strong);
 }
 body.landing-page .hero-subtitle {
@@ -2628,18 +2651,10 @@ body.landing-page .section-header {
   margin: 0 auto 48px;
   text-align: center;
 }
-body.landing-page .section-tag {
-  display: inline-block;
-  margin-bottom: 14px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--accent-strong);
-}
 body.landing-page .section-title {
-  font-size: clamp(1.6rem, 3vw, 2.1rem);
-  letter-spacing: -0.015em;
+  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 body.landing-page .section-desc {
   margin-top: 12px;
@@ -2751,7 +2766,11 @@ body.landing-page .cta-glow {
   pointer-events: none;
 }
 body.landing-page .cta-title {
-  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-size: clamp(1.7rem, 3vw, 2.25rem);
+  font-weight: 500;
+}
+body.landing-page .cta-title .text-highlight {
+  font-style: italic;
 }
 body.landing-page .cta-desc {
   max-width: 520px;
@@ -2855,6 +2874,23 @@ body.landing-page .container {
 }
 body.landing-page .step-connector {
   display: none;
+}
+
+/* Focal motion: the hero ledger line draws itself in — the business is alive.
+   Supporting states stay quiet; reduced-motion collapses this to a fade. */
+body.landing-page .chart-stroke {
+  stroke-dasharray: 360;
+  stroke-dashoffset: 360;
+  animation: bb-chart-draw 1.2s var(--ease-out) 0.4s forwards;
+}
+body.landing-page .chart-fill {
+  opacity: 0;
+  animation: bb-fade-in 0.7s ease-out 1.2s forwards;
+}
+@keyframes bb-chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -3024,7 +3060,20 @@ body.landing-page .step-connector {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  /* Reduced motion drops movement, not feedback: color and opacity state
+     transitions stay legible so action confirmations still read. */
+  .btn,
+  .btn-login,
+  .btn-register,
+  .nav-item,
+  table.dt tbody tr,
+  .feature-card,
+  .stat-card,
+  .card {
+    transition: background-color 120ms ease-out, border-color 120ms ease-out,
+      color 120ms ease-out, opacity 120ms ease-out !important;
+    transform: none !important;
   }
 }

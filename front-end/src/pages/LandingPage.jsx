@@ -142,8 +142,8 @@ function LandingPage() {
                             <stop offset="100%" stopColor="rgba(220,53,69,0)" />
                           </linearGradient>
                         </defs>
-                        <path d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20" fill="none" stroke="#dc3545" strokeWidth="2" />
-                        <path d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20 L300,80 L0,80 Z" fill="url(#chartGrad)" />
+                        <path className="chart-stroke" d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20" fill="none" stroke="#dc3545" strokeWidth="2" />
+                        <path className="chart-fill" d="M0,60 Q30,55 60,45 T120,30 T180,35 T240,15 T300,20 L300,80 L0,80 Z" fill="url(#chartGrad)" />
                       </svg>
                     </div>
                     <div className="pc-table">
@@ -178,7 +178,6 @@ function LandingPage() {
       <section className="features" id="features">
         <div className="container">
           <div className="section-header">
-            <span className="section-tag">Features</span>
             <h2 className="section-title">Built around how a counter actually works</h2>
             <p className="section-desc">Billing, stock, staff, and delivery — each piece wired to the others, so nothing falls out of sync.</p>
           </div>
@@ -233,7 +232,6 @@ function LandingPage() {
       <section className="how-it-works" id="how-it-works">
         <div className="container">
           <div className="section-header">
-            <span className="section-tag">How It Works</span>
             <h2 className="section-title">From sign-up to first bill</h2>
             <p className="section-desc">No setup fees, no training sessions. If your staff can use a phone, they can use BillBhai.</p>
           </div>
