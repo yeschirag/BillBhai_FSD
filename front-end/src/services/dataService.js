@@ -61,7 +61,8 @@ export function buildDashboardSnapshot(data) {
   const inventory = Array.isArray(data?.inventory) ? data.inventory : []
 
   const totalRevenue = orders.reduce((sum, order) => sum + Math.max(0, Number(order.total || 0)), 0)
-  const lowStockCount = inventory.filter((item) => Number(item?.stock || 0) < 100).length
+  const lowStockItems = inventory.filter((item) => Number(item?.stock || 0) < 50)
+  const lowStockCount = lowStockItems.length
 
   const salesTrend = orders.map((order, index) => ({
     label: order.date || `Point ${index + 1}`,
@@ -79,6 +80,28 @@ export function buildDashboardSnapshot(data) {
     value: statusCountMap[status],
   }))
 
+  const paymentCountMap = orders.reduce((acc, order) => {
+    const payment = String(order.payment || 'Cash').trim() || 'Cash'
+    acc[payment] = (acc[payment] || 0) + 1
+    return acc
+  }, {})
+
+  const paymentBreakdown = Object.keys(paymentCountMap).map((pay) => ({
+    name: pay,
+    value: paymentCountMap[pay],
+  }))
+
+  const categoryMap = inventory.reduce((acc, item) => {
+    const cat = String(item.category || 'General').trim() || 'General'
+    acc[cat] = (acc[cat] || 0) + 1
+    return acc
+  }, {})
+
+  const categoryBreakdown = Object.keys(categoryMap).map((cat) => ({
+    category: cat,
+    count: categoryMap[cat],
+  }))
+
   return {
     revenue: totalRevenue,
     ordersCount: orders.length,
@@ -86,6 +109,9 @@ export function buildDashboardSnapshot(data) {
     alertsCount: lowStockCount,
     salesTrend,
     statusBreakdown,
-    recentOrders: orders.slice(0, 6),
+    paymentBreakdown,
+    categoryBreakdown,
+    lowStockItems: lowStockItems.slice(0, 4),
+    recentOrders: orders.slice(0, 8),
   }
 }

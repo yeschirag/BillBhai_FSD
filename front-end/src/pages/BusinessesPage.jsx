@@ -176,6 +176,11 @@ function BusinessesPage() {
     await mutateWorkspace((draft) => {
       draft.businesses = draft.businesses.filter((item) => item.id !== deleteTarget)
       delete draft.dataByBusiness[deleteTarget]
+      if (draft.activeBusinessId === deleteTarget) {
+        const next = draft.businesses[0]
+        draft.activeBusinessId = next?.id || ''
+        draft.activeBusiness = next || null
+      }
     })
 
     setDeleteTarget(null)
@@ -268,7 +273,7 @@ function BusinessesPage() {
       <div className="page-header">
         <h2>Businesses Using BillBhai</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Add Business</button>
+          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add Business</button>
         </div>
       </div>
 
@@ -277,16 +282,16 @@ function BusinessesPage() {
       {!isLoading && !error ? (
         <>
           <section className="stats-grid">
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Businesses</span><span className="stat-value">{stats.total}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Network Profit</span><span className="stat-value">{formatCurrency(stats.profit)}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Outstanding Due</span><span className="stat-value">{formatCurrency(stats.due)}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Businesses</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Network Profit</span><span className="stat-value">{formatCurrency(stats.profit)}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Outstanding Due</span><span className="stat-value">{formatCurrency(stats.due)}</span></div></div>
           </section>
 
-          <section className="card">
-            <div className="card-hd"><h3>Client Businesses</h3></div>
+          <section className="neu-card">
+            <div className="neu-card-hd"><h3>Client Businesses</h3></div>
             <div className="tbl-wrap">
-              <table className="dt">
+              <table className="neu-table">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -310,9 +315,9 @@ function BusinessesPage() {
                       <td className="cell-num">{formatCurrency(business.paymentDue)}</td>
                       <td><span className={`badge ${getStatusBadgeClass(business.status)}`}>{business.status}</span></td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => scopeBusiness(business)}>Open</button>
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(business)}>Edit</button>
-                        <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(business.id)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => scopeBusiness(business)}>Open</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(business)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(business.id)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -329,19 +334,19 @@ function BusinessesPage() {
 
           {scopedBusiness ? (
             <section className="grid-2">
-              <div className="card">
-                <div className="card-hd"><h3>{scopedBusiness.name}</h3></div>
-                <div className="card-bd workspace-detail-grid">
-                  <div className="workspace-detail-card"><span>Owner</span><strong>{scopedBusiness.owner}</strong></div>
-                  <div className="workspace-detail-card"><span>Admin</span><strong>{scopedBusiness.adminName}</strong></div>
-                  <div className="workspace-detail-card"><span>Email</span><strong>{scopedBusiness.email || '-'}</strong></div>
-                  <div className="workspace-detail-card"><span>Phone</span><strong>{scopedBusiness.phone || '-'}</strong></div>
+              <div className="neu-card">
+                <div className="neu-card-hd"><h3>{scopedBusiness.name}</h3></div>
+                <div className="neu-card-bd workspace-detail-grid">
+                  <div className="workspace-detail-neu-card"><span>Owner</span><strong>{scopedBusiness.owner}</strong></div>
+                  <div className="workspace-detail-neu-card"><span>Admin</span><strong>{scopedBusiness.adminName}</strong></div>
+                  <div className="workspace-detail-neu-card"><span>Email</span><strong>{scopedBusiness.email || '-'}</strong></div>
+                  <div className="workspace-detail-neu-card"><span>Phone</span><strong>{scopedBusiness.phone || '-'}</strong></div>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-hd"><h3>Add Store</h3></div>
-                <div className="card-bd">
+              <div className="neu-card">
+                <div className="neu-card-hd"><h3>Add Store</h3></div>
+                <div className="neu-card-bd">
                   <form onSubmit={addStore} className="workspace-form-stack">
                     <div className="form-group">
                       <label className="form-label" htmlFor="storeCode">Store Code</label>
@@ -361,14 +366,14 @@ function BusinessesPage() {
                         </select>
                       </div>
                     </div>
-                    <button type="submit" className="btn btn-primary">Add Store</button>
+                    <button type="submit" className="neu-btn neu-neu-btn--primary">Add Store</button>
                   </form>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-hd"><h3>Add Payment</h3></div>
-                <div className="card-bd">
+              <div className="neu-card">
+                <div className="neu-card-hd"><h3>Add Payment</h3></div>
+                <div className="neu-card-bd">
                   <form onSubmit={addPayment} className="workspace-form-stack">
                     <div className="form-row">
                       <div className="form-group">
@@ -388,14 +393,14 @@ function BusinessesPage() {
                         <option value="Due">Due</option>
                       </select>
                     </div>
-                    <button type="submit" className="btn btn-primary">Record Payment</button>
+                    <button type="submit" className="neu-btn neu-neu-btn--primary">Record Payment</button>
                   </form>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-hd"><h3>Add Business User</h3></div>
-                <div className="card-bd">
+              <div className="neu-card">
+                <div className="neu-card-hd"><h3>Add Business User</h3></div>
+                <div className="neu-card-bd">
                   <form onSubmit={addBusinessUser} className="workspace-form-stack">
                     <div className="form-row">
                       <div className="form-group">
@@ -431,16 +436,16 @@ function BusinessesPage() {
                         />
                       </div>
                     </div>
-                    <button type="submit" className="btn btn-primary">Add Business User</button>
+                    <button type="submit" className="neu-btn neu-neu-btn--primary">Add Business User</button>
                   </form>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-hd"><h3>Store Locations</h3></div>
-                <div className="card-bd workspace-list-grid">
+              <div className="neu-card">
+                <div className="neu-card-hd"><h3>Store Locations</h3></div>
+                <div className="neu-card-bd workspace-list-grid">
                   {(scopedBusiness.stores || []).length ? scopedBusiness.stores.map((store) => (
-                    <div key={`${scopedBusiness.id}-${store.code}`} className="workspace-list-card">
+                    <div key={`${scopedBusiness.id}-${store.code}`} className="workspace-list-neu-card">
                       <strong>{store.code}</strong>
                       <span>{store.city}</span>
                       <span className="text-muted">{store.status}</span>
@@ -449,11 +454,11 @@ function BusinessesPage() {
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-hd"><h3>Payments</h3></div>
-                <div className="card-bd workspace-list-grid">
+              <div className="neu-card">
+                <div className="neu-card-hd"><h3>Payments</h3></div>
+                <div className="neu-card-bd workspace-list-grid">
                   {(scopedBusiness.payments || []).length ? scopedBusiness.payments.map((payment) => (
-                    <div key={`${scopedBusiness.id}-${payment.month}`} className="workspace-list-card">
+                    <div key={`${scopedBusiness.id}-${payment.month}`} className="workspace-list-neu-card">
                       <strong>{payment.month}</strong>
                       <span>{formatCurrency(payment.amount)}</span>
                       <span className="text-muted">{payment.status}</span>
@@ -473,8 +478,8 @@ function BusinessesPage() {
           wide
           footer={
             <>
-              <button type="button" className="btn btn-outline" onClick={closeBusinessModal}>Cancel</button>
-              <button type="submit" form="businessForm" className="btn btn-primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeBusinessModal}>Cancel</button>
+              <button type="submit" form="businessForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
                 {editingBusinessId ? 'Save Changes' : 'Add Business'}
               </button>
             </>

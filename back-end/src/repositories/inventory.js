@@ -49,7 +49,7 @@ module.exports = {
   async findAll(db, { companyId } = {}) {
     const where = companyId ? ' WHERE inv.company_id = $1' : '';
     const values = companyId ? [companyId] : [];
-    const result = await db.query(`${SELECT}${where} ORDER BY inv.id`, values);
+    const result = await db.query(`${SELECT}${where} ORDER BY inv.id LIMIT 1000`, values);
     return result.rows.map(toInventoryItem);
   },
 

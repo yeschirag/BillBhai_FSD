@@ -22,10 +22,10 @@ function ConfirmDialog({
       onClose={busy ? () => {} : onCancel}
       footer={
         <>
-          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
+          <button type="button" className="neu-btn neu-neu-btn--ghost" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </button>
-          <button type="button" className="btn btn-danger" onClick={onConfirm} disabled={busy}>
+          <button type="button" className="neu-btn neu-neu-btn--destructive" onClick={onConfirm} disabled={busy}>
             {busy ? 'Deleting…' : confirmLabel}
           </button>
         </>

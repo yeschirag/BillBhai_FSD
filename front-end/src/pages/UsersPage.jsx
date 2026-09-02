@@ -85,8 +85,12 @@ function UsersPage() {
     let savedLabel = ''
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (!draft.dataByBusiness[businessId]) {
+        draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
+      }
       const target = draft.dataByBusiness[businessId]
+      target.users = Array.isArray(target.users) ? target.users : []
       const nextUser = {
         username: editingUsername || resolvedUsername,
         name: String(form.name || '').trim() || 'Unnamed User',
@@ -114,12 +118,12 @@ function UsersPage() {
       draft.notifications.unshift(
         buildNotification({
           title: `${nextUser.name} ${index >= 0 ? 'updated' : 'added'}`,
-          desc: `${nextUser.role} access is now ${nextUser.status.toLowerCase()} for ${draft.activeBusiness.name}.`,
+          desc: `${nextUser.role} access is now ${nextUser.status.toLowerCase()} for ${draft.activeBusiness?.name || 'Store'}.`,
           type: 'user',
           color: nextUser.status === 'Active' ? 'green' : 'amber',
           scopeBusinessId: businessId,
           detailRows: [
-            { label: 'Business', value: draft.activeBusiness.name },
+            { label: 'Business', value: draft.activeBusiness?.name || 'Store' },
             { label: 'Username', value: nextUser.username },
             { label: 'Role', value: nextUser.role },
           ],
@@ -147,10 +151,12 @@ function UsersPage() {
     if (!deleteTarget) return
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
-      draft.dataByBusiness[businessId].users = draft.dataByBusiness[businessId].users.filter(
-        (item) => (item.username || createUsernameSeed(item)) !== deleteTarget,
-      )
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (draft.dataByBusiness[businessId]?.users) {
+        draft.dataByBusiness[businessId].users = draft.dataByBusiness[businessId].users.filter(
+          (item) => (item.username || createUsernameSeed(item)) !== deleteTarget,
+        )
+      }
       const businessIndex = draft.businesses.findIndex((item) => item.id === businessId)
       if (businessIndex >= 0) {
         draft.businesses[businessIndex].users = [...draft.dataByBusiness[businessId].users]
@@ -166,7 +172,7 @@ function UsersPage() {
       <div className="page-header">
         <h2>Users</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Add User</button>
+          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add User</button>
         </div>
       </div>
 
@@ -175,16 +181,16 @@ function UsersPage() {
       {!isLoading && !error ? (
         <>
           <section className="stats-grid">
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Users</span><span className="stat-value">{stats.total}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Suspended</span><span className="stat-value">{stats.suspended}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Admins</span><span className="stat-value">{stats.admins}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Users</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Active</span><span className="stat-value">{stats.active}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Suspended</span><span className="stat-value">{stats.suspended}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Admins</span><span className="stat-value">{stats.admins}</span></div></div>
           </section>
 
-          <section className="card">
-            <div className="card-hd"><h3>Team Members</h3></div>
+          <section className="neu-card">
+            <div className="neu-card-hd"><h3>Team Members</h3></div>
             <div className="tbl-wrap">
-              <table className="dt">
+              <table className="neu-table">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -206,8 +212,8 @@ function UsersPage() {
                         <td>{user.role}</td>
                         <td><span className={`badge ${getStatusBadgeClass(user.status)}`}>{user.status}</span></td>
                         <td className="workspace-actions-cell">
-                          <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(user)}>Edit</button>
-                          <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(username)}>Delete</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(user)}>Edit</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(username)}>Delete</button>
                         </td>
                       </tr>
                     )
@@ -231,8 +237,8 @@ function UsersPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="userForm" className="btn btn-primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="userForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
                 {editingUsername ? 'Save Changes' : 'Add User'}
               </button>
             </>

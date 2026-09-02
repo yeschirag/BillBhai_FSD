@@ -71,8 +71,12 @@ function ReturnsPage() {
     let savedLabel = ''
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (!draft.dataByBusiness[businessId]) {
+        draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
+      }
       const target = draft.dataByBusiness[businessId]
+      target.returns = Array.isArray(target.returns) ? target.returns : []
       const nextReturn = {
         id: editingId || buildNextId('RET', target.returns, 551),
         oid: String(form.oid || '').trim(),
@@ -94,7 +98,7 @@ function ReturnsPage() {
       draft.notifications.unshift(
         buildNotification({
           title: `${nextReturn.id} ${index >= 0 ? 'updated' : 'raised'}`,
-          desc: `${nextReturn.requestedBy} requested ${formatCurrency(nextReturn.amount)} for ${draft.activeBusiness.name}.`,
+          desc: `${nextReturn.requestedBy} requested ${formatCurrency(nextReturn.amount)} for ${draft.activeBusiness?.name || 'Store'}.`,
           type: 'return',
           color: nextReturn.status === 'Approved' ? 'green' : 'amber',
           scopeBusinessId: businessId,
@@ -118,10 +122,12 @@ function ReturnsPage() {
     if (!deleteTarget) return
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
-      draft.dataByBusiness[businessId].returns = draft.dataByBusiness[businessId].returns.filter(
-        (item) => item.id !== deleteTarget,
-      )
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (draft.dataByBusiness[businessId]?.returns) {
+        draft.dataByBusiness[businessId].returns = draft.dataByBusiness[businessId].returns.filter(
+          (item) => item.id !== deleteTarget,
+        )
+      }
     })
 
     setDeleteTarget(null)
@@ -133,7 +139,7 @@ function ReturnsPage() {
       <div className="page-header">
         <h2>Returns &amp; Refunds</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Raise Return</button>
+          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Raise Return</button>
         </div>
       </div>
 
@@ -142,16 +148,16 @@ function ReturnsPage() {
       {!isLoading && !error ? (
         <>
           <section className="stats-grid">
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Requests</span><span className="stat-value">{stats.total}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Refund Exposure</span><span className="stat-value">{formatCurrency(stats.amount)}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Approved</span><span className="stat-value">{stats.approved}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Requests</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Refund Exposure</span><span className="stat-value">{formatCurrency(stats.amount)}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Approved</span><span className="stat-value">{stats.approved}</span></div></div>
           </section>
 
-          <section className="card">
-            <div className="card-hd"><h3>Return Log</h3></div>
+          <section className="neu-card">
+            <div className="neu-card-hd"><h3>Return Log</h3></div>
             <div className="tbl-wrap">
-              <table className="dt">
+              <table className="neu-table">
                 <thead>
                   <tr>
                     <th>Return ID</th>
@@ -175,8 +181,8 @@ function ReturnsPage() {
                       <td><span className={`badge ${getStatusBadgeClass(item.status)}`}>{item.status}</span></td>
                       <td>{formatDisplayDateTime(item.updatedAt)}</td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(item)}>Edit</button>
-                        <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -199,8 +205,8 @@ function ReturnsPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="returnForm" className="btn btn-primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="returnForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
                 {editingId ? 'Save Changes' : 'Raise Return'}
               </button>
             </>

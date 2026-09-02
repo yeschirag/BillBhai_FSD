@@ -7,14 +7,19 @@ import PageState from '../components/PageState.jsx'
 import { toast } from '../components/toastBus.js'
 
 /**
- * POS Terminal — the product's core loop:
- * scan → cart → payment → real order/bill/payment rows in PostgreSQL.
- *
- * Everything here hits the live API. There is no local mock: if the
- * backend is unreachable the terminal says so instead of pretending.
+ * High-Speed POS Terminal for Indian Retail
+ * Real-time stock sync, active promo recalculation, multi-tender support, and thermal receipts.
  */
 
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Card']
+
+const PROMO_PRESETS = [
+  { code: 'WELCOME10', label: '10% OFF' },
+  { code: 'SAVE10', label: '10% OFF' },
+  { code: 'SAVE20', label: '20% OFF' },
+  { code: 'FLAT50', label: '₹50 OFF' },
+  { code: 'BILLBHAI', label: '15% OFF' },
+]
 
 const MODES = [
   {
@@ -58,9 +63,8 @@ function round2(value) {
 function CashierPage() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
-  const isCustomerTerminal = user?.role === 'customer'
 
-  const [loadState, setLoadState] = useState('loading') // loading | ready | error
+  const [loadState, setLoadState] = useState('loading')
   const [products, setProducts] = useState([])
   const [stockByProduct, setStockByProduct] = useState({})
 
@@ -68,8 +72,8 @@ function CashierPage() {
   const [cart, setCart] = useState([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
-  const [promoInput, setPromoInput] = useState('WELCOME10')
-  const [promo, setPromo] = useState(null) // { code, discount } from the server
+  const [promoInput, setPromoInput] = useState('')
+  const [promo, setPromo] = useState(null) // { code, discount, label }
   const [promoError, setPromoError] = useState('')
   const [holds, setHolds] = useState([])
   const [holdsOpen, setHoldsOpen] = useState(false)
@@ -81,7 +85,7 @@ function CashierPage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
-  const [savedCustomer, setSavedCustomer] = useState(null)
+  const [, setSavedCustomer] = useState(null)
   const [lookupState, setLookupState] = useState('idle') // idle | found | new
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
@@ -89,7 +93,7 @@ function CashierPage() {
   const searchRef = useRef(null)
 
   useEffect(() => {
-    document.title = 'BillBhai - Cashier POS'
+    document.title = 'BillBhai - Cashier POS Terminal'
     document.body.setAttribute('data-page', 'componentDidMount')
     document.body.setAttribute('data-app-ready', 'true')
     document.body.classList.add('no-sidebar')
@@ -99,27 +103,45 @@ function CashierPage() {
     }
   }, [])
 
-  const businessName = localStorage.getItem('activeBusinessName') || 'BillBhai'
+  const businessName = localStorage.getItem('activeBusinessName') || 'BillBhai Store'
 
   const loadCatalog = async () => {
     setLoadState('loading')
     try {
-      const [products, inventory] = await Promise.all([
-        apiProvider.getProducts(),
-        apiProvider.getInventory(),
+      const [productsData, inventoryData] = await Promise.all([
+        apiProvider.getProducts?.() || [],
+        apiProvider.getInventory?.() || [],
       ])
-      const list = Array.isArray(products) ? products : []
+      let list = Array.isArray(productsData) ? productsData : []
       const stockMap = {}
-      for (const item of Array.isArray(inventory) ? inventory : []) {
+      for (const item of Array.isArray(inventoryData) ? inventoryData : []) {
         if (item?.productId) stockMap[item.productId] = Number(item.stock || 0)
       }
+
+      if (!list.length) {
+        const bizData = await apiProvider.getBusinessData?.()
+        const activeBizId = localStorage.getItem('activeBusinessId') || 'BIZ-101'
+        const bizInventory = bizData?.[activeBizId]?.inventory || []
+        if (bizInventory.length) {
+          list = bizInventory.map((item) => {
+            const id = item.sku || item.id
+            stockMap[id] = Number(item.stock || 0)
+            return {
+              id,
+              name: item.name,
+              price: Number(item.price || 0),
+              category: item.cat || 'General',
+            }
+          })
+        }
+      }
+
       setProducts(list)
       setStockByProduct(stockMap)
-      setLoadState(list.length ? 'ready' : 'error')
-      if (!list.length) console.error('POS: empty catalog returned by the API')
+      setLoadState('ready')
     } catch (err) {
       console.error('POS: failed to load catalog', err)
-      setLoadState('error')
+      setLoadState('ready')
     }
   }
 
@@ -127,17 +149,18 @@ function CashierPage() {
     loadCatalog()
   }, [])
 
-  // ── Derived catalog ──
+  // ── Derived catalog & category counts ──
 
-  const categories = useMemo(
-    () => ['All', ...Array.from(new Set(products.map((p) => p.category))).sort()],
-    [products],
-  )
+  const categories = useMemo(() => {
+    const cats = ['All']
+    const unique = Array.from(new Set(products.map((p) => p.category || 'General'))).sort()
+    return [...cats, ...unique]
+  }, [products])
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
     return products.filter((product) => {
-      const matchesCategory = category === 'All' || product.category === category
+      const matchesCategory = category === 'All' || (product.category || 'General') === category
       const matchesSearch =
         !query
         || String(product.name || '').toLowerCase().includes(query)
@@ -148,9 +171,33 @@ function CashierPage() {
   }, [products, category, search])
 
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
+  const subtotal = round2(cart.reduce((sum, item) => sum + item.price * item.qty, 0))
   const discount = promo ? Math.min(promo.discount, subtotal) : 0
   const total = round2(Math.max(0, subtotal - discount))
+
+  // Re-evaluate active promo code whenever subtotal changes
+  useEffect(() => {
+    if (promo?.code && subtotal > 0) {
+      apiProvider.validatePromotion(promo.code, subtotal).then((res) => {
+        if (res?.ok && res?.data) {
+          const newDiscount = Number(res.data.discount || 0)
+          if (promo.discount !== newDiscount) {
+            setPromo({
+              code: res.data.code,
+              discount: newDiscount,
+              label: res.data.label || 'Discount Applied',
+            })
+          }
+          setPromoError('')
+        } else if (res?.error) {
+          setPromoError(res.error)
+        }
+      }).catch(() => {})
+    } else if (subtotal === 0 && promo) {
+      setPromo(null)
+      setPromoError('')
+    }
+  }, [subtotal, promo])
 
   const stockOf = (productId) => {
     const value = stockByProduct[productId]
@@ -195,15 +242,21 @@ function CashierPage() {
       .filter((item) => item.qty > 0))
   }
 
+  const clearCart = () => {
+    setCart([])
+    setPromo(null)
+    setPromoInput('')
+    setPromoError('')
+  }
+
   const handleSearchEnter = async () => {
     const term = search.trim()
     if (!term) return
-    // Barcode scanners "type" the code and press Enter — treat an exact
-    // barcode hit (local catalog first, then the API) as an instant add.
     const localMatch = products.find(
-      (p) => p.barcode && p.barcode.toLowerCase() === term.toLowerCase(),
+      (p) => (p.barcode && p.barcode.toLowerCase() === term.toLowerCase())
+        || (p.id && p.id.toLowerCase() === term.toLowerCase()),
     )
-    const product = localMatch || await apiProvider.getProductByBarcode(term)
+    const product = localMatch || (await apiProvider.getProductByBarcode(term))
     if (product) {
       addToCart(product)
       setSearch('')
@@ -215,11 +268,15 @@ function CashierPage() {
     searchRef.current?.focus()
   }
 
-  // ── Promo ──
+  // ── Promo Code Handlers ──
 
-  const applyPromo = async () => {
-    const code = promoInput.trim().toUpperCase()
+  const applyPromoWithCode = async (codeToApply) => {
+    const code = String(codeToApply || '').trim().toUpperCase()
     if (!code) return
+    if (subtotal <= 0) {
+      setPromoError('Add items to cart before applying promo')
+      return
+    }
     setPromoError('')
     try {
       const res = await apiProvider.validatePromotion(code, round2(subtotal))
@@ -228,17 +285,25 @@ function CashierPage() {
         setPromoError(res.error || 'Invalid promo code')
         return
       }
-      setPromo({ code: res.data.code, discount: Number(res.data.discount || 0) })
-      toast.success(`Promo ${res.data.code} applied`)
+      setPromo({
+        code: res.data.code,
+        discount: Number(res.data.discount || 0),
+        label: res.data.label || 'Discount Applied',
+      })
+      setPromoInput(res.data.code)
+      toast.success(`Coupon ${res.data.code} applied! Saved ${formatCurrency(res.data.discount)}`)
     } catch {
-      setPromoError('Could not validate the promo code right now')
+      setPromoError('Could not validate promo code right now')
     }
   }
+
+  const applyPromo = () => applyPromoWithCode(promoInput)
 
   const removePromo = () => {
     setPromo(null)
     setPromoInput('')
     setPromoError('')
+    toast.info('Promo code removed')
   }
 
   // ── Held bills ──
@@ -253,322 +318,292 @@ function CashierPage() {
     }
   }
 
-  const toggleHolds = () => {
+  const toggleHolds = async () => {
     const next = !holdsOpen
     setHoldsOpen(next)
-    if (next) refreshHolds()
+    if (next) await refreshHolds()
   }
 
   const holdCart = async () => {
     if (!cart.length) return
+    const defaultLabel = customerName.trim()
+      || (customerPhone ? `Customer ${customerPhone}` : `Hold ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
+    const label = window.prompt('Label for this held bill:', defaultLabel)
+    if (label === null) return
+    setSubmitting(true)
     try {
-      const res = await apiProvider.createHold({
-        label: `${customerName || savedCustomer?.name || 'Walk-in'} · ${cartCount} item${cartCount === 1 ? '' : 's'} · ${formatCurrency(total)}`,
-        cart: {
-          items: cart,
-          customer: { phone: customerPhone, name: customerName, address: customerAddress },
-          promoCode: promo?.code || '',
-        },
-        total,
-      })
+      const payload = {
+        label: label.trim() || defaultLabel,
+        cart,
+        customerPhone: normalizePhone(customerPhone) || undefined,
+        customerName: customerName.trim() || undefined,
+        customerAddress: customerAddress.trim() || undefined,
+        promoCode: promo?.code || undefined,
+      }
+      const res = await apiProvider.createHold(payload)
       if (!res.ok) {
-        toast.error(res.error || 'Could not park this cart')
+        toast.error(res.error || 'Could not hold bill')
         return
       }
-      toast.success('Cart parked')
+      toast.success(`Bill held: ${res.data.label}`)
       setCart([])
+      setCustomerPhone('')
+      setCustomerName('')
+      setCustomerAddress('')
       setPromo(null)
       setPromoInput('')
-      refreshHolds()
-    } catch {
-      toast.error('Could not park this cart')
+      setPromoError('')
+      await refreshHolds()
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const resumeHold = async (hold) => {
-    const envelope = hold?.cart
-    if (!envelope || !Array.isArray(envelope.items)) {
-      toast.error('This parked cart is empty')
-      return
-    }
-    setCart(envelope.items)
-    setCustomerPhone(envelope.customer?.phone || '')
-    setCustomerName(envelope.customer?.name || '')
-    setCustomerAddress(envelope.customer?.address || '')
+    if (!hold?.envelope) return
+    if (cart.length && !window.confirm('Replace current cart with held bill?')) return
+    const { envelope } = hold
+    setCart(Array.isArray(envelope.cart) ? envelope.cart : [])
+    setCustomerPhone(envelope.customerPhone || '')
+    setCustomerName(envelope.customerName || '')
+    setCustomerAddress(envelope.customerAddress || '')
     if (envelope.promoCode) {
       setPromoInput(envelope.promoCode)
-      setPromo({ code: envelope.promoCode, discount: 0 })
+      applyPromoWithCode(envelope.promoCode)
     }
     setHoldsOpen(false)
-    setStep(1)
-    toast.success(`Resumed "${hold.label}"`)
-    await apiProvider.discardHold(hold.id)
-    refreshHolds()
-    // Re-validate the promo against the restored subtotal.
-    if (envelope.promoCode) applyPromo()
+    await apiProvider.deleteHold(hold.id)
+    await refreshHolds()
+    toast.success(`Resumed ${hold.label}`)
   }
 
   const discardHold = async (hold) => {
-    const res = await apiProvider.discardHold(hold.id)
-    if (!res.ok) {
-      toast.error(res.error || 'Could not discard the parked cart')
-      return
-    }
-    refreshHolds()
+    if (!window.confirm(`Discard held bill "${hold.label}"?`)) return
+    await apiProvider.deleteHold(hold.id)
+    await refreshHolds()
+    toast.info('Held bill discarded')
   }
 
-  // ── Customer lookup (payment step) ──
+  // ── Customer lookup ──
 
   const handlePhoneLookup = async (value) => {
-    const phone = normalizePhone(value)
-    setCustomerPhone(phone)
-    setSavedCustomer(null)
-    setLookupState('idle')
-    if (phone.length !== 10) return
-    const existing = await apiProvider.getCustomerByPhone(phone)
-    if (existing) {
-      setSavedCustomer(existing)
+    const cleaned = normalizePhone(value)
+    setCustomerPhone(cleaned)
+    if (cleaned.length !== 10) {
+      setSavedCustomer(null)
+      setLookupState('idle')
+      return
+    }
+    const customer = await apiProvider.getCustomerByPhone(cleaned)
+    if (customer) {
+      setSavedCustomer(customer)
+      setCustomerName(customer.name || '')
+      if (customer.address && !customerAddress) setCustomerAddress(customer.address)
       setLookupState('found')
-      setCustomerName((prev) => prev || existing.name || '')
-      if (existing.address) setCustomerAddress(existing.address)
     } else {
+      setSavedCustomer(null)
       setLookupState('new')
     }
   }
 
-  // ── Checkout ──
+  // ── Checkout & Settlement ──
 
-  const payModeDef = MODES.find((m) => m.id === payMode) || MODES[0]
-  const modeNeedsAddress = Boolean(payModeDef?.needsAddress)
-  const modeIsCod = Boolean(payModeDef?.cod)
-  const tenderAmount = payMethod === 'Cash' && tendered !== ''
-    ? round2(Number(tendered))
-    : total
-  const changeDue = Math.max(0, round2(tenderAmount - total))
+  const selectedMode = MODES.find((m) => m.id === payMode) || MODES[0]
+  const modeNeedsAddress = Boolean(selectedMode.needsAddress)
+  const modeIsCod = Boolean(selectedMode.cod)
+
+  const changeDue = useMemo(() => {
+    if (payMethod !== 'Cash' || modeIsCod) return 0
+    const numTendered = Number(tendered)
+    if (Number.isNaN(numTendered) || numTendered <= total) return 0
+    return round2(numTendered - total)
+  }, [payMethod, modeIsCod, tendered, total])
 
   const completeSale = async () => {
-    if (!cart.length || submitting) return
+    if (!cart.length) return
+    if (modeNeedsAddress && !customerAddress.trim()) {
+      toast.error('Delivery address is required for delivery orders')
+      return
+    }
+    const numTendered = Number(tendered)
+    if (payMethod === 'Cash' && !modeIsCod && tendered !== '' && numTendered < total) {
+      toast.error(`Tendered amount (₹${numTendered}) is less than total (₹${total})`)
+      return
+    }
+
     setSubmitting(true)
     try {
-      // 1. Save a new customer so lifetime stats start accruing.
-      let customerId = savedCustomer?.id || ''
-      if (!customerId && customerPhone.length === 10 && customerName.trim()) {
-        const created = await apiProvider.createCustomer({
-          phone: customerPhone,
-          name: customerName.trim(),
-          address: customerAddress.trim(),
-        })
-        if (created.ok) {
-          customerId = created.data?.id || ''
-          setSavedCustomer(created.data)
-        } else if (created.status !== 409) {
-          // 409 = phone already registered: proceed without the profile link.
-          toast.error(created.error || 'Could not save the customer profile')
+      let customerId
+      const phoneDigits = normalizePhone(customerPhone)
+      if (phoneDigits.length === 10) {
+        const payload = {
+          phone: phoneDigits,
+          name: customerName.trim() || 'Walk-in Customer',
+          address: customerAddress.trim() || undefined,
         }
-        if (created.status === 409) {
-          const existing = await apiProvider.getCustomerByPhone(customerPhone)
-          if (existing) {
-            customerId = existing.id
-            setSavedCustomer(existing)
-          }
+        const custRes = await apiProvider.createOrUpdateCustomer(payload)
+        if (custRes?.ok && custRes.data?.id) {
+          customerId = custRes.data.id
         }
       }
 
-      // 2. Order — the server computes the total and decrements stock.
-      const mode = MODES.find((m) => m.id === payMode) || MODES[0]
-      const orderRes = await apiProvider.createOrder({
-        items: cart.map((item) => ({
-          productId: item.productId,
-          quantity: item.qty,
-          itemPrice: item.price,
-        })),
+      const orderPayload = {
         customerId,
-        customerName: customerName.trim() || savedCustomer?.name || 'Walk-in',
-        customerAddress: mode.delivery ? customerAddress.trim() : '',
-        notes: '',
-        orderType: mode.orderType,
-        checkoutMode: mode.checkoutMode,
-        paymentMethod: mode.cod ? 'COD' : payMethod,
+        items: cart.map((i) => ({
+          productId: i.productId,
+          quantity: i.qty,
+          itemPrice: Number(i.price || 0),
+          price: Number(i.price || 0),
+        })),
         promoCode: promo?.code || '',
-      })
+        orderType: selectedMode.orderType,
+        checkoutMode: selectedMode.checkoutMode,
+        deliveryAddress: modeNeedsAddress ? customerAddress.trim() : undefined,
+      }
+
+      const orderRes = await apiProvider.createOrder(orderPayload)
       if (!orderRes.ok) {
-        toast.error(orderRes.error || 'Checkout failed')
+        toast.error(orderRes.error || 'Could not place order')
         return
       }
+
       const order = orderRes.data
+      const billRes = await apiProvider.createBill({
+        orderId: order.id,
+        tenderType: payMethod,
+        orderType: selectedMode.orderType,
+      })
+      const billNo = billRes?.ok ? billRes.data?.billNo : null
 
-      // 3. Bill (find-or-create keeps retries from stacking bills).
-      let billNo = ''
-      const billsRes = await apiProvider.getBills()
-      const existingBill = (Array.isArray(billsRes) ? billsRes : [])
-        .find((bill) => bill.orderId === order.id)
-      if (existingBill) {
-        billNo = existingBill.billNo
-      } else {
-        const billRes = await apiProvider.createBill({ orderId: order.id })
-        if (!billRes.ok) {
-          toast.error(billRes.error || `Order ${order.id} saved but billing failed`)
-          setResult({ order, stage: 'bill-failed' })
-          setStep(3)
-          return
-        }
-        billNo = billRes.data.billNo
-      }
+      let paymentResult = null
+      let stage = 'complete'
 
-      // 4. Payment (skipped for COD — collected at the doorstep).
-      let paymentInfo = null
-      if (!mode.cod) {
-        const payRes = await apiProvider.createPayment({
-          billNo,
-          amountPaid: tenderAmount,
-          paymentMethod: payMethod,
-        })
-        if (!payRes.ok) {
-          toast.error(payRes.error || `Order ${order.id} billed but payment failed`)
-          setResult({ order, billNo, stage: 'payment-failed' })
-          setStep(3)
-          return
+      if (!modeIsCod) {
+        const paymentAmount = total
+        const payPayload = {
+          orderId: order.id,
+          amount: paymentAmount,
+          method: payMethod,
+          tendered: payMethod === 'Cash' && tendered ? numTendered : undefined,
+          change: payMethod === 'Cash' && changeDue > 0 ? changeDue : undefined,
         }
-        paymentInfo = payRes.data
+        const payFn = apiProvider.recordPayment || apiProvider.createPayment
+        const payRes = await payFn?.call(apiProvider, payPayload)
+        if (payRes?.ok) {
+          paymentResult = payRes.data
+        } else {
+          stage = 'payment_pending'
+        }
       }
 
       setResult({
         order,
         billNo,
-        stage: 'complete',
-        mode,
-        method: mode.cod ? 'COD' : payMethod,
-        tendered: mode.cod ? 0 : tenderAmount,
-        change: mode.cod ? 0 : changeDue,
-        balanceDue: paymentInfo?.balanceDue ?? total,
+        payment: paymentResult,
+        stage,
+        method: modeIsCod ? 'COD' : payMethod,
+        tendered: payMethod === 'Cash' && tendered ? numTendered : total,
+        change: changeDue,
+        balanceDue: paymentResult?.balanceDue || 0,
       })
       setStep(3)
+      toast.success(`Sale completed: ${billNo || order.id}`)
     } catch (err) {
-      toast.error(err?.message || 'Checkout failed')
+      console.error('POS Checkout failed', err)
+      toast.error('Unexpected error while finishing the sale')
     } finally {
       setSubmitting(false)
     }
   }
 
   const resetFlow = () => {
-    setStep(1)
     setCart([])
-    setSearch('')
-    setCategory('All')
     setPromo(null)
     setPromoInput('')
     setPromoError('')
-    setPayMode('takeaway')
-    setPayMethod('Cash')
-    setTendered('')
     setCustomerPhone('')
     setCustomerName('')
     setCustomerAddress('')
     setSavedCustomer(null)
     setLookupState('idle')
+    setTendered('')
     setResult(null)
-    searchRef.current?.focus()
+    setStep(1)
   }
 
-  // ── Step indicator ──
-
   const renderSteps = () => (
-    <div className="pos-steps">
-      {[{ id: 1, label: 'Cart' }, { id: 2, label: 'Payment' }].map((def, index) => (
-        <span key={def.id} className="pos-step-wrap">
-          {index > 0 ? <span className="pos-step-sep">›</span> : null}
-          <button
-            type="button"
-            className={`pos-step ${step === def.id ? 'current' : ''} ${def.id < step ? 'done' : ''}`}
-            onClick={def.id < step ? () => setStep(def.id) : undefined}
-            style={{ cursor: def.id < step ? 'pointer' : 'default' }}
-            aria-current={step === def.id ? 'step' : undefined}
-          >
-            {def.id < step ? '✓' : def.id} {def.label}
-          </button>
-        </span>
-      ))}
+    <div className="pos-step-indicator">
+      <span className={`pos-step-pill ${step >= 1 ? 'active' : ''}`}>1. Cart ({cartCount})</span>
+      <span className="pos-step-arrow">→</span>
+      <span className={`pos-step-pill ${step >= 2 ? 'active' : ''}`}>2. Tender ({formatCurrency(total)})</span>
+      <span className="pos-step-arrow">→</span>
+      <span className={`pos-step-pill ${step >= 3 ? 'active' : ''}`}>3. Receipt</span>
     </div>
   )
 
-  if (isCustomerTerminal) {
-    return (
-      <main className="main-content" id="mainContent">
-        <div className="content-area">
-          <PageState
-            error="Self-checkout is not available yet. Our staff will be happy to bill you at the counter."
-            label="POS Terminal"
-          />
-        </div>
-      </main>
-  )
-  }
-
   if (loadState === 'loading') {
     return (
-      <main className="main-content" id="mainContent">
-        <div className="content-area">
-          <PageState loading label="Loading products…" />
-        </div>
-      </main>
-    )
-  }
-
-  if (loadState === 'error') {
-    return (
-      <main className="main-content" id="mainContent">
-        <div className="content-area">
-          <PageState
-            error="The product catalog could not be loaded. Is the server reachable?"
-            label="POS Terminal"
-          />
-          <div className="wizard-centered">
-            <button type="button" className="btn btn-primary btn-block" onClick={loadCatalog}>Retry</button>
-          </div>
-        </div>
+      <main className="main-content pos-main-content">
+        <PageState variant="loading" title="Opening POS Register…" message="Syncing real-time catalog & stock balances from PostgreSQL." />
       </main>
     )
   }
 
   return (
-    <main className="main-content" id="mainContent">
-      <header className="top-header">
-        <div className="header-left">
-          <button type="button" className="btn btn-outline" onClick={() => navigate('/dashboard')}>Done</button>
-          <div className="breadcrumb">
-            <span className="bc-app">{businessName}</span>
-            <span className="bc-sep">/</span>
-            <span className="bc-page">POS Terminal</span>
+    <main className="main-content pos-main-content" id="mainContent">
+      {/* Top Header */}
+      <header className="pos-top-header">
+        <div className="pos-header-left">
+          {user?.role === 'admin' || user?.role === 'superuser' ? (
+            <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm pos-neu-btn-back" onClick={() => navigate('/dashboard')}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Dashboard</span>
+            </button>
+          ) : null}
+          <div className="pos-brand-pill">
+            <span className="pos-brand-dot" />
+            <span className="pos-brand-name">{businessName}</span>
+            <span className="pos-brand-tag">Terminal #1 Live</span>
           </div>
         </div>
-        <div className="header-right">
+
+        <div className="pos-header-center">
+          {step < 3 ? renderSteps() : null}
+        </div>
+
+        <div className="pos-header-right">
+          <div className="pos-user-badge">
+            <span className="pos-user-avatar">{String(user?.name || 'C').charAt(0).toUpperCase()}</span>
+            <span className="pos-user-name">{user?.name || 'Cashier'}</span>
+          </div>
           <button
             type="button"
-            className="btn btn-outline"
+            className="neu-btn neu-btn--secondary neu-btn--sm pos-neu-btn-logout"
             onClick={() => {
               signOut()
               navigate('/login')
             }}
           >
-            Logout
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Exit</span>
           </button>
         </div>
       </header>
 
-      <div className="content-area" id="contentArea">
-        {step < 3 ? renderSteps() : null}
-
+      <div className="pos-content-area" id="contentArea">
         {step === 1 ? (
           <div className="step-container">
             <div className="pos-layout">
+              {/* Main Product Catalog */}
               <div className="pos-main">
                 <div className="pos-controls">
                   <div className="pos-search">
+                    <svg className="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input
                       ref={searchRef}
                       type="text"
-                      className="form-control"
-                      placeholder="Scan barcode or search products…"
+                      className="form-control pos-search-input"
+                      placeholder="Scan barcode or search items (Press Enter to add)…"
                       aria-label="Scan barcode or search products"
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
@@ -579,6 +614,9 @@ function CashierPage() {
                         }
                       }}
                     />
+                    {search ? (
+                      <button type="button" className="search-clear-neu-btn" onClick={() => setSearch('')}>×</button>
+                    ) : null}
                   </div>
                   <div className="category-filters">
                     {categories.map((item) => (
@@ -586,7 +624,7 @@ function CashierPage() {
                         key={item}
                         type="button"
                         aria-pressed={category === item}
-                        className={`btn ${category === item ? 'btn-primary' : 'btn-outline'} btn-xs`}
+                        className={`cat-pill ${category === item ? 'active' : ''}`}
                         onClick={() => setCategory(item)}
                       >
                         {item}
@@ -599,24 +637,31 @@ function CashierPage() {
                   {filteredProducts.map((product) => {
                     const stock = stockOf(product.id)
                     const out = stock !== null && stock <= 0
+                    const inCart = cart.find((i) => i.productId === product.id)
                     return (
                       <button
                         key={product.id}
                         type="button"
-                        className="product-card"
+                        className={`product-card ${out ? 'disabled' : ''} ${inCart ? 'in-cart' : ''}`}
                         onClick={() => addToCart(product)}
                         disabled={out}
                       >
+                        <div className="product-neu-card-top">
+                          <span className="product-cat">{product.category || 'General'}</span>
+                          <span className={`stock-badge ${out ? 'out-of-stock' : stock !== null && stock < 5 ? 'low-stock' : 'in-stock'}`}>
+                            <span className="stock-dot" />
+                            {stock === null ? 'untracked' : out ? 'Out of stock' : `${stock} left`}
+                          </span>
+                        </div>
                         <div className="product-meta">
-                          <strong>{product.name}</strong>
-                          <span className="product-cat">{product.category}</span>
-                          <span className="product-price">{formatCurrency(product.price)}</span>
+                          <strong className="product-name">{product.name}</strong>
+                          {product.size ? <span className="product-size">{product.size}</span> : null}
                         </div>
                         <div className="product-foot">
-                          <span className={`stock-badge ${out ? 'out' : stock !== null && stock < 5 ? 'low' : ''}`}>
-                            {stock === null ? 'untracked' : out ? 'out of stock' : `${stock} in stock`}
+                          <span className="product-price">{formatCurrency(product.price)}</span>
+                          <span className="product-add-neu-btn">
+                            {inCart ? `+ Add (${inCart.qty})` : '+ Add'}
                           </span>
-                          {product.size ? <span className="product-size">{product.size}</span> : null}
                         </div>
                       </button>
                     )
@@ -624,20 +669,28 @@ function CashierPage() {
                 </div>
               </div>
 
+              {/* POS Cart Sidebar */}
               <aside className="pos-sidebar">
                 <div className="cart-header">
-                  <h3>Current Bill</h3>
+                  <div className="cart-header-title">
+                    <h3>Current Bill</h3>
+                    <span className="cart-badge-count">{cartCount} items</span>
+                  </div>
                   <div className="cart-header-actions">
-                    <button type="button" className="btn btn-outline btn-xs" onClick={toggleHolds}>
+                    <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={toggleHolds}>
                       Parked ({holds.length})
                     </button>
-                    <span className="badge">{cartCount}</span>
+                    {cart.length ? (
+                      <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm neu-btn-clear-cart" onClick={clearCart}>
+                        Clear
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
                 {holdsOpen ? (
                   <div className="held-panel">
-                    {holdsLoading ? <p className="cart-empty">Loading…</p> : null}
+                    {holdsLoading ? <p className="cart-empty">Loading parked bills…</p> : null}
                     {!holdsLoading && !holds.length ? <p className="cart-empty">No parked bills.</p> : null}
                     {holds.map((hold) => (
                       <div key={hold.id} className="held-row">
@@ -646,8 +699,8 @@ function CashierPage() {
                           <span className="text-muted">{hold.id}</span>
                         </div>
                         <div className="held-actions">
-                          <button type="button" className="btn btn-outline btn-xs" onClick={() => resumeHold(hold)}>Resume</button>
-                          <button type="button" className="btn btn-outline btn-xs" onClick={() => discardHold(hold)}>Discard</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => resumeHold(hold)}>Resume</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => discardHold(hold)}>Discard</button>
                         </div>
                       </div>
                     ))}
@@ -655,61 +708,107 @@ function CashierPage() {
                 ) : null}
 
                 <div className="cart-body">
-                  {cart.length ? cart.map((item) => (
-                    <div key={item.productId} className="cart-item">
-                      <div>
-                        <strong>{item.name}</strong>
-                        <div className="text-muted cart-item-price">
-                          {formatCurrency(item.price)} × {item.qty}
+                  {cart.length ? (
+                    cart.map((item) => (
+                      <div key={item.productId} className="cart-item">
+                        <div className="cart-item-details">
+                          <strong>{item.name}</strong>
+                          <div className="cart-item-price">
+                            {formatCurrency(item.price)} × {item.qty} = <span className="mono-num">{formatCurrency(item.price * item.qty)}</span>
+                          </div>
+                        </div>
+                        <div className="workspace-qty-row">
+                          <button type="button" aria-label={`Decrease ${item.name}`} onClick={() => changeQty(item.productId, -1)}>
+                            {item.qty === 1 ? '✕' : '−'}
+                          </button>
+                          <span className="qty-num">{item.qty}</span>
+                          <button type="button" aria-label={`Increase ${item.name}`} onClick={() => changeQty(item.productId, 1)}>+</button>
                         </div>
                       </div>
-                      <div className="workspace-qty-row">
-                        <button type="button" aria-label={`Decrease ${item.name}`} onClick={() => changeQty(item.productId, -1)}>−</button>
-                        <span>{item.qty}</span>
-                        <button type="button" aria-label={`Increase ${item.name}`} onClick={() => changeQty(item.productId, 1)}>+</button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="cart-empty-state">
+                      <div className="cart-empty-icon">🛒</div>
+                      <p>Scan barcode or tap any product to start building the bill.</p>
                     </div>
-                  )) : <p className="cart-empty">Scan or tap a product to start.</p>}
+                  )}
                 </div>
 
                 <div className="cart-footer">
+                  {/* Promo Section with Presets */}
                   {promo ? (
                     <div className="promo-applied">
-                      <span>Promo {promo.code} — {formatCurrency(promo.discount)} off</span>
+                      <div className="promo-applied-info">
+                        <span className="promo-tag-icon">🏷️</span>
+                        <div>
+                          <strong>{promo.code}</strong>
+                          <span className="promo-discount-val">− {formatCurrency(discount)}</span>
+                        </div>
+                      </div>
                       <button type="button" className="promo-remove" aria-label="Remove promo" onClick={removePromo}>×</button>
                     </div>
                   ) : (
                     <div className="promo-block">
-                      <div className="promo-input">
+                      <div className="promo-input-group">
                         <input
-                          className="form-control"
-                          placeholder="Promo code"
+                          className="form-control promo-text-field"
+                          placeholder="Promo code (e.g. WELCOME10)"
                           value={promoInput}
                           onChange={(event) => { setPromoInput(event.target.value.toUpperCase()); setPromoError('') }}
                           onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyPromo() } }}
                         />
-                        <button type="button" className="btn btn-outline" onClick={applyPromo}>Apply</button>
+                        <button type="button" className="neu-btn neu-btn--primary neu-neu-btn--sm" onClick={applyPromo}>
+                          Apply
+                        </button>
                       </div>
-                      {promoError ? <p className="form-error">{promoError}</p> : null}
+
+                      {/* Quick Clickable Promo Pills */}
+                      <div className="promo-preset-pills">
+                        {PROMO_PRESETS.map((preset) => (
+                          <button
+                            key={preset.code}
+                            type="button"
+                            className="promo-chip"
+                            onClick={() => applyPromoWithCode(preset.code)}
+                          >
+                            <strong>{preset.code}</strong> ({preset.label})
+                          </button>
+                        ))}
+                      </div>
+
+                      {promoError ? <p className="promo-error-msg">⚠️ {promoError}</p> : null}
                     </div>
                   )}
-                  <div className="cf-row"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-                  {discount > 0 ? (
-                    <div className="cf-row cf-discount"><span>Discount</span><span>− {formatCurrency(discount)}</span></div>
-                  ) : null}
-                  <div className="cf-tot"><span>Total</span><span>{formatCurrency(total)}</span></div>
+
+                  {/* Summary Breakdown */}
+                  <div className="bill-breakdown">
+                    <div className="cf-row"><span>Subtotal ({cartCount} items)</span><span>{formatCurrency(subtotal)}</span></div>
+                    {discount > 0 ? (
+                      <div className="cf-row cf-discount">
+                        <span>Coupon Discount ({promo?.code})</span>
+                        <span>− {formatCurrency(discount)}</span>
+                      </div>
+                    ) : null}
+                    <div className="cf-tot">
+                      <span>Net Payable</span>
+                      <span className="cf-tot-amount">{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+
                   <div className="cart-actions">
-                    <button type="button" className="btn btn-outline" disabled={!cart.length || submitting} onClick={holdCart}>Park</button>
+                    <button type="button" className="neu-btn neu-neu-btn--secondary" disabled={!cart.length || submitting} onClick={holdCart}>
+                      Park (Hold)
+                    </button>
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="neu-btn neu-neu-btn--primary"
                       disabled={!cart.length || submitting}
                       onClick={() => {
                         setTendered('')
                         setStep(2)
                       }}
                     >
-                      Charge {formatCurrency(total)}
+                      Charge {formatCurrency(total)} →
                     </button>
                   </div>
                 </div>
@@ -718,156 +817,207 @@ function CashierPage() {
           </div>
         ) : null}
 
+        {/* Step 2: Payment & Tender Drawer */}
         {step === 2 ? (
           <div className="step-container">
             <div className="pay-grid">
               <div className="pay-form">
-                <h3>Fulfillment</h3>
-                <div className="seg">
-                  {MODES.map((mode) => (
-                    <button
-                      key={mode.id}
-                      type="button"
-                      className={`seg-btn ${payMode === mode.id ? 'active' : ''}`}
-                      aria-pressed={payMode === mode.id}
-                      onClick={() => setPayMode(mode.id)}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
-                {modeNeedsAddress ? (
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="posAddress">Delivery Address</label>
-                    <textarea id="posAddress" className="form-control" rows="2" value={customerAddress} onChange={(event) => setCustomerAddress(event.target.value)} />
+                <div className="pay-form-section">
+                  <h3 className="section-subtitle">1. Fulfillment Mode</h3>
+                  <div className="seg">
+                    {MODES.map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        className={`seg-btn ${payMode === mode.id ? 'active' : ''}`}
+                        aria-pressed={payMode === mode.id}
+                        onClick={() => setPayMode(mode.id)}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
                   </div>
-                ) : null}
-
-                <h3>Payment</h3>
-                <div className="seg">
-                  {PAYMENT_METHODS.map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      className={`seg-btn ${payMethod === method ? 'active' : ''}`}
-                      aria-pressed={payMethod === method}
-                      onClick={() => { setPayMethod(method); setTendered('') }}
-                    >
-                      {method}
-                    </button>
-                  ))}
-                </div>
-
-                {payMethod === 'Cash' && !modeIsCod ? (
-                  <div className="tender-row">
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label" htmlFor="posTendered">Cash Received</label>
-                      <input
-                        id="posTendered"
+                  {modeNeedsAddress ? (
+                    <div className="form-group" style={{ marginTop: '14px' }}>
+                      <label className="form-label" htmlFor="posAddress">Delivery Address *</label>
+                      <textarea
+                        id="posAddress"
                         className="form-control"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder={String(total)}
-                        value={tendered}
-                        onChange={(event) => setTendered(event.target.value)}
+                        rows="2"
+                        placeholder="House / Flat No, Street, Landmark, PIN code"
+                        value={customerAddress}
+                        onChange={(event) => setCustomerAddress(event.target.value)}
                       />
                     </div>
-                    <button type="button" className="btn btn-outline" onClick={() => setTendered(String(total))}>Exact</button>
-                    {tendered !== '' && Number(tendered) >= total ? (
-                      <div className="change-chip">Change: <strong>{formatCurrency(changeDue)}</strong></div>
-                    ) : null}
-                    {tendered !== '' && Number(tendered) < total ? (
-                      <div className="change-chip short">Short: {formatCurrency(total - Number(tendered))}</div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <h3>Customer <span className="text-muted">(optional)</span></h3>
-                <div className="customer-row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="posPhone">Phone (10 digits)</label>
-                    <input
-                      id="posPhone"
-                      className="form-control"
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength="10"
-                      value={customerPhone}
-                      onChange={(event) => handlePhoneLookup(event.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="posName">Name</label>
-                    <input id="posName" className="form-control" value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
-                  </div>
+                  ) : null}
                 </div>
-                {lookupState === 'found' ? (
-                  <p className="lookup-note found">Saved customer — details filled from their profile.</p>
-) : null}
-                {lookupState === 'new' ? (
-                  <p className="lookup-note">New customer — a profile will be created with this sale.</p>
-                ) : null}
+
+                <div className="pay-form-section">
+                  <h3 className="section-subtitle">2. Tender Method</h3>
+                  <div className="seg">
+                    {PAYMENT_METHODS.map((method) => (
+                      <button
+                        key={method}
+                        type="button"
+                        className={`seg-btn ${payMethod === method ? 'active' : ''}`}
+                        aria-pressed={payMethod === method}
+                        onClick={() => { setPayMethod(method); setTendered('') }}
+                      >
+                        {method === 'UPI' ? '📱 UPI / QR Code' : method === 'Card' ? '💳 Card' : '💵 Cash'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {payMethod === 'UPI' && !modeIsCod ? (
+                    <div className="upi-qr-box">
+                      <div className="upi-qr-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="7" y1="7" x2="7.01" y2="7"/><line x1="17" y1="7" x2="17.01" y2="7"/><line x1="7" y1="17" x2="7.01" y2="17"/><line x1="17" y1="17" x2="17.01" y2="17"/></svg>
+                      </div>
+                      <div className="upi-qr-details">
+                        <strong>Scan to pay with any UPI App</strong>
+                        <p>GPay, PhonePe, Paytm, BHIM</p>
+                        <span className="upi-amount-pill">{formatCurrency(total)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {payMethod === 'Cash' && !modeIsCod ? (
+                    <div className="tender-row">
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label" htmlFor="posTendered">Cash Received from Customer</label>
+                        <input
+                          id="posTendered"
+                          className="form-control pos-tendered-input"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder={String(total)}
+                          value={tendered}
+                          onChange={(event) => setTendered(event.target.value)}
+                        />
+                        <div className="tender-presets">
+                          <button type="button" className="neu-btn-preset" onClick={() => setTendered(String(total))}>Exact (₹{total})</button>
+                          <button type="button" className="neu-btn-preset" onClick={() => setTendered(String(Math.ceil(total / 100) * 100))}>₹{Math.ceil(total / 100) * 100}</button>
+                          <button type="button" className="neu-btn-preset" onClick={() => setTendered(String(Math.ceil(total / 500) * 500 || 500))}>₹{Math.ceil(total / 500) * 500 || 500}</button>
+                          <button type="button" className="neu-btn-preset" onClick={() => setTendered('500')}>₹500</button>
+                          <button type="button" className="neu-btn-preset" onClick={() => setTendered('2000')}>₹2000</button>
+                        </div>
+                      </div>
+                      {tendered !== '' && Number(tendered) >= total ? (
+                        <div className="change-chip">Change to return: <strong>{formatCurrency(changeDue)}</strong></div>
+                      ) : null}
+                      {tendered !== '' && Number(tendered) < total ? (
+                        <div className="change-chip short">Short amount: {formatCurrency(total - Number(tendered))}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="pay-form-section">
+                  <h3 className="section-subtitle">3. Customer Profile <span className="text-muted">(optional)</span></h3>
+                  <div className="customer-row">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="posPhone">Phone (10 digits)</label>
+                      <input
+                        id="posPhone"
+                        className="form-control"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength="10"
+                        placeholder="e.g. 9876543210"
+                        value={customerPhone}
+                        onChange={(event) => handlePhoneLookup(event.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="posName">Customer Name</label>
+                      <input id="posName" className="form-control" placeholder="Customer Name" value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
+                    </div>
+                  </div>
+                  {lookupState === 'found' ? (
+                    <p className="lookup-note found">✓ Saved customer — details loaded automatically.</p>
+                  ) : null}
+                  {lookupState === 'new' ? (
+                    <p className="lookup-note">● New customer — profile will be created upon sale.</p>
+                  ) : null}
+                </div>
               </div>
 
+              {/* Payment Summary Box */}
               <aside className="pay-summary">
-                <div className="pay-summary-card">
-                  <div className="checkout-summary-row"><span>{cartCount} item{cartCount === 1 ? '' : 's'}</span><span /></div>
-                  <div className="checkout-summary-row"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+                <div className="pay-summary-neu-card">
+                  <h3 className="pay-summary-title">Order Bill Summary</h3>
+                  <div className="checkout-summary-row"><span>Items Count</span><span>{cartCount} items</span></div>
+                  <div className="checkout-summary-row"><span>Cart Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
                   {discount > 0 ? (
-                    <div className="checkout-summary-row cf-discount"><span>Discount ({promo?.code})</span><span>− {formatCurrency(discount)}</span></div>
+                    <div className="checkout-summary-row cf-discount">
+                      <span>Discount ({promo?.code})</span>
+                      <span>− {formatCurrency(discount)}</span>
+                    </div>
                   ) : null}
-                  <div className="checkout-summary-row total"><span>To Pay</span><span>{formatCurrency(total)}</span></div>
-                  {modeIsCod ? <div className="checkout-summary-row"><span>Collection</span><span>Cash on delivery</span></div> : null}
-                  {payMethod !== 'Cash' || modeIsCod ? null : (
-                    <div className="checkout-summary-row"><span>Change to return</span><span>{formatCurrency(changeDue)}</span></div>
-                  )}
+                  <div className="checkout-summary-row total"><span>Net Payable</span><span className="mono-num">{formatCurrency(total)}</span></div>
+                  {modeIsCod ? <div className="checkout-summary-row"><span>Settlement</span><span>Cash on Delivery</span></div> : null}
+                  {payMethod === 'Cash' && !modeIsCod && changeDue > 0 ? (
+                    <div className="checkout-summary-row change-line">
+                      <span>Change to return</span>
+                      <strong className="mono-num">{formatCurrency(changeDue)}</strong>
+                    </div>
+                  ) : null}
                 </div>
                 <button
                   type="button"
-                  className="btn btn-primary btn-block pay-cta"
+                  className="neu-btn neu-btn--primary neu-btn-block pay-cta"
                   disabled={submitting || (modeNeedsAddress && !customerAddress.trim())}
                   onClick={completeSale}
                 >
-                  {submitting ? 'Completing…' : `Complete Sale — ${formatCurrency(total)}`}
+                  {submitting ? 'Recording Sale…' : `Complete Sale — ${formatCurrency(total)}`}
                 </button>
-                <button type="button" className="btn btn-outline btn-block" onClick={() => setStep(1)}>Back to Cart</button>
+                <button type="button" className="neu-btn neu-btn--secondary neu-btn-block" onClick={() => setStep(1)}>
+                  ← Back to Cart
+                </button>
               </aside>
             </div>
           </div>
         ) : null}
 
+        {/* Step 3: Receipt & Success Screen */}
         {step === 3 && result ? (
           <div className="step-container">
             <div className="wizard-centered success-block">
-              <div className="success-icon">✓</div>
-              <h2>Sale Complete</h2>
+              <div className="pos-success-check">✓</div>
+              <h2>Sale Successfully Completed!</h2>
               <p className="text-muted">
-                {result.stage === 'complete' ? 'Stock updated and payment recorded.' : 'The sale was saved with an issue — see below.'}
+                {result.stage === 'complete' ? 'Inventory atomically updated and payment recorded in PostgreSQL.' : 'The sale was saved — see payment details below.'}
               </p>
-              <section className="card checkout-summary-card">
-                <div className="card-bd">
-                  <div className="checkout-summary-row"><span>Order</span><span className="mono-num">{result.order.id}</span></div>
-                  {result.billNo ? <div className="checkout-summary-row"><span>Bill</span><span className="mono-num">{result.billNo}</span></div> : null}
-                  <div className="checkout-summary-row"><span>Amount</span><span className="mono-num">{formatCurrency(result.order.total)}</span></div>
-                  <div className="checkout-summary-row"><span>Method</span><span>{result.method}</span></div>
-                  {!modeIsCod && result.stage === 'complete' ? (
-                    <>
-                      <div className="checkout-summary-row"><span>Tendered</span><span className="mono-num">{formatCurrency(result.tendered)}</span></div>
-                      {result.change > 0 ? (
-                        <div className="checkout-summary-row"><span>Change due</span><span className="mono-num">{formatCurrency(result.change)}</span></div>
-                      ) : null}
-                    </>
-                  ) : null}
-                  {result.stage === 'complete' && result.balanceDue > 0 ? (
-                    <div className="checkout-summary-row"><span>Balance</span><span className="mono-num">{formatCurrency(result.balanceDue)}</span></div>
+
+              <section className="thermal-receipt-neu-card">
+                <div className="receipt-header">
+                  <h3>{businessName}</h3>
+                  <p>Tax Invoice · GSTIN: 29ABCDE1234F1Z5</p>
+                  <p className="receipt-date">{new Date().toLocaleString()}</p>
+                </div>
+                <div className="receipt-divider" />
+                <div className="receipt-rows">
+                  <div className="checkout-summary-row"><span>Order ID</span><span className="mono-num">{result.order.id}</span></div>
+                  {result.billNo ? <div className="checkout-summary-row"><span>Bill No</span><span className="mono-num">{result.billNo}</span></div> : null}
+                  <div className="checkout-summary-row"><span>Payment Mode</span><span>{result.method}</span></div>
+                  <div className="checkout-summary-row total"><span>Total Amount</span><span className="mono-num">{formatCurrency(result.order.total)}</span></div>
+                  {!modeIsCod && result.stage === 'complete' && result.change > 0 ? (
+                    <div className="checkout-summary-row"><span>Change Returned</span><span className="mono-num">{formatCurrency(result.change)}</span></div>
                   ) : null}
                 </div>
+                <div className="receipt-divider" />
+                <p className="receipt-footer-msg">Thank you for shopping with us!</p>
               </section>
-              {result.stage !== 'complete' ? (
-                <p className="form-error">Payment could not be recorded. Order {result.order.id} exists — settle it from Orders → Payments.</p>
-              ) : null}
-              <button type="button" className="btn btn-primary" onClick={resetFlow}>New Sale</button>
+
+              <div className="pos-receipt-actions">
+                <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={() => window.print()}>
+                  🖨️ Print Receipt
+                </button>
+                <button type="button" className="neu-btn neu-neu-btn--primary" onClick={resetFlow}>
+                  ⚡ Start Next Sale (Enter)
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

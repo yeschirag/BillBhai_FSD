@@ -89,10 +89,10 @@ module.exports = {
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
     let sql = `${ORDER_SELECT}${where} ORDER BY order_date DESC`;
     const pagingValues = [...values];
-    if (Number.isInteger(limit) && limit > 0) {
-      pagingValues.push(limit);
-      sql += ` LIMIT $${pagingValues.length}`;
-    }
+    const activeLimit = (Number.isInteger(limit) && limit > 0) ? limit : 1000;
+    pagingValues.push(activeLimit);
+    sql += ` LIMIT $${pagingValues.length}`;
+    
     if (Number.isInteger(offset) && offset > 0) {
       pagingValues.push(offset);
       sql += ` OFFSET $${pagingValues.length}`;
@@ -192,14 +192,14 @@ module.exports = {
     return toOrderItem(result.rows[0]);
   },
 
-  /** Resolves product names for snapshots at checkout time. */
+  /** Resolves product names and prices for snapshots at checkout time. */
   async findProductNamesByIds(db, productIds) {
     if (!productIds.length) return new Map();
     const result = await db.query(
-      `SELECT id, name FROM products WHERE id = ANY($1::text[])`,
+      `SELECT id, name, price FROM products WHERE id = ANY($1::text[])`,
       [productIds],
     );
-    return new Map(result.rows.map((row) => [row.id, row.name]));
+    return new Map(result.rows.map((row) => [row.id, { name: row.name, price: Number(row.price || 0) }]));
   },
 
   async findItemsByOrderIds(db, orderIds) {

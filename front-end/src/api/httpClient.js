@@ -18,7 +18,7 @@ export async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs || apiConfig.timeoutMs || 7000)
   const method = options.method || 'GET'
   const activeRole = options.role || getActiveRole()
-  const authToken = localStorage.getItem('authToken') || ''
+  const authToken = localStorage.getItem('authToken') || localStorage.getItem('bb_token') || ''
   const headers = {
     'Content-Type': 'application/json',
     'x-role': activeRole,

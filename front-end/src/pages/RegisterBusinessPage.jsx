@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { apiProvider } from '../api/index.js'
 
 function RegisterBusinessPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -12,7 +13,7 @@ function RegisterBusinessPage() {
     email: '',
     phone: '',
     gstin: '',
-    businessType: '',
+    businessType: 'Retail',
     address: '',
     city: '',
     state: '',
@@ -57,14 +58,36 @@ function RegisterBusinessPage() {
     }
 
     setIsSubmitting(true)
-    setSubmitted(true)
-    setIsSubmitting(false)
+    try {
+      const payload = {
+        name: form.businessName.trim(),
+        adminName: form.ownerName.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        password: form.password,
+        type: form.businessType || 'Retail',
+        gstin: form.gstin.trim() || undefined,
+        address: form.address.trim() || undefined,
+      }
+
+      const res = await apiProvider.register(payload)
+      if (res && res.ok === false) {
+        setError(res.error || 'Registration failed. Please verify your details.')
+        return
+      }
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (submitted) {
     return (
       <div className="register-wrapper">
-        <div className="register-card">
+        <div className="register-neu-card">
           <div className="auth-success">
             <div className="success-icon" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -73,7 +96,7 @@ function RegisterBusinessPage() {
             <p className="text-muted">
               Thanks — we have your details for {form.businessName.trim() || 'your business'}.
             </p>
-            <Link to="/login" className="btn btn-primary">Go to Sign In</Link>
+            <Link to="/login" className="neu-btn neu-neu-btn--primary">Go to Sign In</Link>
           </div>
         </div>
       </div>
@@ -83,7 +106,7 @@ function RegisterBusinessPage() {
   return (
     <>
       <div className="register-wrapper wide">
-        <div className="register-card" id="registerCard">
+        <div className="register-neu-card" id="registerCard">
           <div className="brand-header">
             <img src="/logo.png" alt="BillBhai Logo" className="brand-logo-img" />
           </div>
@@ -175,8 +198,8 @@ function RegisterBusinessPage() {
             ) : null}
 
             <button type="submit" className={`btn-login ${isSubmitting ? 'loading' : ''}`} id="btnRegister" disabled={isSubmitting}>
-              <span className="btn-text">{isSubmitting ? 'Creating Account…' : 'Create Business Account'}</span>
-              <span className="btn-loader">
+              <span className="neu-btn-text">{isSubmitting ? 'Creating Account…' : 'Create Business Account'}</span>
+              <span className="neu-btn-loader">
                 <svg className="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle></svg>
               </span>
             </button>

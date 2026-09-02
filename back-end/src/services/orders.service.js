@@ -25,6 +25,52 @@ function round2(value) {
   return Number(Number(value).toFixed(2));
 }
 
+const PROMO_RULES = {
+  WELCOME10: { type: 'percent', rate: 0.1, minSubtotal: 0, label: '10% Welcome Discount' },
+  SAVE10: { type: 'percent', rate: 0.1, minSubtotal: 0, label: '10% Off' },
+  SAVE20: { type: 'percent', rate: 0.2, minSubtotal: 250, label: '20% Off on ₹250+' },
+  FESTIVE15: { type: 'percent', rate: 0.15, minSubtotal: 200, label: '15% Festive Offer' },
+  FLAT50: { type: 'flat', amount: 50, minSubtotal: 200, label: '₹50 Flat Off' },
+  FLAT100: { type: 'flat', amount: 100, minSubtotal: 500, label: '₹100 Flat Off' },
+  BILLBHAI: { type: 'percent', rate: 0.15, minSubtotal: 0, label: '15% Special Discount' },
+};
+
+function calculatePromoDiscount(code, subtotal) {
+  const normalized = String(code || '').trim().toUpperCase();
+  const rule = PROMO_RULES[normalized];
+  if (!rule) {
+    throw new HttpError(400, `Invalid promo code "${code}". Try WELCOME10, SAVE10, SAVE20, FLAT50 or BILLBHAI`, 'Bad Request');
+  }
+  if (subtotal < rule.minSubtotal) {
+    throw new HttpError(400, `Promo ${normalized} requires a minimum order of ₹${rule.minSubtotal}`, 'Bad Request');
+  }
+  let discount = 0;
+  if (rule.type === 'percent') {
+    discount = Number((subtotal * rule.rate).toFixed(2));
+  } else if (rule.type === 'flat') {
+    discount = Math.min(rule.amount, subtotal);
+  }
+  return { code: normalized, discount, label: rule.label };
+}
+
+/** Totals are computed server-side; client-supplied totals are ignored. */
+function computeTotals(items, discountAmountRaw, promoCodeRaw) {
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.itemPrice * item.quantity,
+    0,
+  );
+  const promoCode = String(promoCodeRaw || '').trim().toUpperCase();
+  let discount = 0;
+  if (promoCode) {
+    const promoResult = calculatePromoDiscount(promoCode, subtotal);
+    discount = promoResult.discount;
+  } else {
+    discount = Math.max(0, Number(discountAmountRaw ?? 0) || 0);
+  }
+  const total = Math.max(0, Number((subtotal - discount).toFixed(2)));
+  return { subtotal, discount, total, promoCode: promoCode || null };
+}
+
 function normalizeItems(rawItems) {
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     throw new HttpError(400, 'Order must include at least one item', 'Bad Request');
@@ -46,26 +92,6 @@ function normalizeItems(rawItems) {
   });
 }
 
-/** Totals are computed server-side; client-supplied totals are ignored. */
-function computeTotals(items, discountAmountRaw, promoCodeRaw) {
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.itemPrice * item.quantity,
-    0,
-  );
-  const promoCode = String(promoCodeRaw || '').trim().toUpperCase();
-  let discount;
-  if (promoCode) {
-    if (promoCode !== PROMO_CODE) {
-      throw new HttpError(400, 'Invalid promo code', 'Bad Request');
-    }
-    discount = Number((subtotal * PROMO_RATE).toFixed(2));
-  } else {
-    discount = Math.max(0, Number(discountAmountRaw ?? 0) || 0);
-  }
-  const total = Math.max(0, subtotal - discount);
-  return { subtotal, discount, total, promoCode: promoCode || null };
-}
-
 async function attachItems(orders) {
   if (!orders.length) return orders;
   const items = await repo.findItemsByOrderIds(db, orders.map((order) => order.id));
@@ -84,16 +110,14 @@ async function attachItems(orders) {
 module.exports = {
   validatePromotion(code, subtotalRaw) {
     const subtotal = Math.max(0, Number(subtotalRaw) || 0);
-    if (String(code || '').trim().toUpperCase() !== PROMO_CODE) {
-      throw new HttpError(400, 'Invalid promo code', 'Bad Request');
-    }
-    const discount = Number((subtotal * PROMO_RATE).toFixed(2));
+    const promoResult = calculatePromoDiscount(code, subtotal);
     return {
       valid: true,
-      code: PROMO_CODE,
-      discount,
+      code: promoResult.code,
+      discount: promoResult.discount,
+      label: promoResult.label,
       subtotal,
-      total: Math.max(0, Number((subtotal - discount).toFixed(2))),
+      total: Math.max(0, Number((subtotal - promoResult.discount).toFixed(2))),
     };
   },
 
@@ -122,9 +146,24 @@ module.exports = {
    * never disagree.
    */
   async create(actor, payload = {}) {
-    const items = normalizeItems(payload.items);
+    const rawItems = normalizeItems(payload.items);
     const companyId = resolveCreateCompany(actor, payload.companyId, '');
     if (!companyId) throw new HttpError(400, 'companyId is required', 'Bad Request');
+
+    const productMap = await repo.findProductNamesByIds(
+      db,
+      rawItems.map((item) => item.productId),
+    );
+
+    const items = rawItems.map((item) => {
+      const dbProd = productMap.get(item.productId);
+      const itemPrice = item.itemPrice > 0 ? item.itemPrice : (dbProd?.price || 0);
+      return {
+        ...item,
+        itemPrice,
+        productName: dbProd?.name || item.productName || '',
+      };
+    });
 
     const { discount, total, promoCode } = computeTotals(
       items,
@@ -163,14 +202,10 @@ module.exports = {
           );
         }
         const insertedItems = [];
-        const nameMap = await repo.findProductNamesByIds(
-          tx,
-          items.map((item) => item.productId),
-        );
         for (const item of items) {
           insertedItems.push(await repo.insertOrderItem(tx, order.id, {
             ...item,
-            productName: nameMap.get(item.productId) || '',
+            productName: item.productName || '',
           }));
         }
         return { ...order, items: insertedItems };

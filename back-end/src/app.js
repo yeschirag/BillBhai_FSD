@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const { notFoundHandler, errorHandler } = require('./middleware/error');
 const routes = require('./routes');
 
@@ -9,6 +10,8 @@ const routes = require('./routes');
 const config = require('./config');
 
 const app = express();
+
+app.use(compression());
 
 app.use(
   helmet({
@@ -36,9 +39,11 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: isProduction ? 30 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts. Please try again later.' },
@@ -46,7 +51,7 @@ const authLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 250,
+  max: isProduction ? 500 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests from this client.' },

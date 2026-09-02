@@ -79,8 +79,12 @@ function OrdersPage() {
     let savedLabel = ''
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (!draft.dataByBusiness[businessId]) {
+        draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
+      }
       const target = draft.dataByBusiness[businessId]
+      target.orders = Array.isArray(target.orders) ? target.orders : []
       const nextOrder = {
         id: editingId || buildNextId('ORD', target.orders, 551),
         customer: String(form.customer || '').trim() || 'Walk-in',
@@ -102,12 +106,12 @@ function OrdersPage() {
       draft.notifications.unshift(
         buildNotification({
           title: `${nextOrder.id} ${index >= 0 ? 'updated' : 'created'}`,
-          desc: `${nextOrder.customer} order recorded for ${formatCurrency(nextOrder.total)} in ${activeBusiness.name}.`,
+          desc: `${nextOrder.customer} order recorded for ${formatCurrency(nextOrder.total)} in ${draft.activeBusiness?.name || 'Store'}.`,
           type: 'order',
           color: 'blue',
           scopeBusinessId: businessId,
           detailRows: [
-            { label: 'Business', value: activeBusiness.name },
+            { label: 'Business', value: draft.activeBusiness?.name || 'Store' },
             { label: 'Customer', value: nextOrder.customer },
             { label: 'Payment', value: nextOrder.payment },
             { label: 'Status', value: nextOrder.status },
@@ -124,13 +128,15 @@ function OrdersPage() {
   }
 
   const handleDelete = async () => {
-    if (!activeBusiness || !deleteTarget) return
+    if (!deleteTarget) return
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
-      draft.dataByBusiness[businessId].orders = draft.dataByBusiness[businessId].orders.filter(
-        (item) => item.id !== deleteTarget,
-      )
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (draft.dataByBusiness[businessId]?.orders) {
+        draft.dataByBusiness[businessId].orders = draft.dataByBusiness[businessId].orders.filter(
+          (item) => item.id !== deleteTarget,
+        )
+      }
     })
 
     setDeleteTarget(null)
@@ -143,11 +149,11 @@ function OrdersPage() {
         <h2>Orders &amp; Billing</h2>
         <div className="page-header-actions">
           {canEdit ? (
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>
               New Order
             </button>
           ) : null}
-          <button type="button" className="btn btn-outline" onClick={() => window.print()}>
+          <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={() => window.print()}>
             Print
           </button>
         </div>
@@ -158,26 +164,26 @@ function OrdersPage() {
       {!isLoading && !error ? (
         <>
           <section className="stats-grid">
-            <div className="stat-card">
+            <div className="stat-neu-card">
               <div className="stat-info"><span className="stat-label">Total Orders</span><span className="stat-value">{stats.total}</span></div>
             </div>
-            <div className="stat-card">
+            <div className="stat-neu-card">
               <div className="stat-info"><span className="stat-label">Revenue</span><span className="stat-value">{formatCurrency(stats.revenue)}</span></div>
             </div>
-            <div className="stat-card">
+            <div className="stat-neu-card">
               <div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div>
             </div>
-            <div className="stat-card">
+            <div className="stat-neu-card">
               <div className="stat-info"><span className="stat-label">Cancelled</span><span className="stat-value">{stats.cancelled}</span></div>
             </div>
           </section>
 
-          <section className="card">
-            <div className="card-hd">
+          <section className="neu-card">
+            <div className="neu-card-hd">
               <h3>{activeBusiness?.name || 'Current Business'} Orders</h3>
             </div>
             <div className="tbl-wrap">
-              <table className="dt">
+              <table className="neu-table">
                 <thead>
                   <tr>
                     <th>Order ID</th>
@@ -202,8 +208,8 @@ function OrdersPage() {
                       <td>{formatDisplayDateTime(order.date)}</td>
                       {canEdit ? (
                         <td className="workspace-actions-cell">
-                          <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(order)}>Edit</button>
-                          <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(order.id)}>Delete</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(order)}>Edit</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(order.id)}>Delete</button>
                         </td>
                       ) : null}
                     </tr>
@@ -227,8 +233,8 @@ function OrdersPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="orderForm" className="btn btn-primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="orderForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
                 {editingId ? 'Save Changes' : 'Create Order'}
               </button>
             </>

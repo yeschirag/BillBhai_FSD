@@ -80,10 +80,9 @@ function LoginPage() {
           </ul>
           <p className="login-side-note">Free to use while in beta · No credit card required</p>
         </div>
-        <div className="login-card" id="loginCard">
+        <div className="login-neu-card" id="loginCard">
             <div className="brand-header">
-              <img src="/logo.png" alt="BillBhai Logo" className="brand-logo-img" />
-              <p className="brand-subtitle" id="brandSubtitle">ORDER &amp; BILLING SYSTEM</p>
+              <h3 className="login-neu-card-title">Welcome back</h3>
               <p className="login-desc login-lead">
                 Sign in to manage orders, inventory, and billing in one workspace.
               </p>
@@ -150,12 +149,69 @@ function LoginPage() {
               ) : null}
 
               <button type="submit" className={`btn-login ${isSubmitting ? 'loading' : ''}`} id="btnLogin" disabled={isSubmitting}>
-                <span className="btn-text">{isSubmitting ? 'Signing In…' : 'Sign In'}</span>
-                <span className="btn-loader">
+                <span className="neu-btn-text">{isSubmitting ? 'Signing In…' : 'Sign In'}</span>
+                <span className="neu-btn-loader">
                   <svg className="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle></svg>
                 </span>
               </button>
             </form>
+
+            <div className="demo-picker-section">
+              <div className="demo-picker-title">
+                <span>Quick Demo Accounts</span>
+                <span>Click to Fill</span>
+              </div>
+              <div className="demo-picker-grid">
+                <button
+                  type="button"
+                  className={`demo-chip ${identity === 'admin' ? 'active' : ''}`}
+                  onClick={() => {
+                    setIdentity('admin')
+                    setPassword('admin123')
+                    setError('')
+                  }}
+                >
+                  <span className="demo-chip-role">Store Admin</span>
+                  <span className="demo-chip-user">admin / admin123</span>
+                </button>
+                <button
+                  type="button"
+                  className={`demo-chip ${identity === 'cashier' ? 'active' : ''}`}
+                  onClick={() => {
+                    setIdentity('cashier')
+                    setPassword('cashier123')
+                    setError('')
+                  }}
+                >
+                  <span className="demo-chip-role">Cashier (POS)</span>
+                  <span className="demo-chip-user">cashier / cashier123</span>
+                </button>
+                <button
+                  type="button"
+                  className={`demo-chip ${identity === 'inventorymanager' ? 'active' : ''}`}
+                  onClick={() => {
+                    setIdentity('inventorymanager')
+                    setPassword('inventory123')
+                    setError('')
+                  }}
+                >
+                  <span className="demo-chip-role">Inventory Lead</span>
+                  <span className="demo-chip-user">inventory / inventory123</span>
+                </button>
+                <button
+                  type="button"
+                  className={`demo-chip ${identity === 'deliveryops' ? 'active' : ''}`}
+                  onClick={() => {
+                    setIdentity('deliveryops')
+                    setPassword('delivery123')
+                    setError('')
+                  }}
+                >
+                  <span className="demo-chip-role">Delivery Ops</span>
+                  <span className="demo-chip-user">delivery / delivery123</span>
+                </button>
+              </div>
+            </div>
 
             <div className="login-footer">
               <p style={{ marginBottom: '10px' }}>

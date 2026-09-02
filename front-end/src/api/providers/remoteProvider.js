@@ -196,6 +196,13 @@ export const remoteProvider = {
     })
   },
 
+  async register(payload) {
+    return request('/auth/register', {
+      method: 'POST',
+      body: payload,
+    })
+  },
+
   async getAuthConfig() {
     return null
   },
@@ -463,6 +470,10 @@ export const remoteProvider = {
 
   async createPayment(data) {
     return request('/orders/payments', { method: 'POST', body: data })
+  },
+
+  async recordPayment(data) {
+    return this.createPayment(data)
   },
 
   // Held bills — parked carts that survive page reloads and staff shifts.

@@ -16,7 +16,7 @@ function PageState({ loading, error, label = 'Loading…', onRetry }) {
       <div className="error-panel" role="alert">
         <strong>{typeof error === 'string' ? error : 'Something went wrong.'}</strong>
         {onRetry ? (
-          <button type="button" className="btn btn-outline btn-xs" onClick={onRetry}>
+          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={onRetry}>
             Try Again
           </button>
         ) : null}

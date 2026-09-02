@@ -38,4 +38,7 @@ export const localProvider = {
     // In local mode login is handled in authService using seed config and local overrides.
     return null
   },
+  async register() {
+    return null
+  },
 }

@@ -5,3 +5,6 @@ node_modules
 .env.production
 front-end/dist
 back-end/dist
+claude
+.claude
+./.claude

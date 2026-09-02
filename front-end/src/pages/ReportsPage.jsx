@@ -19,10 +19,10 @@ const EMPTY_LIST = []
 // Color follows the entity: each operations category keeps its hue regardless
 // of how the counts change.
 const OPS_CHART_COLORS = {
-  Orders: '#35c26f',
-  Returns: '#e8a838',
-  'Low Stock': '#64b5f6',
-  Delivered: '#3fbf62',
+  Orders: '#ef4444',
+  Returns: '#f59e0b',
+  'Low Stock': '#38bdf8',
+  Delivered: '#10b981',
 }
 
 function ChartTooltip({ active, payload, valueFormatter }) {
@@ -103,16 +103,16 @@ function ReportsPage() {
       </div>
 
       <section className="stats-grid">
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Revenue</span><span className="stat-value">{formatCurrency(metrics.revenue)}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Returned Amount</span><span className="stat-value">{formatCurrency(metrics.returnedAmount)}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Low Stock SKUs</span><span className="stat-value">{metrics.lowStock}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Completed Deliveries</span><span className="stat-value">{metrics.completedDeliveries}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Revenue</span><span className="stat-value">{formatCurrency(metrics.revenue)}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Returned Amount</span><span className="stat-value">{formatCurrency(metrics.returnedAmount)}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Low Stock SKUs</span><span className="stat-value">{metrics.lowStock}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Completed Deliveries</span><span className="stat-value">{metrics.completedDeliveries}</span></div></div>
       </section>
 
       <section className="grid-2">
-        <div className="card">
-          <div className="card-hd"><h3>{activeBusiness?.name || 'Business'} Revenue Snapshot</h3></div>
-          <div className="card-bd" style={{ height: '280px' }}>
+        <div className="neu-card">
+          <div className="neu-card-hd"><h3>{activeBusiness?.name || 'Business'} Revenue Snapshot</h3></div>
+          <div className="neu-card-bd" style={{ height: '280px' }}>
             {revenueData.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -135,15 +135,15 @@ function ReportsPage() {
                     cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                     content={<ChartTooltip valueFormatter={formatCurrency} />}
                   />
-                  <Bar dataKey="total" fill="#35c26f" radius={[4, 4, 0, 0]} maxBarSize={24} />
+                  <Bar dataKey="total" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyState title="No revenue to chart yet" hint="Revenue per order appears once orders are recorded." />}
           </div>
         </div>
-        <div className="card">
-          <div className="card-hd"><h3>Operations Mix</h3></div>
-          <div className="card-bd" style={{ height: '280px' }}>
+        <div className="neu-card">
+          <div className="neu-card-hd"><h3>Operations Mix</h3></div>
+          <div className="neu-card-bd" style={{ height: '280px' }}>
             {(orders.length || returns.length || inventory.length || deliveries.length)
               ? (
                 <DonutBreakdown
@@ -157,18 +157,18 @@ function ReportsPage() {
         </div>
       </section>
 
-      <section className="card">
-        <div className="card-hd"><h3>Insights</h3></div>
-        <div className="card-bd workspace-detail-grid">
-          <div className="workspace-detail-card">
+      <section className="neu-card">
+        <div className="neu-card-hd"><h3>Insights</h3></div>
+        <div className="neu-card-bd workspace-detail-grid">
+          <div className="workspace-detail-neu-card">
             <span>Top concern</span>
             <strong>{metrics.lowStock ? `${metrics.lowStock} SKUs need replenishment` : 'Inventory levels look healthy'}</strong>
           </div>
-          <div className="workspace-detail-card">
+          <div className="workspace-detail-neu-card">
             <span>Refund pressure</span>
             <strong>{metrics.returnedAmount ? `${formatCurrency(metrics.returnedAmount)} tied up in returns` : 'No refund pressure detected'}</strong>
           </div>
-          <div className="workspace-detail-card">
+          <div className="workspace-detail-neu-card">
             <span>Order throughput</span>
             <strong>{orders.length ? `${orders.length} orders recorded so far` : 'No orders captured yet'}</strong>
           </div>

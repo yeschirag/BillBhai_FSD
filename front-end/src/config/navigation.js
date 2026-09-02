@@ -60,12 +60,6 @@ export const NAV_ITEMS = [
     roles: ['superuser', 'admin', 'cashier', 'inventorymanager', 'deliveryops', 'returnhandler', 'customer'],
   },
   {
-    pageKey: 'cashier',
-    label: 'Cashier',
-    path: '/cashier',
-    roles: ['superuser', 'admin', 'cashier', 'customer'],
-  },
-  {
     pageKey: 'superuser',
     label: 'Super User Portal',
     path: '/superuser',

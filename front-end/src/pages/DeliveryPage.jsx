@@ -74,8 +74,12 @@ function DeliveryPage() {
     let savedLabel = ''
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (!draft.dataByBusiness[businessId]) {
+        draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
+      }
       const target = draft.dataByBusiness[businessId]
+      target.deliveries = Array.isArray(target.deliveries) ? target.deliveries : []
       const nextDelivery = {
         id: editingId || buildNextId('DEL', target.deliveries, 551),
         oid: String(form.oid || '').trim(),
@@ -100,7 +104,7 @@ function DeliveryPage() {
       draft.notifications.unshift(
         buildNotification({
           title: `${nextDelivery.id} ${index >= 0 ? 'updated' : 'created'}`,
-          desc: `${nextDelivery.customer || 'Delivery'} is ${nextDelivery.status.toLowerCase()} for ${draft.activeBusiness.name}.`,
+          desc: `${nextDelivery.customer || 'Delivery'} is ${nextDelivery.status.toLowerCase()} for ${draft.activeBusiness?.name || 'Store'}.`,
           type: 'delivery',
           color: nextDelivery.status === 'Delivered' ? 'green' : 'blue',
           scopeBusinessId: businessId,
@@ -124,10 +128,12 @@ function DeliveryPage() {
     if (!deleteTarget) return
 
     await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness.id
-      draft.dataByBusiness[businessId].deliveries = draft.dataByBusiness[businessId].deliveries.filter(
-        (item) => item.id !== deleteTarget,
-      )
+      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+      if (draft.dataByBusiness[businessId]?.deliveries) {
+        draft.dataByBusiness[businessId].deliveries = draft.dataByBusiness[businessId].deliveries.filter(
+          (item) => item.id !== deleteTarget,
+        )
+      }
     })
 
     setDeleteTarget(null)
@@ -139,7 +145,7 @@ function DeliveryPage() {
       <div className="page-header">
         <h2>Delivery</h2>
         <div className="page-header-actions">
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Add Dispatch</button>
+          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add Dispatch</button>
         </div>
       </div>
 
@@ -148,16 +154,16 @@ function DeliveryPage() {
       {!isLoading && !error ? (
         <>
           <section className="stats-grid">
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Total</span><span className="stat-value">{stats.total}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">In Transit</span><span className="stat-value">{stats.transit}</span></div></div>
-            <div className="stat-card"><div className="stat-info"><span className="stat-label">Delivered</span><span className="stat-value">{stats.delivered}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Total</span><span className="stat-value">{stats.total}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Pending</span><span className="stat-value">{stats.pending}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">In Transit</span><span className="stat-value">{stats.transit}</span></div></div>
+            <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Delivered</span><span className="stat-value">{stats.delivered}</span></div></div>
           </section>
 
-          <section className="card">
-            <div className="card-hd"><h3>Dispatch Queue</h3></div>
+          <section className="neu-card">
+            <div className="neu-card-hd"><h3>Dispatch Queue</h3></div>
             <div className="tbl-wrap">
-              <table className="dt">
+              <table className="neu-table">
                 <thead>
                   <tr>
                     <th>Delivery ID</th>
@@ -181,8 +187,8 @@ function DeliveryPage() {
                       <td className="cell-num">{item.etaMin ? `${item.etaMin} mins` : '-'}</td>
                       <td>{formatDisplayDateTime(item.updatedAt || item.time)}</td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="btn btn-outline btn-xs" onClick={() => openEdit(item)}>Edit</button>
-                        <button type="button" className="btn btn-outline btn-xs text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -206,8 +212,8 @@ function DeliveryPage() {
           wide
           footer={
             <>
-              <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="deliveryForm" className="btn btn-primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="deliveryForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
                 {editingId ? 'Save Changes' : 'Create Dispatch'}
               </button>
             </>

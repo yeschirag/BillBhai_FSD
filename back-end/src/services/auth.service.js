@@ -95,7 +95,7 @@ async function register(payload = {}) {
       email,
       mobileNo: phone,
       username: await deriveUsername(client, email),
-      passwordHash: bcrypt.hashSync(password, BCRYPT_ROUNDS),
+      passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
       status: 'Active',
     });
     return user;
@@ -117,7 +117,7 @@ async function login(username, password) {
     throw new HttpError(400, 'Username and password are required', 'Bad Request');
   }
   const credentials = await usersRepo.findCredentialsByUsername(db, username);
-  if (!credentials || !bcrypt.compareSync(String(password), credentials.password_hash)) {
+  if (!credentials || !(await bcrypt.compare(String(password), credentials.password_hash))) {
     throw new HttpError(401, 'Invalid username or password', 'Unauthorized');
   }
   if (credentials.status && credentials.status !== 'Active') {

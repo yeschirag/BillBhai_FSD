@@ -64,7 +64,7 @@ module.exports = {
         email: String(payload.email || '').trim(),
         mobileNo: String(payload.phone || payload.mobileNo || '').trim(),
         username: String(payload.username).trim().toLowerCase().replace(/\s+/g, ''),
-        passwordHash: bcrypt.hashSync(String(password), 10),
+        passwordHash: await bcrypt.hash(String(password), 10),
         status: payload.status || 'Active',
       });
     } catch (err) {
@@ -90,7 +90,7 @@ module.exports = {
     else if (payload.mobileNo !== undefined) fields.mobileNo = String(payload.mobileNo).trim();
     if (payload.status !== undefined) fields.status = String(payload.status).trim();
     if (payload.password !== undefined && payload.password !== '') {
-      fields.passwordHash = bcrypt.hashSync(String(payload.password), 10);
+      fields.passwordHash = await bcrypt.hash(String(payload.password), 10);
     }
     if (payload.role !== undefined) [fields.role] = [canonicalRole(payload.role)];
 

@@ -51,14 +51,14 @@ function NotificationsPage() {
       </div>
 
       <section className="stats-grid">
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Total</span><span className="stat-value">{stats.total}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Unread</span><span className="stat-value">{stats.unread}</span></div></div>
-        <div className="stat-card"><div className="stat-info"><span className="stat-label">Actionable</span><span className="stat-value">{stats.action}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Total</span><span className="stat-value">{stats.total}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Unread</span><span className="stat-value">{stats.unread}</span></div></div>
+        <div className="stat-neu-card"><div className="stat-info"><span className="stat-label">Actionable</span><span className="stat-value">{stats.action}</span></div></div>
       </section>
 
-      <section className="card">
-        <div className="card-hd"><h3>Inbox</h3></div>
-        <div className="card-bd workspace-notification-list">
+      <section className="neu-card">
+        <div className="neu-card-hd"><h3>Inbox</h3></div>
+        <div className="neu-card-bd workspace-notification-list">
           {filteredNotifications.length ? filteredNotifications.map((item) => {
             const canToggle = notifications.some((entry) => entry.id === item.id)
             return (
@@ -79,7 +79,7 @@ function NotificationsPage() {
                   {item.detailRows?.length ? (
                     <div className="workspace-detail-grid">
                       {item.detailRows.map((row) => (
-                        <div key={`${item.id}-${row.label}`} className="workspace-detail-card">
+                        <div key={`${item.id}-${row.label}`} className="workspace-detail-neu-card">
                           <span>{row.label}</span>
                           <strong>{row.value}</strong>
                         </div>
@@ -88,7 +88,7 @@ function NotificationsPage() {
                   ) : null}
                 </div>
                 {canToggle ? (
-                  <button type="button" className="btn btn-outline btn-xs" onClick={() => toggleRead(item.id, item.unread)}>
+                  <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => toggleRead(item.id, item.unread)}>
                     Mark {item.unread ? 'Read' : 'Unread'}
                   </button>
                 ) : null}

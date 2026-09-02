@@ -5,6 +5,7 @@ import {
   upsertAuthOverride,
 } from '../services/workspaceService.js'
 import PageState from '../components/PageState.jsx'
+import { toast } from '../components/toastBus.js'
 
 function ProfilePage() {
   const { activeBusiness, currentUser, isLoading, error } = useWorkspaceData()
@@ -32,6 +33,7 @@ function ProfilePage() {
       email: String(email || '').trim(),
     })
     setStatusMessage('Profile updated.')
+    toast.success('Profile settings updated')
   }
 
   if (isLoading || error) {
@@ -52,9 +54,9 @@ function ProfilePage() {
       </div>
 
       <section className="grid-2">
-        <div className="card">
-          <div className="card-hd"><h3>Account</h3></div>
-          <div className="card-bd">
+        <div className="neu-card">
+          <div className="neu-card-hd"><h3>Account</h3></div>
+          <div className="neu-card-bd">
             <form onSubmit={handleSave} className="workspace-form-stack">
               <div className="form-group">
                 <label className="form-label" htmlFor="profileName">Display Name</label>
@@ -65,18 +67,18 @@ function ProfilePage() {
                 <input id="profileEmail" className="form-control" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Optional local override" />
               </div>
               <div className="workspace-inline-actions">
-                <button type="submit" className="btn btn-primary">Save Settings</button>
+                <button type="submit" className="neu-btn neu-neu-btn--primary">Save Settings</button>
                 {statusMessage ? <span className="form-hint">{statusMessage}</span> : null}
               </div>
             </form>
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-hd"><h3>Workspace Context</h3></div>
-          <div className="card-bd workspace-detail-grid">
+        <div className="neu-card">
+          <div className="neu-card-hd"><h3>Workspace Context</h3></div>
+          <div className="neu-card-bd workspace-detail-grid">
             {facts.map((item) => (
-              <div key={item.label} className="workspace-detail-card">
+              <div key={item.label} className="workspace-detail-neu-card">
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
               </div>
@@ -85,9 +87,9 @@ function ProfilePage() {
         </div>
       </section>
 
-      <section className="card">
-        <div className="card-hd"><h3>Security</h3></div>
-        <div className="card-bd">
+      <section className="neu-card">
+        <div className="neu-card-hd"><h3>Security</h3></div>
+        <div className="neu-card-bd">
           <p className="text-muted">
             Password reset and multi-factor authentication are not available yet. Ask an administrator
             if you need your account details changed.
