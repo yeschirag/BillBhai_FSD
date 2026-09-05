@@ -67,7 +67,7 @@ function ProfilePage() {
                 <input id="profileEmail" className="form-control" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Optional local override" />
               </div>
               <div className="workspace-inline-actions">
-                <button type="submit" className="neu-btn neu-neu-btn--primary">Save Settings</button>
+                <button type="submit" className="neu-btn neu-btn--primary">Save Settings</button>
                 {statusMessage ? <span className="form-hint">{statusMessage}</span> : null}
               </div>
             </form>

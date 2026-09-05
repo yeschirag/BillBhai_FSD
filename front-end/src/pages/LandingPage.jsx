@@ -48,8 +48,8 @@ function LandingPage() {
             <a href="#faq" className="nav-link" onClick={closeMobileMenu}>FAQ</a>
           </div>
           <div className="nav-actions">
-            <Link to="/login" className="neu-btn neu-neu-btn--ghost" id="navSignInBtn">Sign In</Link>
-            <Link to="/register-business" className="neu-btn neu-neu-btn--primary" id="navPrimaryBtn">Get Started Free</Link>
+            <Link to="/login" className="neu-btn neu-btn--ghost" id="navSignInBtn">Sign In</Link>
+            <Link to="/register-business" className="neu-btn neu-btn--primary" id="navPrimaryBtn">Get Started Free</Link>
           </div>
           <button
             type="button"
@@ -89,11 +89,11 @@ function LandingPage() {
               </div>
 
               <div className="hero-cta">
-                <Link to="/register-business" className="neu-btn neu-btn--primary neu-neu-btn--lg" id="heroPrimaryBtn">
+                <Link to="/register-business" className="neu-btn neu-btn--primary neu-btn--lg" id="heroPrimaryBtn">
                   Create your workspace
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </Link>
-                <Link to="/login" className="neu-btn neu-btn--secondary neu-neu-btn--lg">
+                <Link to="/login" className="neu-btn neu-btn--secondary neu-btn--lg">
                   Test Live Demo
                 </Link>
               </div>
@@ -246,7 +246,7 @@ function LandingPage() {
                     <li>✓ Park / Hold multiple customers in line</li>
                     <li>✓ Auto customer profile lookup by mobile number</li>
                   </ul>
-                  <Link to="/login" className="neu-btn neu-btn--primary neu-neu-btn--sm">Try POS Terminal →</Link>
+                  <Link to="/login" className="neu-btn neu-btn--primary neu-btn--sm">Try POS Terminal →</Link>
                 </div>
                 <div className="tab-pane-visual">
                   <div className="demo-pos-snippet">
@@ -278,7 +278,7 @@ function LandingPage() {
                     <li>✓ Automated Low-Stock Alert warnings</li>
                     <li>✓ Complete audit trail with stock movement ledger</li>
                   </ul>
-                  <Link to="/register-business" className="neu-btn neu-btn--primary neu-neu-btn--sm">Setup Catalog →</Link>
+                  <Link to="/register-business" className="neu-btn neu-btn--primary neu-btn--sm">Setup Catalog →</Link>
                 </div>
                 <div className="tab-pane-visual">
                   <div className="demo-stock-snippet">
@@ -301,7 +301,7 @@ function LandingPage() {
                     <li>✓ Live status chips (Pending, Picked Up, In Transit, Delivered)</li>
                     <li>✓ Cash on Delivery (COD) collection settlement</li>
                   </ul>
-                  <Link to="/login" className="neu-btn neu-btn--primary neu-neu-btn--sm">Explore Delivery Ops →</Link>
+                  <Link to="/login" className="neu-btn neu-btn--primary neu-btn--sm">Explore Delivery Ops →</Link>
                 </div>
                 <div className="tab-pane-visual">
                   <div className="demo-delivery-snippet">
@@ -450,7 +450,7 @@ function LandingPage() {
             <h2 className="cta-title">Upgrade your counter with <span className="text-highlight">BillBhai</span> today</h2>
             <p className="cta-desc">Join thousands of smart retailers across India. Free to use while in beta.</p>
             <div className="cta-actions">
-              <Link to="/register-business" className="neu-btn neu-btn--primary neu-neu-btn--lg">
+              <Link to="/register-business" className="neu-btn neu-btn--primary neu-btn--lg">
                 Create your workspace
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
               </Link>

@@ -88,7 +88,7 @@ function NotificationsPage() {
                   ) : null}
                 </div>
                 {canToggle ? (
-                  <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => toggleRead(item.id, item.unread)}>
+                  <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => toggleRead(item.id, item.unread)}>
                     Mark {item.unread ? 'Read' : 'Unread'}
                   </button>
                 ) : null}

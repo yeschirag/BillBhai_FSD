@@ -96,7 +96,7 @@ function RegisterBusinessPage() {
             <p className="text-muted">
               Thanks — we have your details for {form.businessName.trim() || 'your business'}.
             </p>
-            <Link to="/login" className="neu-btn neu-neu-btn--primary">Go to Sign In</Link>
+            <Link to="/login" className="neu-btn neu-btn--primary">Go to Sign In</Link>
           </div>
         </div>
       </div>

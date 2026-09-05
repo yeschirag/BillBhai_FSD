@@ -172,7 +172,7 @@ function UsersPage() {
       <div className="page-header">
         <h2>Users</h2>
         <div className="page-header-actions">
-          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add User</button>
+          <button type="button" className="neu-btn neu-btn--primary" onClick={openCreate}>Add User</button>
         </div>
       </div>
 
@@ -212,8 +212,8 @@ function UsersPage() {
                         <td>{user.role}</td>
                         <td><span className={`badge ${getStatusBadgeClass(user.status)}`}>{user.status}</span></td>
                         <td className="workspace-actions-cell">
-                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(user)}>Edit</button>
-                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(username)}>Delete</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openEdit(user)}>Edit</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm text-danger" onClick={() => setDeleteTarget(username)}>Delete</button>
                         </td>
                       </tr>
                     )
@@ -237,8 +237,8 @@ function UsersPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="userForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="userForm" className="neu-btn neu-btn--primary" disabled={isSaving}>
                 {editingUsername ? 'Save Changes' : 'Add User'}
               </button>
             </>

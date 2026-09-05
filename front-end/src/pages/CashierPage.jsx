@@ -94,7 +94,7 @@ function CashierPage() {
 
   useEffect(() => {
     document.title = 'BillBhai - Cashier POS Terminal'
-    document.body.setAttribute('data-page', 'componentDidMount')
+    document.body.setAttribute('data-page', 'cashier')
     document.body.setAttribute('data-app-ready', 'true')
     document.body.classList.add('no-sidebar')
     return () => {
@@ -141,7 +141,8 @@ function CashierPage() {
       setLoadState('ready')
     } catch (err) {
       console.error('POS: failed to load catalog', err)
-      setLoadState('ready')
+      toast.error('Could not load product catalog. Tap retry to try again.')
+      setLoadState('error')
     }
   }
 
@@ -192,7 +193,7 @@ function CashierPage() {
         } else if (res?.error) {
           setPromoError(res.error)
         }
-      }).catch(() => {})
+      }).catch((err) => { console.warn('Promo validation failed', err) })
     } else if (subtotal === 0 && promo) {
       setPromo(null)
       setPromoError('')
@@ -481,7 +482,7 @@ function CashierPage() {
       if (!modeIsCod) {
         const paymentAmount = total
         const payPayload = {
-          orderId: order.id,
+          billNo: billNo || order.id,
           amount: paymentAmount,
           method: payMethod,
           tendered: payMethod === 'Cash' && tendered ? numTendered : undefined,
@@ -776,7 +777,7 @@ function CashierPage() {
                         ))}
                       </div>
 
-                      {promoError ? <p className="promo-error-msg">⚠️ {promoError}</p> : null}
+                      {promoError ? <p className="promo-error-msg" role="alert" aria-live="polite">⚠️ {promoError}</p> : null}
                     </div>
                   )}
 

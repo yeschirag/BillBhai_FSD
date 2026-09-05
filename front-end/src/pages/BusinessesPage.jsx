@@ -273,7 +273,7 @@ function BusinessesPage() {
       <div className="page-header">
         <h2>Businesses Using BillBhai</h2>
         <div className="page-header-actions">
-          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add Business</button>
+          <button type="button" className="neu-btn neu-btn--primary" onClick={openCreate}>Add Business</button>
         </div>
       </div>
 
@@ -315,9 +315,9 @@ function BusinessesPage() {
                       <td className="cell-num">{formatCurrency(business.paymentDue)}</td>
                       <td><span className={`badge ${getStatusBadgeClass(business.status)}`}>{business.status}</span></td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => scopeBusiness(business)}>Open</button>
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(business)}>Edit</button>
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(business.id)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => scopeBusiness(business)}>Open</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openEdit(business)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm text-danger" onClick={() => setDeleteTarget(business.id)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -366,7 +366,7 @@ function BusinessesPage() {
                         </select>
                       </div>
                     </div>
-                    <button type="submit" className="neu-btn neu-neu-btn--primary">Add Store</button>
+                    <button type="submit" className="neu-btn neu-btn--primary">Add Store</button>
                   </form>
                 </div>
               </div>
@@ -393,7 +393,7 @@ function BusinessesPage() {
                         <option value="Due">Due</option>
                       </select>
                     </div>
-                    <button type="submit" className="neu-btn neu-neu-btn--primary">Record Payment</button>
+                    <button type="submit" className="neu-btn neu-btn--primary">Record Payment</button>
                   </form>
                 </div>
               </div>
@@ -436,7 +436,7 @@ function BusinessesPage() {
                         />
                       </div>
                     </div>
-                    <button type="submit" className="neu-btn neu-neu-btn--primary">Add Business User</button>
+                    <button type="submit" className="neu-btn neu-btn--primary">Add Business User</button>
                   </form>
                 </div>
               </div>
@@ -478,8 +478,8 @@ function BusinessesPage() {
           wide
           footer={
             <>
-              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeBusinessModal}>Cancel</button>
-              <button type="submit" form="businessForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-btn--secondary" onClick={closeBusinessModal}>Cancel</button>
+              <button type="submit" form="businessForm" className="neu-btn neu-btn--primary" disabled={isSaving}>
                 {editingBusinessId ? 'Save Changes' : 'Add Business'}
               </button>
             </>

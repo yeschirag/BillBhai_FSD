@@ -69,52 +69,58 @@ function InventoryPage() {
     setIsSaving(true)
     let savedLabel = ''
 
-    await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
-      if (!draft.dataByBusiness[businessId]) {
-        draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
-      }
-      const target = draft.dataByBusiness[businessId]
-      target.inventory = Array.isArray(target.inventory) ? target.inventory : []
-      const stock = Math.max(0, Number(form.stock || 0))
-      const nextItem = {
-        sku: editingSku || buildNextId('SKU', target.inventory.map((item) => ({ id: item.sku })), 551),
-        name: String(form.name || '').trim() || 'Unnamed Item',
-        cat: String(form.cat || '').trim() || 'General',
-        supplier: String(form.supplier || '').trim() || 'Unassigned',
-        stock,
-        price: Math.max(0, Number(form.price || 0)),
-        status: deriveInventoryStatus(stock),
-      }
+    try {
+      await mutateWorkspace((draft) => {
+        const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+        if (!draft.dataByBusiness[businessId]) {
+          draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
+        }
+        const target = draft.dataByBusiness[businessId]
+        target.inventory = Array.isArray(target.inventory) ? target.inventory : []
+        const stock = Math.max(0, Number(form.stock || 0))
+        const nextItem = {
+          sku: editingSku || buildNextId('SKU', target.inventory.map((item) => ({ id: item.sku })), 551),
+          name: String(form.name || '').trim() || 'Unnamed Item',
+          cat: String(form.cat || '').trim() || 'General',
+          supplier: String(form.supplier || '').trim() || 'Unassigned',
+          stock,
+          price: Math.max(0, Number(form.price || 0)),
+          status: deriveInventoryStatus(stock),
+        }
 
-      const index = target.inventory.findIndex((item) => item.sku === nextItem.sku)
-      if (index >= 0) {
-        target.inventory[index] = nextItem
-      } else {
-        target.inventory.unshift(nextItem)
+        const index = target.inventory.findIndex((item) => item.sku === nextItem.sku)
+        if (index >= 0) {
+          target.inventory[index] = nextItem
+        } else {
+          target.inventory.unshift(nextItem)
+        }
+        savedLabel = `${nextItem.name} ${index >= 0 ? 'updated' : 'added'}`
+
+        draft.notifications.unshift(
+          buildNotification({
+            title: `${nextItem.name} inventory ${index >= 0 ? 'updated' : 'added'}`,
+            desc: `${nextItem.sku} now has ${nextItem.stock} units in ${draft.activeBusiness?.name || 'Store'}.`,
+            type: 'alert',
+            color: stock < 100 ? 'amber' : 'green',
+            scopeBusinessId: businessId,
+            detailRows: [
+              { label: 'Supplier', value: nextItem.supplier },
+              { label: 'Category', value: nextItem.cat },
+              { label: 'Status', value: nextItem.status },
+            ],
+          }),
+        )
+      })
+
+      if (savedLabel) {
+        toast.success(savedLabel)
+        closeModal()
       }
-      savedLabel = `${nextItem.name} ${index >= 0 ? 'updated' : 'added'}`
-
-      draft.notifications.unshift(
-        buildNotification({
-          title: `${nextItem.name} inventory ${index >= 0 ? 'updated' : 'added'}`,
-          desc: `${nextItem.sku} now has ${nextItem.stock} units in ${draft.activeBusiness?.name || 'Store'}.`,
-          type: 'alert',
-          color: stock < 100 ? 'amber' : 'green',
-          scopeBusinessId: businessId,
-          detailRows: [
-            { label: 'Supplier', value: nextItem.supplier },
-            { label: 'Category', value: nextItem.cat },
-            { label: 'Status', value: nextItem.status },
-          ],
-        }),
-      )
-    })
-
-    setIsSaving(false)
-    if (savedLabel) {
-      toast.success(savedLabel)
-      closeModal()
+    } catch (err) {
+      console.error('Inventory save failed', err)
+      toast.error(err?.message || 'Could not save product. Please try again.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -139,7 +145,7 @@ function InventoryPage() {
       <div className="page-header">
         <h2>Inventory</h2>
         <div className="page-header-actions">
-          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add Product</button>
+          <button type="button" className="neu-btn neu-btn--primary" onClick={openCreate}>Add Product</button>
         </div>
       </div>
 
@@ -181,8 +187,8 @@ function InventoryPage() {
                       <td className="cell-num">{formatCurrency(item.price)}</td>
                       <td><span className={`badge ${getStatusBadgeClass(item.status)}`}>{item.status}</span></td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.sku)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.sku)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -205,8 +211,8 @@ function InventoryPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="inventoryForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="inventoryForm" className="neu-btn neu-btn--primary" disabled={isSaving}>
                 {editingSku ? 'Save Changes' : 'Add Product'}
               </button>
             </>

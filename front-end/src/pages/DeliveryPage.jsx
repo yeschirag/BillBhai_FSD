@@ -145,7 +145,7 @@ function DeliveryPage() {
       <div className="page-header">
         <h2>Delivery</h2>
         <div className="page-header-actions">
-          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Add Dispatch</button>
+          <button type="button" className="neu-btn neu-btn--primary" onClick={openCreate}>Add Dispatch</button>
         </div>
       </div>
 
@@ -187,8 +187,8 @@ function DeliveryPage() {
                       <td className="cell-num">{item.etaMin ? `${item.etaMin} mins` : '-'}</td>
                       <td>{formatDisplayDateTime(item.updatedAt || item.time)}</td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -212,8 +212,8 @@ function DeliveryPage() {
           wide
           footer={
             <>
-              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="deliveryForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="deliveryForm" className="neu-btn neu-btn--primary" disabled={isSaving}>
                 {editingId ? 'Save Changes' : 'Create Dispatch'}
               </button>
             </>

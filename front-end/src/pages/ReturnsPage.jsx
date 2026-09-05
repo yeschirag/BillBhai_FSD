@@ -139,7 +139,7 @@ function ReturnsPage() {
       <div className="page-header">
         <h2>Returns &amp; Refunds</h2>
         <div className="page-header-actions">
-          <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>Raise Return</button>
+          <button type="button" className="neu-btn neu-btn--primary" onClick={openCreate}>Raise Return</button>
         </div>
       </div>
 
@@ -181,8 +181,8 @@ function ReturnsPage() {
                       <td><span className={`badge ${getStatusBadgeClass(item.status)}`}>{item.status}</span></td>
                       <td>{formatDisplayDateTime(item.updatedAt)}</td>
                       <td className="workspace-actions-cell">
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
-                        <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openEdit(item)}>Edit</button>
+                        <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm text-danger" onClick={() => setDeleteTarget(item.id)}>Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -205,8 +205,8 @@ function ReturnsPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="returnForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="returnForm" className="neu-btn neu-btn--primary" disabled={isSaving}>
                 {editingId ? 'Save Changes' : 'Raise Return'}
               </button>
             </>

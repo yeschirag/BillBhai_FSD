@@ -78,52 +78,58 @@ function OrdersPage() {
     setIsSaving(true)
     let savedLabel = ''
 
-    await mutateWorkspace((draft) => {
-      const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
-      if (!draft.dataByBusiness[businessId]) {
-        draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
-      }
-      const target = draft.dataByBusiness[businessId]
-      target.orders = Array.isArray(target.orders) ? target.orders : []
-      const nextOrder = {
-        id: editingId || buildNextId('ORD', target.orders, 551),
-        customer: String(form.customer || '').trim() || 'Walk-in',
-        items: Math.max(1, Number(form.items || 1)),
-        total: Math.max(0, Number(form.total || 0)),
-        payment: String(form.payment || 'UPI').trim() || 'UPI',
-        status: String(form.status || 'Pending').trim() || 'Pending',
-        date: formatTimestamp(),
-      }
+    try {
+      await mutateWorkspace((draft) => {
+        const businessId = draft.activeBusiness?.id || draft.activeBusinessId || 'BIZ-101'
+        if (!draft.dataByBusiness[businessId]) {
+          draft.dataByBusiness[businessId] = { orders: [], inventory: [], deliveries: [], returns: [], users: [] }
+        }
+        const target = draft.dataByBusiness[businessId]
+        target.orders = Array.isArray(target.orders) ? target.orders : []
+        const nextOrder = {
+          id: editingId || buildNextId('ORD', target.orders, 551),
+          customer: String(form.customer || '').trim() || 'Walk-in',
+          items: Math.max(1, Number(form.items || 1)),
+          total: Math.max(0, Number(form.total || 0)),
+          payment: String(form.payment || 'UPI').trim() || 'UPI',
+          status: String(form.status || 'Pending').trim() || 'Pending',
+          date: formatTimestamp(),
+        }
 
-      const index = target.orders.findIndex((item) => item.id === nextOrder.id)
-      if (index >= 0) {
-        target.orders[index] = { ...target.orders[index], ...nextOrder }
-      } else {
-        target.orders.unshift(nextOrder)
+        const index = target.orders.findIndex((item) => item.id === nextOrder.id)
+        if (index >= 0) {
+          target.orders[index] = { ...target.orders[index], ...nextOrder }
+        } else {
+          target.orders.unshift(nextOrder)
+        }
+        savedLabel = `${nextOrder.id} ${index >= 0 ? 'updated' : 'created'}`
+
+        draft.notifications.unshift(
+          buildNotification({
+            title: `${nextOrder.id} ${index >= 0 ? 'updated' : 'created'}`,
+            desc: `${nextOrder.customer} order recorded for ${formatCurrency(nextOrder.total)} in ${draft.activeBusiness?.name || 'Store'}.`,
+            type: 'order',
+            color: 'blue',
+            scopeBusinessId: businessId,
+            detailRows: [
+              { label: 'Business', value: draft.activeBusiness?.name || 'Store' },
+              { label: 'Customer', value: nextOrder.customer },
+              { label: 'Payment', value: nextOrder.payment },
+              { label: 'Status', value: nextOrder.status },
+            ],
+          }),
+        )
+      })
+
+      if (savedLabel) {
+        toast.success(savedLabel)
+        closeModal()
       }
-      savedLabel = `${nextOrder.id} ${index >= 0 ? 'updated' : 'created'}`
-
-      draft.notifications.unshift(
-        buildNotification({
-          title: `${nextOrder.id} ${index >= 0 ? 'updated' : 'created'}`,
-          desc: `${nextOrder.customer} order recorded for ${formatCurrency(nextOrder.total)} in ${draft.activeBusiness?.name || 'Store'}.`,
-          type: 'order',
-          color: 'blue',
-          scopeBusinessId: businessId,
-          detailRows: [
-            { label: 'Business', value: draft.activeBusiness?.name || 'Store' },
-            { label: 'Customer', value: nextOrder.customer },
-            { label: 'Payment', value: nextOrder.payment },
-            { label: 'Status', value: nextOrder.status },
-          ],
-        }),
-      )
-    })
-
-    setIsSaving(false)
-    if (savedLabel) {
-      toast.success(savedLabel)
-      closeModal()
+    } catch (err) {
+      console.error('Order save failed', err)
+      toast.error(err?.message || 'Could not save order. Please try again.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -149,11 +155,11 @@ function OrdersPage() {
         <h2>Orders &amp; Billing</h2>
         <div className="page-header-actions">
           {canEdit ? (
-            <button type="button" className="neu-btn neu-neu-btn--primary" onClick={openCreate}>
+            <button type="button" className="neu-btn neu-btn--primary" onClick={openCreate}>
               New Order
             </button>
           ) : null}
-          <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={() => window.print()}>
+          <button type="button" className="neu-btn neu-btn--secondary" onClick={() => window.print()}>
             Print
           </button>
         </div>
@@ -208,8 +214,8 @@ function OrdersPage() {
                       <td>{formatDisplayDateTime(order.date)}</td>
                       {canEdit ? (
                         <td className="workspace-actions-cell">
-                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openEdit(order)}>Edit</button>
-                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm text-danger" onClick={() => setDeleteTarget(order.id)}>Delete</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openEdit(order)}>Edit</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm text-danger" onClick={() => setDeleteTarget(order.id)}>Delete</button>
                         </td>
                       ) : null}
                     </tr>
@@ -233,8 +239,8 @@ function OrdersPage() {
           onClose={closeModal}
           footer={
             <>
-              <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={closeModal}>Cancel</button>
-              <button type="submit" form="orderForm" className="neu-btn neu-neu-btn--primary" disabled={isSaving}>
+              <button type="button" className="neu-btn neu-btn--secondary" onClick={closeModal}>Cancel</button>
+              <button type="submit" form="orderForm" className="neu-btn neu-btn--primary" disabled={isSaving}>
                 {editingId ? 'Save Changes' : 'Create Order'}
               </button>
             </>

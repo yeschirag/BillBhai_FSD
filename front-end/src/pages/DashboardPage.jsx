@@ -267,7 +267,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Stat 4: Overdue Invoices (Negative / Alert State) */}
-        <Card variant="raised" className="neu-neu-card neu-stat-neu-card--alert">
+        <Card variant="raised" className="neu-card neu-stat-neu-card--alert">
           <CardHeader className="neu-stat-header">
             <span className="neu-stat-label">Overdue Invoices</span>
             <div className="neu-stat-icon-wrapper neu-icon--destructive">
@@ -690,7 +690,7 @@ export default function DashboardPage() {
                       <td>
                         <button
                           type="button"
-                          className="neu-neu-btn-icon"
+                          className="neu-btn-icon"
                           title="View Invoice"
                           onClick={() => navigate('/orders')}
                         >

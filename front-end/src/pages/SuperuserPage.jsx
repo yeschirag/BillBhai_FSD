@@ -42,7 +42,7 @@ function SuperuserPage() {
       <div className="page-header">
         <h2>Super User Portal</h2>
         <div className="page-header-actions">
-          <Link to="/businesses" className="neu-btn neu-neu-btn--primary">Manage Businesses</Link>
+          <Link to="/businesses" className="neu-btn neu-btn--primary">Manage Businesses</Link>
         </div>
       </div>
 
@@ -75,9 +75,9 @@ function SuperuserPage() {
         <div className="neu-card">
           <div className="neu-card-hd"><h3>Quick Actions</h3></div>
           <div className="neu-card-bd workspace-form-stack">
-            <Link to="/businesses" className="neu-btn neu-neu-btn--secondary">Open business management</Link>
-            <Link to="/dashboard" className="neu-btn neu-neu-btn--secondary">Jump to scoped dashboard</Link>
-            <Link to="/notifications" className="neu-btn neu-neu-btn--secondary">Review system notifications</Link>
+            <Link to="/businesses" className="neu-btn neu-btn--secondary">Open business management</Link>
+            <Link to="/dashboard" className="neu-btn neu-btn--secondary">Jump to scoped dashboard</Link>
+            <Link to="/notifications" className="neu-btn neu-btn--secondary">Review system notifications</Link>
           </div>
         </div>
       </section>
@@ -106,7 +106,7 @@ function SuperuserPage() {
                     <td><span className={`badge ${getStatusBadgeClass(business.status)}`}>{business.status}</span></td>
                     <td className="cell-num">{formatCurrency(business.paymentDue)}</td>
                     <td className="workspace-actions-cell">
-                      <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => openBusiness(business)}>Open</button>
+                      <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => openBusiness(business)}>Open</button>
                     </td>
                   </tr>
                 )) : (
