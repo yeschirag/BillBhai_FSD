@@ -80,9 +80,9 @@ function LoginPage() {
           </ul>
           <p className="login-side-note">Free to use while in beta · No credit card required</p>
         </div>
-        <div className="login-neu-card" id="loginCard">
+        <div className="login-card" id="loginCard">
             <div className="brand-header">
-              <h3 className="login-neu-card-title">Welcome back</h3>
+              <h3>Welcome back</h3>
               <p className="login-desc login-lead">
                 Sign in to manage orders, inventory, and billing in one workspace.
               </p>
@@ -149,8 +149,8 @@ function LoginPage() {
               ) : null}
 
               <button type="submit" className={`btn-login ${isSubmitting ? 'loading' : ''}`} id="btnLogin" disabled={isSubmitting}>
-                <span className="neu-btn-text">{isSubmitting ? 'Signing In…' : 'Sign In'}</span>
-                <span className="neu-btn-loader">
+                <span className="btn-text">{isSubmitting ? 'Signing In…' : 'Sign In'}</span>
+                <span className="btn-loader">
                   <svg className="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle></svg>
                 </span>
               </button>

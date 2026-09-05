@@ -92,9 +92,9 @@
   
   /* Neumorphic Dark Base */
   --neu-base: #16181c;
-  --neu-light: rgba(255, 255, 255, 0.05);
+  --neu-light: rgba(255, 255, 255, 0.18);
   --neu-dark: rgba(0, 0, 0, 0.95);
-  
+
   /* Override Shadows specifically for dark mode to make them subtler */
   --neu-shadow-raised: 6px 6px 12px var(--neu-dark), -6px -6px 12px var(--neu-light);
   --neu-shadow-raised-sm: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
@@ -4667,6 +4667,41 @@ body.landing-page .chart-fill {
 .neu-btn--secondary {
   background: var(--neu-base);
   color: var(--neu-text-primary);
+  box-shadow: var(--neu-shadow-raised-sm);
+}
+
+.neu-btn--secondary:hover {
+  background: var(--neu-base);
+  color: var(--neu-text-primary);
+  box-shadow: var(--neu-shadow-raised);
+  transform: translateY(-1px);
+}
+
+.neu-btn--secondary:active {
+  background: var(--neu-base);
+  color: var(--neu-text-primary);
+  box-shadow: var(--neu-shadow-inset-sm) !important;
+  transform: scale(0.975) !important;
+}
+
+.neu-btn--ghost {
+  background: transparent;
+  color: var(--neu-text-primary);
+  box-shadow: none;
+  border: 1px solid transparent;
+}
+
+.neu-btn--ghost:hover {
+  background: var(--surface-hover);
+  color: var(--neu-text-primary);
+  box-shadow: var(--neu-shadow-inset-sm);
+  transform: none;
+}
+
+.neu-btn--ghost:active {
+  background: var(--surface-active);
+  box-shadow: var(--neu-shadow-inset-sm) !important;
+  transform: scale(0.975) !important;
 }
 
 .neu-btn--destructive {
@@ -4687,6 +4722,483 @@ body.landing-page .chart-fill {
 .neu-btn--lg {
   padding: 14px 24px;
   font-size: 1rem;
+}
+
+.neu-btn--block {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.neu-btn-back,
+.neu-btn-logout,
+.neu-btn-clear-cart {
+  min-width: auto;
+  padding: 6px 12px;
+}
+
+.neu-btn-preset {
+  background: var(--neu-primary);
+  color: #ffffff !important;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  min-width: auto;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  box-shadow: var(--neu-shadow-inset-sm);
+}
+
+.neu-btn-preset:hover {
+  background: #991b1b;
+  box-shadow: var(--neu-shadow-raised-sm);
+}
+
+.neu-btn-preset:active {
+  box-shadow: var(--neu-shadow-inset-sm) !important;
+  transform: scale(0.975) !important;
+}
+
+/* POS Action buttons with primary styling */
+.neu-btn-primary,
+.neu-btn-block {
+  background: var(--neu-primary);
+  color: #ffffff !important;
+}
+
+.neu-btn-primary:hover,
+.neu-btn-block:hover {
+  background: #991b1b;
+  box-shadow: 8px 8px 18px var(--neu-dark), -8px -8px 18px var(--neu-light);
+  transform: translateY(-1px);
+}
+
+.neu-btn-primary:active,
+.neu-btn-block:active {
+  box-shadow: inset 3px 3px 8px #7f1d1d, inset -3px -3px 8px #dc2626 !important;
+  transform: scale(0.975) !important;
+}
+
+/* Held Panel Styles */
+.held-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--neu-shadow-raised-sm);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.held-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.held-row:last-child {
+  border-bottom: none;
+}
+
+.held-info {
+  flex: 1;
+}
+
+.held-info strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.held-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Payment Summary Styles */
+.pay-summary {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--neu-shadow-raised);
+  margin-left: 20px;
+  min-width: 280px;
+}
+
+.pay-summary-neu-card {
+  background: var(--neu-base);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--neu-shadow-raised-sm);
+}
+
+.pay-summary-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--neu-text-primary);
+}
+
+.checkout-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.88rem;
+}
+
+.checkout-summary-row.total {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.checkout-summary-row.cf-discount {
+  color: var(--neu-success);
+}
+
+.change-chip {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--neu-success);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.change-chip.short {
+  background: var(--neu-destructive);
+}
+
+.pay-summary button {
+  width: 100%;
+  margin-top: 16px;
+}
+
+/* Thermal Receipt Card */
+.thermal-receipt-neu-card {
+  background: #0f172a;
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--neu-text-primary);
+  box-shadow: var(--neu-shadow-raised-lg);
+  margin: 16px 0;
+  border-left: 4px solid var(--neu-primary);
+}
+
+.receipt-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.receipt-header h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.receipt-header p {
+  margin: 2px 0;
+  opacity: 0.8;
+}
+
+.receipt-date {
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+.receipt-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 12px 0;
+}
+
+.receipt-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.receipt-footer-msg {
+  text-align: center;
+  margin-top: 12px;
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+/* POS Step Indicator */
+.pos-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.pos-step-pill {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--neu-base);
+  box-shadow: var(--neu-shadow-inset-sm);
+}
+
+.pos-step-pill.active {
+  background: var(--neu-primary);
+  color: #ffffff;
+}
+
+.pos-step-arrow {
+  color: var(--neu-text-secondary);
+  font-size: 1rem;
+}
+
+/* Step Container */
+.step-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Customer Row */
+.customer-row {
+  display: flex;
+  gap: 16px;
+}
+
+.customer-row .form-group {
+  flex: 1;
+}
+
+.lookup-note {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--neu-text-secondary);
+}
+
+.lookup-note.found {
+  color: var(--neu-success);
+}
+
+/* Product Card Top */
+.product-neu-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.product-cat {
+  font-size: 0.7rem;
+  color: var(--neu-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-badge {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.stock-badge.in-stock {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--neu-success);
+}
+
+.stock-badge.low-stock {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--neu-warning);
+}
+
+.stock-badge.out-of-stock {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--neu-destructive);
+}
+
+.stock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.product-add-neu-btn {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: var(--neu-primary);
+  font-weight: 600;
+}
+
+/* Product Card in Grid */
+.product-card {
+  background: var(--neu-base);
+  border-radius: var(--radius);
+  padding: 12px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  box-shadow: var(--neu-shadow-raised-sm);
+  border: none;
+}
+
+.product-card:hover:not(.disabled) {
+  box-shadow: var(--neu-shadow-raised);
+  transform: translateY(-2px);
+}
+
+.product-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.product-card.in-cart {
+  background: var(--neu-primary);
+  color: #ffffff;
+}
+
+.product-card.in-cart:hover:not(.disabled) {
+  box-shadow: 8px 8px 20px #7f1d1d, -8px -8px 20px #dc2626;
+}
+
+.product-card.in-cart .product-add-neu-btn {
+  color: #ffffff;
+}
+
+.product-cat {
+  font-size: 0.7rem;
+  color: var(--neu-text-muted);
+}
+
+.product-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.product-size {
+  font-size: 0.7rem;
+  color: var(--neu-text-secondary);
+}
+
+.product-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.product-price {
+  font-weight: 600;
+  color: var(--neu-primary);
+}
+
+.mono-num {
+  font-family: var(--font-mono);
+}
+
+/* Search Clear Button */
+.search-clear-neu-btn {
+  background: transparent;
+  border: none;
+  color: var(--neu-text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: opacity 0.15s ease-out;
+}
+
+.search-clear-neu-btn:hover {
+  opacity: 0.7;
+}
+
+/* Product Add Button */
+.product-add-btn {
+  background: transparent;
+  border: none;
+  color: var(--neu-primary);
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease-out;
+  padding: 0;
+  line-height: 1;
+}
+
+.product-add-btn:hover {
+  opacity: 0.8;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-neu-btn {
+  background: var(--neu-base);
+  border: none;
+  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  box-shadow: var(--neu-shadow-raised-sm);
+  color: var(--neu-text-primary);
+}
+
+.theme-toggle-neu-btn:hover {
+  box-shadow: var(--neu-shadow-raised);
+  transform: translateY(-1px);
+}
+
+/* Notification Button */
+.notif-neu-btn {
+  background: var(--neu-base);
+  border: none;
+  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  box-shadow: var(--neu-shadow-raised-sm);
+  position: relative;
+  color: var(--neu-text-primary);
+}
+
+.notif-neu-btn:hover {
+  box-shadow: var(--neu-shadow-raised);
+  transform: translateY(-1px);
+}
+
+.notif-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--neu-destructive);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--neu-base);
 }
 
 /* Badge Primitive */

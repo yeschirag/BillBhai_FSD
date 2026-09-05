@@ -677,7 +677,7 @@ function CashierPage() {
                     <span className="cart-badge-count">{cartCount} items</span>
                   </div>
                   <div className="cart-header-actions">
-                    <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={toggleHolds}>
+                    <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={toggleHolds}>
                       Parked ({holds.length})
                     </button>
                     {cart.length ? (
@@ -699,8 +699,8 @@ function CashierPage() {
                           <span className="text-muted">{hold.id}</span>
                         </div>
                         <div className="held-actions">
-                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => resumeHold(hold)}>Resume</button>
-                          <button type="button" className="neu-btn neu-btn--secondary neu-neu-btn--sm" onClick={() => discardHold(hold)}>Discard</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => resumeHold(hold)}>Resume</button>
+                          <button type="button" className="neu-btn neu-btn--secondary neu-btn--sm" onClick={() => discardHold(hold)}>Discard</button>
                         </div>
                       </div>
                     ))}
@@ -757,7 +757,7 @@ function CashierPage() {
                           onChange={(event) => { setPromoInput(event.target.value.toUpperCase()); setPromoError('') }}
                           onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyPromo() } }}
                         />
-                        <button type="button" className="neu-btn neu-btn--primary neu-neu-btn--sm" onClick={applyPromo}>
+                        <button type="button" className="neu-btn neu-btn--primary neu-btn--sm" onClick={applyPromo}>
                           Apply
                         </button>
                       </div>
@@ -796,12 +796,12 @@ function CashierPage() {
                   </div>
 
                   <div className="cart-actions">
-                    <button type="button" className="neu-btn neu-neu-btn--secondary" disabled={!cart.length || submitting} onClick={holdCart}>
+                    <button type="button" className="neu-btn neu-btn--secondary" disabled={!cart.length || submitting} onClick={holdCart}>
                       Park (Hold)
                     </button>
                     <button
                       type="button"
-                      className="neu-btn neu-neu-btn--primary"
+                      className="neu-btn neu-btn--primary"
                       disabled={!cart.length || submitting}
                       onClick={() => {
                         setTendered('')
@@ -1011,10 +1011,10 @@ function CashierPage() {
               </section>
 
               <div className="pos-receipt-actions">
-                <button type="button" className="neu-btn neu-neu-btn--secondary" onClick={() => window.print()}>
+                <button type="button" className="neu-btn neu-btn--secondary" onClick={() => window.print()}>
                   🖨️ Print Receipt
                 </button>
-                <button type="button" className="neu-btn neu-neu-btn--primary" onClick={resetFlow}>
+                <button type="button" className="neu-btn neu-btn--primary" onClick={resetFlow}>
                   ⚡ Start Next Sale (Enter)
                 </button>
               </div>
