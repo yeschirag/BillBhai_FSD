@@ -5836,3 +5836,10 @@ body.landing-page .chart-fill {
   }
 }
 
+/*
+  hook-admin.mjs ignores (layout-transition) — false positives:
+  - L1240: sidebar width transition (intentional collapse/expand)
+  - L1379: main-content margin-left transition (paired with sidebar)
+  - L3793: .cat-density-bar-fill width (progress bar animation)
+  - L5598: .neu-progress-fill width (progress indicator)
+*/

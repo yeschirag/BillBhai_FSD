@@ -1,0 +1,11 @@
+{
+  "ignored": [
+    {"line": 1240, "reason": "sidebar width transition — intentional collapse/expand with paired margin-left"},
+    {"line": 1379, "reason": "main-content margin-left transition — paired with sidebar width"},
+    {"line": 3793, "reason": ".cat-density-bar-fill width — progress bar animation"},
+    {"line": 5598, "reason": ".neu-progress-fill width — progress indicator animation"}
+  ],
+  "file": "front-end/src/index.css",
+  "rule": "layout-transition",
+  "category": "false-positive"
+}
