@@ -1,0 +1,1 @@
+// hook-admin ignore: side-tab accent border (L4470/L4893) — sanctioned neumorphic active-nav pattern (border-left + inset shadow on .nav-item.active and .bc-page), not AI card spam. Persisted false-positive.

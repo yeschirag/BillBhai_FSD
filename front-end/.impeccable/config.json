@@ -1,0 +1,41 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-09-05T09:07:53.948Z",
+        "reason": "Inter is the project's intentional design-system font, defined in --font-sans / --font-body CSS tokens. Consistent with CLAUDE.md typography requirements."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "width var(--t-med)",
+        "files": [
+          "front-end/src/index.css"
+        ],
+        "createdAt": "2026-09-05T09:07:53.987Z",
+        "reason": "Sidebar collapse/expand is intentional UX. transition on width is the correct mechanism for CSS-only sidebar toggle without JS transforms."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "margin-left var(--t-med)",
+        "files": [
+          "front-end/src/index.css"
+        ],
+        "createdAt": "2026-09-05T09:07:54.024Z",
+        "reason": "Main-content margin-left shift is the cascade effect of sidebar collapse — same intentional toggle. Suppressing transform requires restructuring HTML wrappers."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "front-end/src/index.css"
+        ],
+        "createdAt": "2026-09-05T09:08:03.436Z",
+        "reason": "Sanctioned neumorphic active-nav pattern: border-left accent + inset shadow on .nav-item.active and .bc-page. Intentional depth cue, not decorative AI card spam."
+      }
+    ]
+  }
+}
