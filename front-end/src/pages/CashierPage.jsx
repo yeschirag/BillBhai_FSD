@@ -647,15 +647,26 @@ function CashierPage() {
                         onClick={() => addToCart(product)}
                         disabled={out}
                       >
-                        <div className="product-neu-card-top">
+                        <div className="product-neu-card-top" style={{ position: 'relative' }}>
+                          <img
+                            src={`https://picsum.photos/seed/${String(product.id || product.name || '').replace(/\W/g, '').slice(0, 12)}/160/160`}
+                            alt={product.name}
+                            loading="lazy"
+                            style={{
+                              width: 56, height: 56, borderRadius: 10,
+                              objectFit: 'cover',
+                              boxShadow: 'inset 2px 2px 6px rgba(0,0,0,0.15), inset -2px -2px 6px rgba(255,255,255,0.7)',
+                              flexShrink: 0,
+                            }}
+                          />
                           <span className="product-cat">{product.category || 'General'}</span>
                           <span className={`stock-badge ${out ? 'out-of-stock' : stock !== null && stock < 5 ? 'low-stock' : 'in-stock'}`}>
                             <span className="stock-dot" />
                             {stock === null ? 'untracked' : out ? 'Out of stock' : `${stock} left`}
                           </span>
                         </div>
-                        <div className="product-meta">
-                          <strong className="product-name">{product.name}</strong>
+                        <div className="product-meta" style={{ flex: 1, minWidth: 0 }}>
+                          <strong className="product-name" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.name}</strong>
                           {product.size ? <span className="product-size">{product.size}</span> : null}
                         </div>
                         <div className="product-foot">

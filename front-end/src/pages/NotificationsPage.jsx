@@ -58,7 +58,7 @@ function NotificationsPage() {
 
       <section className="neu-card">
         <div className="neu-card-hd"><h3>Inbox</h3></div>
-        <div className="neu-card-bd workspace-notification-list">
+        <div className="neu-card-bd workspace-notification-list" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 8 }}>
           {filteredNotifications.length ? filteredNotifications.map((item) => {
             const canToggle = notifications.some((entry) => entry.id === item.id)
             return (

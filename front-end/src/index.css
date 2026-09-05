@@ -989,13 +989,13 @@ table.dt .cell-main {
   right: 0;
   min-width: 220px;
   padding: 6px;
-  background: transparent;
-  border: none;
-  box-shadow: var(--neu-shadow-inset);
+  background: var(--neu-base);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: 8px 8px 20px rgba(0,0,0,0.22), -6px -6px 14px rgba(255,255,255,0.06);
   display: none;
   z-index: 60;
+  overflow: hidden;
 }
 .dropdown-menu.show {
   display: block;
@@ -1082,14 +1082,16 @@ table.dt .cell-main {
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  background: transparent;
-  border: none;
-  box-shadow: var(--neu-shadow-inset);
+  background: var(--neu-base);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: 6px 6px 16px rgba(0,0,0,0.2), -4px -4px 12px rgba(255,255,255,0.05);
   font-size: 0.84rem;
   color: var(--text-primary);
   animation: bb-toast-in var(--t-med) ease-out;
+  max-width: 100%;
+  overflow: hidden;
+  word-break: break-word;
 }
 .toast::before {
   content: '';

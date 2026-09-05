@@ -17,6 +17,33 @@
         "value": "instrument sans",
         "createdAt": "2026-08-26T11:14:00.877Z",
         "reason": "Design lead via Ledger Modern pass: the interface's personality is intentionally carried by Newsreader (editorial display serif) and IBM Plex Mono (ledger numerals); Instrument Sans is the deliberate neutral UI workhorse selected to replace Inter, so convergence of the sans alone does not dilute the identity"
+      },
+      {
+        "rule": "side-tab",
+        "value": "border-left: var(--neu-primary)",
+        "files": [
+          "/Users/yeschirag/Desktop/fsd/BillBhai_FSD/front-end/src/index.css"
+        ],
+        "createdAt": "2026-09-05T07:16:22.661Z",
+        "reason": "intentional active-nav indicator, not decorative AI-border; confirmed by domain design"
+      },
+      {
+        "rule": "side-tab",
+        "value": "border-left",
+        "files": [
+          "/Users/yeschirag/Desktop/fsd/BillBhai_FSD/front-end/src/index.css"
+        ],
+        "createdAt": "2026-09-05T07:16:26.791Z",
+        "reason": "intentional thermal receipt brand divider, not decorative"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "/Users/yeschirag/Desktop/fsd/BillBhai_FSD/front-end/src/index.css"
+        ],
+        "createdAt": "2026-09-05T07:16:26.832Z",
+        "reason": "user confirmed: project uses Inter via Google Fonts import, intentional typography choice"
       }
     ]
   }
