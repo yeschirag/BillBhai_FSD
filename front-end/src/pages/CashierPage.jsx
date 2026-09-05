@@ -11,7 +11,7 @@ import { toast } from '../components/toastBus.js'
  * Real-time stock sync, active promo recalculation, multi-tender support, and thermal receipts.
  */
 
-const PAYMENT_METHODS = ['Cash', 'UPI', 'Card']
+const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Razorpay']
 
 const PROMO_PRESETS = [
   { code: 'WELCOME10', label: '10% OFF' },
@@ -875,7 +875,7 @@ function CashierPage() {
                         aria-pressed={payMethod === method}
                         onClick={() => { setPayMethod(method); setTendered('') }}
                       >
-                        {method === 'UPI' ? '📱 UPI / QR Code' : method === 'Card' ? '💳 Card' : '💵 Cash'}
+                        {method === 'UPI' ? '📱 UPI / QR Code' : method === 'Card' ? '💳 Card' : method === 'Razorpay' ? '⚡ Razorpay' : '💵 Cash'}
                       </button>
                     ))}
                   </div>
@@ -890,6 +890,24 @@ function CashierPage() {
                         <p>GPay, PhonePe, Paytm, BHIM</p>
                         <span className="upi-amount-pill">{formatCurrency(total)}</span>
                       </div>
+                    </div>
+                  ) : null}
+
+                  {payMethod === 'Razorpay' && !modeIsCod ? (
+                    <div className="upi-qr-box razorpay-qr-box">
+                      <div className="razorpay-brand">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0564AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+                        <strong style={{ color: '#0564AF', fontSize: '1rem' }}>Razorpay</strong>
+                      </div>
+                      <div className="upi-qr-placeholder razorpay-qr">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="7" y1="7" x2="7.01" y2="7"/><line x1="17" y1="7" x2="17.01" y2="7"/><line x1="7" y1="17" x2="7.01" y2="17"/><line x1="17" y1="17" x2="17.01" y2="17"/></svg>
+                      </div>
+                      <div className="upi-qr-details">
+                        <strong>Pay via Razorpay</strong>
+                        <p>UPI, Cards, Net Banking, Wallets</p>
+                        <span className="upi-amount-pill">{formatCurrency(total)}</span>
+                      </div>
+                      <p className="razorpay-note">Payment captured via Razorpay · Instant settlement</p>
                     </div>
                   ) : null}
 
