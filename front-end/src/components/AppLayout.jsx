@@ -95,7 +95,14 @@ const MAIN_NAV_KEYS = ['dashboard', 'orders', 'inventory', 'delivery']
 const MANAGEMENT_NAV_KEYS = ['returns', 'reports', 'users', 'businesses', 'superuser']
 
 function AppLayout() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  // Persist collapsed state so closing the sidebar survives a re-render/navigation
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false)
   const [isNotifOpen, setIsNotifOpen] = useState(false)
   const [isUserOpen, setIsUserOpen] = useState(false)
@@ -185,7 +192,9 @@ function AppLayout() {
       setIsSidebarMobileOpen((prev) => !prev)
       return
     }
-    setIsSidebarCollapsed((prev) => !prev)
+    const next = !isSidebarCollapsed
+    setIsSidebarCollapsed(next)
+    try { localStorage.setItem('sidebar_collapsed', String(next)) } catch {}
   }
 
   const closeDropdowns = () => {
@@ -216,6 +225,7 @@ function AppLayout() {
                 setIsSidebarMobileOpen(false)
               } else {
                 setIsSidebarCollapsed(true)
+                try { localStorage.setItem('sidebar_collapsed', 'true') } catch {}
               }
             }}
           >

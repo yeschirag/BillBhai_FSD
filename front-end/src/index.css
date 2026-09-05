@@ -3306,6 +3306,8 @@ body.landing-page .hero-subtitle {
   font-size: 1.02rem;
   line-height: 1.65;
   color: var(--text-secondary);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 body.landing-page .hero-pills {
   display: flex;
@@ -5843,3 +5845,20 @@ body.landing-page .chart-fill {
   - L3793: .cat-density-bar-fill width (progress bar animation)
   - L5598: .neu-progress-fill width (progress indicator)
 */
+
+/* Pricing section styles */
+.pricing-section { padding: 80px 0; background: var(--surface); }
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 24px; margin-top: 32px; }
+.pricing-card { background: var(--bg-card,var(--surface)); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; box-shadow: var(--neu-shadow-inset); position: relative; }
+.pricing-card.featured { border-color: #ef4444; box-shadow: 0 0 0 1px #ef4444,var(--neu-shadow-raised-sm); }
+.pricing-badge { position: absolute; top: 16px; right: 16px; background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: var(--radius-full); letter-spacing: 0.02em; }
+.pricing-tier { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+.pricing-amount { margin-bottom: 8px; }
+.price-val { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; }
+.price-period { font-size: 0.85rem; color: var(--text-muted); }
+.pricing-tagline { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4; }
+.pricing-features { list-style: none; padding: 0; margin-bottom: 20px; }
+.pricing-features li { padding: 4px 0; font-size: 0.88rem; color: var(--text-secondary); border-bottom: 1px solid rgba(0,0,0,0.06); }
+.pricing-features li:last-child { border-bottom: none; }
+.neu-btn--block { display: block; width: 100%; text-align: center; }
+

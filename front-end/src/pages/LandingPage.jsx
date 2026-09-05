@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTheme } from '../context/ThemeProvider'
 
 function LandingPage() {
   const [isNavScrolled, setIsNavScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('pos')
   const [faqOpen, setFaqOpen] = useState(null)
+  const { theme, toggleTheme } = useTheme()
 
   useEffect(() => {
     document.title = 'BillBhai - Billing, Inventory & Delivery for Indian Retail'
@@ -42,12 +44,26 @@ function LandingPage() {
             <img src="/logo.png" alt="BillBhai" className="nav-logo-img" />
           </Link>
           <div className={`nav-links${isMobileMenuOpen ? ' open' : ''}`} id="navLinks">
+            <a href="#pricing" className="nav-link" onClick={closeMobileMenu}>Pricing</a>
             <a href="#features" className="nav-link" onClick={closeMobileMenu}>Features</a>
             <a href="#interactive-preview" className="nav-link" onClick={closeMobileMenu}>Live Preview</a>
             <a href="#how-it-works" className="nav-link" onClick={closeMobileMenu}>How It Works</a>
             <a href="#faq" className="nav-link" onClick={closeMobileMenu}>FAQ</a>
           </div>
           <div className="nav-actions">
+            <button
+              type="button"
+              className="icon-btn theme-toggle-neu-btn"
+              aria-label="Toggle theme"
+              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+              onClick={toggleTheme}
+            >
+              {theme === 'light' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 1 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
             <Link to="/login" className="neu-btn neu-btn--ghost" id="navSignInBtn">Sign In</Link>
             <Link to="/register-business" className="neu-btn neu-btn--primary" id="navPrimaryBtn">Get Started Free</Link>
           </div>
@@ -439,6 +455,66 @@ function LandingPage() {
                 {faqOpen === index ? <p className="faq-answer">{faq.a}</p> : null}
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="pricing-section" id="pricing">
+        <div className="container">
+          <div className="section-header">
+            <h2 className="section-title">Simple, transparent pricing</h2>
+            <p className="section-desc">Start free while in beta. No hidden charges, no surprises.</p>
+          </div>
+          <div className="pricing-grid">
+            <div className="pricing-card">
+              <div className="pricing-tier">Free</div>
+              <div className="pricing-amount">
+                <span className="price-val">₹0</span>
+                <span className="price-period">/ month</span>
+              </div>
+              <p className="pricing-tagline">Perfect for a single counter to get started</p>
+              <ul className="pricing-features">
+                <li>✓ Up to 3 staff logins</li>
+                <li>✓ Unlimited bills &amp; invoices</li>
+                <li>✓ Live stock sync</li>
+                <li>✓ Basic reports</li>
+                <li>✓ Email support</li>
+              </ul>
+              <Link to="/register-business" className="neu-btn neu-btn--secondary neu-btn--block">Get Started Free</Link>
+            </div>
+            <div className="pricing-card featured">
+              <div className="pricing-badge">Most Popular</div>
+              <div className="pricing-tier">Pro</div>
+              <div className="pricing-amount">
+                <span className="price-val">₹499</span>
+                <span className="price-period">/ month</span>
+              </div>
+              <p className="pricing-tagline">For growing stores with multiple counters</p>
+              <ul className="pricing-features">
+                <li>✓ Unlimited staff logins</li>
+                <li>✓ Multi-counter management</li>
+                <li>✓ Advanced analytics &amp; reports</li>
+                <li>✓ Priority support</li>
+                <li>✓ GST filing integration</li>
+              </ul>
+              <Link to="/register-business" className="neu-btn neu-btn--primary neu-btn--block">Start Pro Trial</Link>
+            </div>
+            <div className="pricing-card">
+              <div className="pricing-tier">Enterprise</div>
+              <div className="pricing-amount">
+                <span className="price-val">Custom</span>
+              </div>
+              <p className="pricing-tagline">For chains, franchises, and large retail operations</p>
+              <ul className="pricing-features">
+                <li>✓ Everything in Pro</li>
+                <li>✓ Custom integrations</li>
+                <li>✓ Dedicated account manager</li>
+                <li>✓ On-premise deployment option</li>
+                <li>✓ SLA guarantee</li>
+              </ul>
+              <Link to="/register-business" className="neu-btn neu-btn--secondary neu-btn--block">Contact Sales</Link>
+            </div>
           </div>
         </div>
       </section>
