@@ -1243,15 +1243,49 @@ table.dt .cell-main {
 .sidebar-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   height: var(--header-h);
-  padding: 0 18px;
+  padding: 0 12px 0 18px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   overflow: hidden;
+  gap: 8px;
 }
 .sidebar-brand-img {
   height: 30px;
   width: auto;
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.sidebar-close-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.sidebar-close-btn:focus-visible {
+  outline: 2px solid var(--neu-primary);
+  outline-offset: 2px;
+}
+.sidebar.collapsed .sidebar-close-btn {
+  display: none;
+}
+@media (max-width: 768px) {
+  .sidebar.collapsed .sidebar-close-btn {
+    display: inline-flex;
+  }
 }
 
 .sidebar-nav {

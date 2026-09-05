@@ -616,8 +616,8 @@ function CashierPage() {
         </div>
 
         <div className="pos-header-right">
-          <div className="pos-user-badge">
-            <span className="pos-user-avatar">{String(user?.name || 'C').charAt(0).toUpperCase()}</span>
+          <div className="pos-user-badge" title={`${user?.name || 'Cashier'} — ${user?.role || 'POS'}`}>
+            <span className="pos-user-avatar" aria-label="User avatar">{String(user?.name || 'C').charAt(0).toUpperCase()}</span>
             <span className="pos-user-name">{user?.name || 'Cashier'}</span>
           </div>
           <button
@@ -705,9 +705,9 @@ function CashierPage() {
                             {productIcon(product)}
                           </div>
                           <span className="product-cat">{product.category || 'General'}</span>
-                          <span className={`stock-badge ${out ? 'out-of-stock' : stock !== null && stock < 5 ? 'low-stock' : 'in-stock'}`}>
-                            <span className="stock-dot" />
-                            {stock === null ? 'untracked' : out ? 'Out of stock' : `${stock} left`}
+                          <span className={`stock-badge ${out ? 'out-of-stock' : stock !== null && stock < 5 ? 'low-stock' : 'in-stock'}`} aria-label={`Stock: ${stock === null ? 'untracked' : out ? 'out of stock' : stock + ' remaining'}`}>
+                            <span className="stock-dot" aria-hidden="true" />
+                            {stock === null ? 'untracked' : out ? 'Out' : `${stock} left`}
                           </span>
                         </div>
                         <div className="product-meta" style={{ flex: 1, minWidth: 0 }}>
