@@ -21,6 +21,49 @@ const PROMO_PRESETS = [
   { code: 'BILLBHAI', label: '15% OFF' },
 ]
 
+// Deterministic icon per product category — no external images, always relevant
+const CAT_ICONS = {
+  // Food & Grocery
+  'General':         '🥡', 'Grocery':       '🛒', 'Food':          '🍔', 'Beverage':     '🥤',
+  'Dairy':           '🥛', 'Snacks':         '🍿', 'Fruits':        '🍎', 'Vegetables':   '🥬',
+  'Bakery':          '🥐', 'Sweets':         '🍫', 'Tea & Coffee':  '☕', 'Rice & Pulses':'🌾',
+  'Spices':          '🌶️', 'Oil & Ghee':     '🫒', 'Personal Care': '🧴', 'Household':    '🧹',
+  'Electronics':     '📱', 'Clothing':       '👕', 'Footwear':      '👟', 'Accessories':  '👜',
+  'Pharmacy':        '💊', 'Stationery':     '📓', 'Sports':        '⚽', 'Toys':         '🧸',
+  'Books':           '📚', 'Kitchen':         '🍳', 'Cleaning':      '🧽', 'Frozen':       '🧊',
+}
+
+const EMOJI_POOL = ['🥡','🛒','📦','🏷️','📦','🧾','🛍️','📦','🥡','🛒']
+
+function productIcon(product) {
+  const cat = product.category || 'General'
+  const icon = CAT_ICONS[cat]
+  if (icon) return icon
+  // Derive a stable icon from the product name
+  const name = (product.name || '')
+  if (/rice|dall|pulse|grain|wheat|atta/.test(name))    return '🌾'
+  if (/oil|ghee|mustard|sunflower/.test(name))           return '🫒'
+  if (/milk|dahi|curd|paneer|cheese|yogurt/.test(name))  return '🥛'
+  if (/tea|coffee|chai|green tea/.test(name))            return '☕'
+  if (/chocolate|candy|sweet|gulab|barfi|ladoo/.test(name)) return '🍫'
+  if (/fruit|mango|apple|banana|grape|orange/.test(name)) return '🍎'
+  if (/veg|palak|methi|onion|tomato|potato/.test(name))   return '🥬'
+  if (/bread|biscuit|cookie|cake|roti/.test(name))       return '🥐'
+  if (/sugar|salt|chilli|turmeric|masala/.test(name))    return '🌶️'
+  if (/shampoo|soap|cream|lotion|perfume/.test(name))    return '🧴'
+  if (/phone|laptop|charger|earphone|headphone/.test(name)) return '📱'
+  if (/shirt|jeans|kurta|pant|saree|frock/.test(name))   return '👕'
+  if (/shoes|sandal|slipper|boot|footwear/.test(name))   return '👟'
+  if (/bag|wallet|purse|watch|sunglass|ring/.test(name)) return '👜'
+  if (/medicine|tablet|syrup|bandage|ayurved/.test(name)) return '💊'
+  if (/book|notebook|pen|pencil|sticker/.test(name))      return '📓'
+  if (/ball|bat|mat|skip|cricket|football/.test(name))   return '⚽'
+  if (/toy|doll|car|robot|puzzle/.test(name))             return '🧸'
+  // Fallback: deterministic pick from name chars
+  const idx = (product.id || product.name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % EMOJI_POOL.length
+  return EMOJI_POOL[idx]
+}
+
 const MODES = [
   {
     id: 'takeaway',
@@ -648,17 +691,19 @@ function CashierPage() {
                         disabled={out}
                       >
                         <div className="product-neu-card-top" style={{ position: 'relative' }}>
-                          <img
-                            src={`https://picsum.photos/seed/${String(product.id || product.name || '').replace(/\W/g, '').slice(0, 12)}/160/160`}
-                            alt={product.name}
-                            loading="lazy"
+                          <div
+                            className="product-icon-tile"
+                            aria-hidden="true"
                             style={{
                               width: 56, height: 56, borderRadius: 10,
-                              objectFit: 'cover',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '1.6rem',
                               boxShadow: 'inset 2px 2px 6px rgba(0,0,0,0.15), inset -2px -2px 6px rgba(255,255,255,0.7)',
                               flexShrink: 0,
                             }}
-                          />
+                          >
+                            {productIcon(product)}
+                          </div>
                           <span className="product-cat">{product.category || 'General'}</span>
                           <span className={`stock-badge ${out ? 'out-of-stock' : stock !== null && stock < 5 ? 'low-stock' : 'in-stock'}`}>
                             <span className="stock-dot" />

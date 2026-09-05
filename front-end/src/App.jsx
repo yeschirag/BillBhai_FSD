@@ -22,6 +22,7 @@ import RegisterBusinessPage from './pages/RegisterBusinessPage.jsx'
 import ReportsPage from './pages/ReportsPage.jsx'
 import ReturnsPage from './pages/ReturnsPage.jsx'
 import SuperuserPage from './pages/SuperuserPage.jsx'
+import SubscriptionPlanPage from './pages/SubscriptionPlanPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
 
 function AppRoot() {
@@ -128,6 +129,14 @@ function App() {
           element={(
             <ProtectedRoute allowedRoles={['superuser']}>
               <BusinessesPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/subscription-plan"
+          element={(
+            <ProtectedRoute allowedRoles={ADMIN_AND_ABOVE_ROLES}>
+              <SubscriptionPlanPage />
             </ProtectedRoute>
           )}
         />
