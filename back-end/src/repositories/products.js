@@ -24,12 +24,16 @@ function toProduct(row) {
 module.exports = {
   toProduct,
 
-  async findAll(db, { category, limit, offset } = {}) {
+  async findAll(db, { category, companyId, limit, offset } = {}) {
     const clauses = [];
     const values = [];
     if (category) {
       values.push(category);
       clauses.push(`category = $${values.length}`);
+    }
+    if (companyId) {
+      values.push(companyId);
+      clauses.push(`company_id = $${values.length}`);
     }
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
     const paging = applyPaging(values, limit, offset);

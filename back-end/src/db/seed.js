@@ -130,8 +130,8 @@ async function seed(client) {
 
   for (const p of PRODUCTS) {
     await client.query(
-      `INSERT INTO products (id, supplier_id, name, category, barcode, price, size, description)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO products (id, supplier_id, name, category, barcode, price, size, description, company_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'BIZ-101')
        ON CONFLICT (id) DO NOTHING`,
       p,
     );

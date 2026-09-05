@@ -236,40 +236,49 @@ export function clearSession() {
 export async function authenticateUser(identity, password) {
   if (apiConfig.mode === 'remote') {
     const resolvedUsername = resolveUserKey(identity) || identity
-    const remoteLoginResponse = await apiProvider.login({ username: resolvedUsername, password })
-    if (remoteLoginResponse && remoteLoginResponse.ok && remoteLoginResponse.data) {
-      const remoteUser = remoteLoginResponse.data.user || remoteLoginResponse.data
-      const normalizedRole = roleToKey(remoteUser.role)
-      const currentUser = {
-        username: String(remoteUser.username || resolvedUsername).trim(),
-        name: String(remoteUser.name || remoteUser.username || resolvedUsername).trim(),
-        role: normalizedRole,
-        companyId: String(remoteUser.companyId || '').trim() || undefined,
-      }
+    try {
+      const remoteLoginResponse = await apiProvider.login({ username: resolvedUsername, password })
+      if (remoteLoginResponse && remoteLoginResponse.ok && remoteLoginResponse.data) {
+        const remoteUser = remoteLoginResponse.data.user || remoteLoginResponse.data
+        const normalizedRole = roleToKey(remoteUser.role)
+        const currentUser = {
+          username: String(remoteUser.username || resolvedUsername).trim(),
+          name: String(remoteUser.name || remoteUser.username || resolvedUsername).trim(),
+          role: normalizedRole,
+          companyId: String(remoteUser.companyId || '').trim() || undefined,
+        }
 
-      // Persist the JWT so authenticated API calls survive a page reload.
-      const authToken = String(remoteLoginResponse.data.token || '').trim()
-      if (authToken) {
-        localStorage.setItem('authToken', authToken)
-      }
+        // Persist the JWT so authenticated API calls survive a page reload.
+        const authToken = String(remoteLoginResponse.data.token || '').trim()
+        if (authToken) {
+          localStorage.setItem('authToken', authToken)
+        }
 
-      localStorage.setItem('userRole', normalizedRole)
-      localStorage.setItem('userName', currentUser.name)
-      localStorage.setItem('currentUser', JSON.stringify(currentUser))
-      if (remoteUser.companyId) {
-        localStorage.setItem('activeBusinessId', remoteUser.companyId)
-      } else {
-        localStorage.setItem('activeBusinessId', 'BIZ-101')
-      }
+        localStorage.setItem('userRole', normalizedRole)
+        localStorage.setItem('userName', currentUser.name)
+        localStorage.setItem('currentUser', JSON.stringify(currentUser))
+        if (remoteUser.companyId) {
+          localStorage.setItem('activeBusinessId', remoteUser.companyId)
+        } else {
+          localStorage.setItem('activeBusinessId', 'BIZ-101')
+        }
 
-      return {
-        ok: true,
-        user: currentUser,
-        redirectPath: routeByRolePath(normalizedRole),
+        return {
+          ok: true,
+          user: currentUser,
+          redirectPath: routeByRolePath(normalizedRole),
+        }
       }
+      // Remote API responded but said auth failed — do NOT fall through to local auth.
+      return { ok: false, error: remoteLoginResponse?.error || 'Invalid credentials. Please try again.' }
+    } catch (err) {
+      // Network / server error — show service error, do NOT silently fall through to local demo.
+      console.error('[Auth] Remote login failed:', err)
+      return { ok: false, error: 'Authentication service unavailable. Check your connection.' }
     }
   }
 
+  // Local/demo mode — only permitted when not in remote mode (i.e. not production).
   await loadAuthConfig()
 
   const userKey = resolveUserKey(identity)

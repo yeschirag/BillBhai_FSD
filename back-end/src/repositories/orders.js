@@ -192,12 +192,18 @@ module.exports = {
     return toOrderItem(result.rows[0]);
   },
 
-  /** Resolves product names and prices for snapshots at checkout time. */
-  async findProductNamesByIds(db, productIds) {
+  /** Resolves product names and prices for snapshots at checkout time — scoped to company. */
+  async findProductNamesByIds(db, productIds, companyId) {
     if (!productIds.length) return new Map();
+    const clauses = [`id = ANY($1::text[])`];
+    const values = [productIds];
+    if (companyId) {
+      clauses.push(`company_id = $2`);
+      values.push(companyId);
+    }
     const result = await db.query(
-      `SELECT id, name, price FROM products WHERE id = ANY($1::text[])`,
-      [productIds],
+      `SELECT id, name, price FROM products WHERE ${clauses.join(' AND ')}`,
+      values,
     );
     return new Map(result.rows.map((row) => [row.id, { name: row.name, price: Number(row.price || 0) }]));
   },

@@ -3,7 +3,7 @@ const repo = require('../repositories/products');
 const inventoryRepo = require('../repositories/inventory');
 const { parseCsv } = require('../utils/csv');
 const { HttpError, notFound } = require('../utils/http');
-const { resolveCreateCompany } = require('./scope');
+const { resolveCreateCompany, resolveCompanyScope, belongsToScope } = require('./scope');
 
 function toNumber(value, fallback = 0) {
   const n = Number(value);
@@ -31,9 +31,11 @@ function parsePaging(query = {}) {
 module.exports = {
   parsePaging,
 
-  async list(query = {}) {
+  async list(query = {}, actor) {
+    const companyId = resolveCompanyScope(actor, query.companyId);
     return repo.findAll(db, {
       category: query.category ? String(query.category).trim() : undefined,
+      companyId: companyId || undefined,
       ...parsePaging(query),
     });
   },
@@ -42,24 +44,27 @@ module.exports = {
     return repo.findCategories(db);
   },
 
-  async getByBarcode(barcode) {
+  async getByBarcode(barcode, actor) {
     const product = await repo.findByBarcode(db, String(barcode).trim());
     if (!product) throw notFound('Product with barcode', barcode);
+    if (!belongsToScope(product, actor)) throw notFound('Product with barcode', barcode);
     return product;
   },
 
-  async getById(id) {
+  async getById(id, actor) {
     const product = await repo.findById(db, id);
     if (!product) throw notFound('Product', id);
+    if (!belongsToScope(product, actor)) throw notFound('Product', id);
     return product;
   },
 
-  async create(payload = {}) {
+  async create(payload = {}, actor) {
     if (!payload.name || !String(payload.name).trim()) {
       throw new HttpError(400, 'Product name is required', 'Bad Request');
     }
     const price = toNumber(payload.price, 0);
     if (price < 0) throw new HttpError(400, 'Price cannot be negative', 'Bad Request');
+    const companyId = resolveCreateCompany(actor, payload.companyId);
     return repo.insert(db, {
       supplierId: payload.supplierId || null,
       name: String(payload.name).trim(),
@@ -70,13 +75,14 @@ module.exports = {
       purchasePrice: Math.max(0, toNumber(payload.purchasePrice, 0)),
       size: String(payload.size || '').trim(),
       description: String(payload.description || '').trim(),
-      companyId: payload.companyId || null,
+      companyId: companyId || null,
     });
   },
 
-  async update(id, payload = {}) {
+  async update(id, payload = {}, actor) {
     const existing = await repo.findById(db, id);
     if (!existing) throw notFound('Product', id);
+    if (!belongsToScope(existing, actor)) throw notFound('Product', id);
     const fields = {};
     if (payload.supplierId !== undefined) fields.supplierId = payload.supplierId || null;
     if (payload.name !== undefined) fields.name = String(payload.name).trim();
@@ -91,9 +97,10 @@ module.exports = {
   },
 
   /** Cascades to inventory rows; order history keeps its snapshots. */
-  async remove(id) {
+  async remove(id, actor) {
     const existing = await repo.findById(db, id);
     if (!existing) throw notFound('Product', id);
+    if (!belongsToScope(existing, actor)) throw notFound('Product', id);
     await repo.remove(db, id);
     return { statusCode: 200, message: `Product ${id} deleted` };
   },

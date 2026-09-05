@@ -153,10 +153,14 @@ module.exports = {
     const productMap = await repo.findProductNamesByIds(
       db,
       rawItems.map((item) => item.productId),
+      companyId,
     );
 
     const items = rawItems.map((item) => {
       const dbProd = productMap.get(item.productId);
+      if (!dbProd) {
+        throw new HttpError(400, `Product ${item.productId} not found or does not belong to this business`, 'Bad Request');
+      }
       const itemPrice = item.itemPrice > 0 ? item.itemPrice : (dbProd?.price || 0);
       return {
         ...item,

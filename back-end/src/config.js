@@ -22,7 +22,10 @@ if (!config.databaseUrl) {
 }
 
 if (config.nodeEnv === 'production' && config.jwtSecret.startsWith('billbhai-super-secret')) {
-  console.warn('[CONFIG] WARNING: JWT_SECRET is still the development default. Set a real secret in production.');
+  throw new Error(
+    '[CONFIG] FATAL: JWT_SECRET is the development default in production. ' +
+    'Set a real secret via the JWT_SECRET environment variable.',
+  );
 }
 
 module.exports = config;
